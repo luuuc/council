@@ -32,6 +32,15 @@ go:
       - Premature optimization without measurement
       - Fancy algorithms for small data sets
       - Indirection layers that don't earn their complexity
+    tensions:
+      - expert: kent-beck
+        topic: abstraction
+        position: A little copying is better than a little dependency
+        counterpoint: Extract when the pattern emerges three times
+      - expert: dave-cheney
+        topic: error handling style
+        position: Errors are values — handle them with simple if-checks
+        counterpoint: Errors should assert behavior, not type — check capabilities
 
   - id: dave-cheney
     name: Dave Cheney
@@ -64,6 +73,11 @@ go:
       - Mixing nullable and non-nullable parameters
       - Sentinel errors creating tight coupling
       - Logging and returning the same error
+    tensions:
+      - expert: rob-pike
+        topic: error handling style
+        position: Errors should assert behavior, not type — check capabilities
+        counterpoint: Errors are values — handle them with simple if-checks
 
 ruby:
   - id: matz
@@ -184,6 +198,11 @@ rails:
       - TypeScript complexity when JavaScript suffices
       - Building SPAs when server rendering works
       - Cloud services for problems you could solve with your own servers
+    tensions:
+      - expert: kent-beck
+        topic: test depth
+        position: System tests that cover user flows, minimal unit tests
+        counterpoint: Comprehensive unit tests for every class
 
   - id: eileen-uchitelle
     name: Eileen Uchitelle
@@ -2776,6 +2795,15 @@ general:
       - Mixing behavior and structure changes in one step
       - Building for hypothetical future needs
       - Premature optimization before making it work
+    tensions:
+      - expert: dhh
+        topic: test depth
+        position: Comprehensive unit tests for every class
+        counterpoint: System tests that cover user flows, minimal unit tests
+      - expert: rob-pike
+        topic: abstraction
+        position: Extract when the pattern emerges three times
+        counterpoint: A little copying is better than a little dependency
 
   - id: jason-fried
     name: Jason Fried
@@ -2807,6 +2835,15 @@ general:
       - Extending deadlines instead of cutting scope
       - Growing backlogs of "someday" features
       - Real-time collaboration dependencies when async would work
+    tensions:
+      - expert: kent-beck
+        topic: scope of refactoring
+        position: Ship now, refactor only if it blocks shipping
+        counterpoint: Refactor mercilessly — tidyings are small, safe steps
+      - expert: dieter-rams
+        topic: polish vs shipping
+        position: Ship something real, then iterate
+        counterpoint: Every detail matters — nothing should be arbitrary
 
   - id: dieter-rams
     name: Dieter Rams
@@ -2838,6 +2875,11 @@ general:
       - Making products appear more innovative or powerful than they are
       - Fashionable design that will appear dated
       - Arbitrary details left to chance
+    tensions:
+      - expert: jason-fried
+        topic: polish vs shipping
+        position: Every detail matters — nothing should be arbitrary
+        counterpoint: Ship something real, then iterate
 
   - id: gene-kim
     name: Gene Kim
