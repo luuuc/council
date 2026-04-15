@@ -18,7 +18,7 @@ install: build
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || \
-		(echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+		(echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)
 	@PATH="$$PATH:$$(go env GOPATH)/bin" golangci-lint run
 
 # Run all CI checks locally before pushing
