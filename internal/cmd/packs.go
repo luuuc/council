@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"text/tabwriter"
 
+	"github.com/luuuc/council-cli/internal/expert"
 	"github.com/luuuc/council-cli/internal/pack"
 	"github.com/spf13/cobra"
 )
@@ -112,6 +114,69 @@ var packsShowCmd = &cobra.Command{
 				blocking = " [blocking]"
 			}
 			fmt.Printf("  - %s%s\n", m.ID, blocking)
+		}
+
+		// Show known tensions between pack members.
+		// Load expert data once per member for name resolution and tension lookup.
+		memberIDs := make(map[string]bool, len(p.Members))
+		loaded := make(map[string]*expert.Expert, len(p.Members))
+		for _, m := range p.Members {
+			memberIDs[m.ID] = true
+			e, err := expert.Load(m.ID)
+			if err != nil && !os.IsNotExist(err) {
+				fmt.Fprintf(os.Stderr, "Warning: could not load expert '%s': %v\n", m.ID, err)
+			}
+			if e == nil {
+				e = LookupPersona(m.ID)
+			}
+			if e != nil {
+				loaded[m.ID] = e
+			}
+		}
+
+		type tensionPair struct {
+			fromName, toName, topic string
+		}
+		var tensions []tensionPair
+		seen := make(map[string]bool)
+
+		for _, m := range p.Members {
+			e := loaded[m.ID]
+			if e == nil {
+				continue
+			}
+			for _, t := range e.Tensions {
+				if !memberIDs[t.Expert] {
+					continue
+				}
+				// Deduplicate symmetric tensions by normalizing the pair
+				a, b := e.ID, t.Expert
+				if a > b {
+					a, b = b, a
+				}
+				key := a + ":" + b + ":" + t.Topic
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+
+				toName := t.Expert
+				if other, ok := loaded[t.Expert]; ok {
+					toName = other.Name
+				}
+				tensions = append(tensions, tensionPair{
+					fromName: e.Name,
+					toName:   toName,
+					topic:    t.Topic,
+				})
+			}
+		}
+
+		if len(tensions) > 0 {
+			fmt.Printf("\nKnown tensions in this pack:\n")
+			for _, t := range tensions {
+				fmt.Printf("  %s vs %s — %s\n", t.fromName, t.toName, t.topic)
+			}
 		}
 
 		return nil

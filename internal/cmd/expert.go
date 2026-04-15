@@ -116,6 +116,15 @@ var showCmd = &cobra.Command{
 			}
 		}
 
+		if len(e.Tensions) > 0 {
+			fmt.Println("\nTensions:")
+			for _, t := range e.Tensions {
+				fmt.Printf("  vs %s — %s\n", t.Expert, t.Topic)
+				fmt.Printf("    %s: %s\n", e.Name, t.Position)
+				fmt.Printf("    %s: %s\n", t.Expert, t.Counterpoint)
+			}
+		}
+
 		fmt.Printf("\nFile: %s\n", e.Path())
 
 		return nil
@@ -374,6 +383,7 @@ func runAddFork(fromID string) error {
 		Philosophy: source.Philosophy,
 		Principles: source.Principles,
 		RedFlags:   source.RedFlags,
+		Tensions:   source.Tensions,
 		Triggers:   source.Triggers,
 	}
 

@@ -62,8 +62,9 @@ type PersonaJSON struct {
 	Focus      string   `json:"focus"`
 	Philosophy string   `json:"philosophy,omitempty"`
 	Principles []string `json:"principles,omitempty"`
-	RedFlags   []string `json:"red_flags,omitempty"`
-	Triggers   []string `json:"triggers,omitempty"`
+	RedFlags   []string         `json:"red_flags,omitempty"`
+	Tensions   []expert.Tension `json:"tensions,omitempty"`
+	Triggers   []string         `json:"triggers,omitempty"`
 }
 
 // personasCmd manages the expert persona library.
@@ -98,6 +99,7 @@ Examples:
 					Philosophy: e.Philosophy,
 					Principles: e.Principles,
 					RedFlags:   e.RedFlags,
+					Tensions:   e.Tensions,
 					Triggers:   e.Triggers,
 				})
 			}
