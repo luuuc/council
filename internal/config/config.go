@@ -15,6 +15,7 @@ const (
 	ConfigFile  = "config.yaml"
 	ExpertsDir  = "experts"
 	CommandsDir = "commands"
+	PacksDir    = "packs"
 )
 
 // Config represents the council configuration
