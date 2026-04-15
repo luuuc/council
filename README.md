@@ -85,11 +85,59 @@ council sync     # Syncs to your AI tool
 | `council personas` | Browse the curated library |
 | `council export` | Export as portable markdown |
 
+## Review
+
+Run blind parallel reviews where each expert reviews independently — no expert sees another's output:
+
+```bash
+git diff main | council review --pack go
+council review --pack rails --file app/models/user.rb --json
+```
+
+Each expert returns a verdict (pass / comment / block / escalate). The engine synthesizes agreements, tensions, and a final recommendation.
+
+Works with any LLM backend — spawns CLI subprocesses (`claude`, `opencode`) or calls APIs directly (Anthropic, OpenAI, Ollama).
+
+## Packs
+
+Packs are reusable groupings of experts for targeted reviews:
+
+```bash
+council packs list                         # See all packs
+council packs show go                      # See members
+council packs create my-pack               # Create custom pack
+council packs add my-pack kent-beck        # Add expert to pack
+```
+
+Built-in packs: `go`, `rails`, `writing`. Custom packs override built-ins with the same name.
+
+## MCP Server
+
+Use Council as a tool in any MCP-capable AI tool:
+
+```json
+{
+  "mcpServers": {
+    "council": {
+      "command": "council",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Exposes three tools over stdin/stdout JSON-RPC:
+- `council_review` — blind parallel review, returns structured verdict
+- `council_list` — list pack members (no LLM calls)
+- `council_explain` — expand on a review note with expert reasoning
+
 ## Supported AI Tools
 
 | Tool | Integration |
 |------|-------------|
-| Claude Code | Slash commands + agents |
+| Claude Code | Slash commands + agents + MCP |
+| Cursor | MCP |
+| Claude Desktop | MCP |
 | OpenCode | Agents |
 | Others | `council export` for portable markdown |
 

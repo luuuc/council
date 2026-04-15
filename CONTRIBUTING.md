@@ -85,20 +85,46 @@ council-cli/
 ├── bin/                  # Build output (gitignored)
 ├── cmd/council/          # CLI entry point
 ├── internal/
+│   ├── adapter/          # Tool-specific UX adapters (Claude, OpenCode, generic)
 │   ├── cmd/              # Cobra command definitions
-│   ├── config/           # Configuration loading/saving
+│   ├── config/           # Configuration loading/saving, backend detection
 │   ├── creator/          # Expert creator functionality
 │   ├── detect/           # Stack detection
-│   ├── expert/           # Expert data structures
+│   ├── expert/           # Expert data structures (YAML frontmatter + markdown)
 │   ├── export/           # Markdown export
 │   ├── fs/               # File system utilities
-│   ├── mcp/              # MCP server
+│   ├── install/          # External persona repository management
+│   ├── mcp/              # MCP server (stdin/stdout JSON-RPC)
+│   ├── pack/             # Reusable expert groupings (built-in + custom)
 │   ├── prompt/           # Prompt generation
+│   ├── review/           # Blind parallel review engine
 │   └── sync/             # Sync targets (claude, opencode, etc.)
-├── docs/                 # Documentation
+├── .doc/                 # Documentation
 ├── install.sh            # Installer script
 └── Makefile              # Build commands
 ```
+
+## Key Architecture
+
+### Review Engine (`internal/review/`)
+
+The `Backend` interface defines how LLM calls are made:
+
+```go
+type Backend interface {
+    Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error)
+}
+```
+
+Two implementations:
+- `CLIBackend` — spawns AI CLI subprocesses (`claude`, `opencode`)
+- `APIBackend` — direct HTTP calls to Anthropic, OpenAI, or Ollama
+
+The `Runner` orchestrates N parallel expert reviews with bounded concurrency and per-expert timeouts. The `Synthesizer` aggregates verdicts, detects agreements/tensions, and resolves hierarchy.
+
+### MCP Server (`internal/mcp/`)
+
+Exposes council tools via MCP's JSON-RPC protocol over stdin/stdout. Three tools: `council_review`, `council_list`, `council_explain`. Uses functional options for dependency injection (`WithBackend`). Tests use stdin/stdout pipes with a mock backend.
 
 ## Adding a New Sync Target
 
