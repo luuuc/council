@@ -18,6 +18,14 @@ import (
 // Pre-compiled regex for ID generation
 var idRegexp = regexp.MustCompile(`[^a-z0-9]+`)
 
+// Tension represents a known disagreement between two experts.
+type Tension struct {
+	Expert       string `yaml:"expert" json:"expert"`
+	Topic        string `yaml:"topic" json:"topic"`
+	Position     string `yaml:"position" json:"position"`
+	Counterpoint string `yaml:"counterpoint" json:"counterpoint"`
+}
+
 // Pre-compiled template for expert body generation
 var bodyTemplate = template.Must(template.New("body").Parse(`# {{.Name}} - {{.Focus}}
 
@@ -38,7 +46,11 @@ Watch for these patterns:
 {{range .RedFlags}}- {{.}}
 {{end}}
 {{end}}
-## Review Style
+{{if .Tensions}}## Tensions
+
+{{range .Tensions}}- vs {{.Expert}} on {{.Topic}}: {{.Position}} (counterpoint: {{.Counterpoint}})
+{{end}}
+{{end}}## Review Style
 
 When reviewing code, focus on your area of expertise. Be direct and specific.
 Explain your reasoning. Suggest concrete improvements.
@@ -48,12 +60,13 @@ Explain your reasoning. Suggest concrete improvements.
 // This is the canonical type used throughout the codebase for both
 // project experts and custom/installed personas.
 type Expert struct {
-	ID         string   `yaml:"id" json:"id"`
-	Name       string   `yaml:"name" json:"name"`
-	Focus      string   `yaml:"focus" json:"focus"`
-	Philosophy string   `yaml:"philosophy,omitempty" json:"philosophy,omitempty"`
-	Principles []string `yaml:"principles,omitempty" json:"principles,omitempty"`
-	RedFlags   []string `yaml:"red_flags,omitempty" json:"red_flags,omitempty"`
+	ID         string    `yaml:"id" json:"id"`
+	Name       string    `yaml:"name" json:"name"`
+	Focus      string    `yaml:"focus" json:"focus"`
+	Philosophy string    `yaml:"philosophy,omitempty" json:"philosophy,omitempty"`
+	Principles []string  `yaml:"principles,omitempty" json:"principles,omitempty"`
+	RedFlags   []string  `yaml:"red_flags,omitempty" json:"red_flags,omitempty"`
+	Tensions   []Tension `yaml:"tensions,omitempty" json:"tensions,omitempty"`
 
 	// Suggestion metadata
 	Core     bool     `yaml:"core,omitempty" json:"-"`     // Always suggest for matching intention

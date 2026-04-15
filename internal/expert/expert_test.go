@@ -63,6 +63,46 @@ Body content.`,
 			wantErr: false,
 		},
 		{
+			name: "expert with tensions",
+			input: `---
+id: kent-beck
+name: Kent Beck
+focus: Test-driven development
+tensions:
+  - expert: dhh
+    topic: test depth
+    position: Comprehensive unit tests for every class
+    counterpoint: System tests that cover user flows, minimal unit tests
+  - expert: rob-pike
+    topic: abstraction
+    position: Extract when the pattern emerges three times
+    counterpoint: A little copying is better than a little dependency
+---
+
+# Kent Beck`,
+			want: &Expert{
+				ID:    "kent-beck",
+				Name:  "Kent Beck",
+				Focus: "Test-driven development",
+				Tensions: []Tension{
+					{
+						Expert:       "dhh",
+						Topic:        "test depth",
+						Position:     "Comprehensive unit tests for every class",
+						Counterpoint: "System tests that cover user flows, minimal unit tests",
+					},
+					{
+						Expert:       "rob-pike",
+						Topic:        "abstraction",
+						Position:     "Extract when the pattern emerges three times",
+						Counterpoint: "A little copying is better than a little dependency",
+					},
+				},
+				Body: "# Kent Beck",
+			},
+			wantErr: false,
+		},
+		{
 			name:    "missing frontmatter",
 			input:   "No frontmatter here",
 			want:    nil,
@@ -119,6 +159,15 @@ Body.`,
 			if len(got.RedFlags) != len(tt.want.RedFlags) {
 				t.Errorf("Parse() RedFlags len = %v, want %v", len(got.RedFlags), len(tt.want.RedFlags))
 			}
+			if len(got.Tensions) != len(tt.want.Tensions) {
+				t.Errorf("Parse() Tensions len = %v, want %v", len(got.Tensions), len(tt.want.Tensions))
+			} else {
+				for i, tension := range got.Tensions {
+					if tension != tt.want.Tensions[i] {
+						t.Errorf("Parse() Tensions[%d] = %v, want %v", i, tension, tt.want.Tensions[i])
+					}
+				}
+			}
 		})
 	}
 }
@@ -162,6 +211,23 @@ func TestSave(t *testing.T) {
 				ID:    "minimal",
 				Name:  "Minimal",
 				Focus: "Testing",
+			},
+			wantErr: false,
+		},
+		{
+			name: "save expert with tensions",
+			expert: &Expert{
+				ID:    "tensions-test",
+				Name:  "Tensions Test",
+				Focus: "Testing tensions round-trip",
+				Tensions: []Tension{
+					{
+						Expert:       "other-expert",
+						Topic:        "test philosophy",
+						Position:     "Unit tests are essential",
+						Counterpoint: "Integration tests are sufficient",
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -211,6 +277,15 @@ func TestSave(t *testing.T) {
 			}
 			if loaded.Focus != tt.expert.Focus {
 				t.Errorf("Loaded Focus = %v, want %v", loaded.Focus, tt.expert.Focus)
+			}
+			if len(loaded.Tensions) != len(tt.expert.Tensions) {
+				t.Errorf("Loaded Tensions len = %v, want %v", len(loaded.Tensions), len(tt.expert.Tensions))
+			} else {
+				for i, tension := range loaded.Tensions {
+					if tension != tt.expert.Tensions[i] {
+						t.Errorf("Loaded Tensions[%d] = %v, want %v", i, tension, tt.expert.Tensions[i])
+					}
+				}
 			}
 		})
 	}
@@ -434,6 +509,37 @@ func TestGenerateBody(t *testing.T) {
 	}
 	if !strings.Contains(body, "No tests") {
 		t.Error("generateBody() missing red flag")
+	}
+}
+
+func TestGenerateBody_WithTensions(t *testing.T) {
+	e := &Expert{
+		ID:    "test-tensions",
+		Name:  "Test Expert",
+		Focus: "Testing",
+		Tensions: []Tension{
+			{
+				Expert:       "other-expert",
+				Topic:        "test depth",
+				Position:     "Unit tests for every class",
+				Counterpoint: "System tests are sufficient",
+			},
+		},
+	}
+
+	body := e.generateBody()
+
+	if !strings.Contains(body, "## Tensions") {
+		t.Error("generateBody() missing Tensions section")
+	}
+	if !strings.Contains(body, "other-expert") {
+		t.Error("generateBody() missing tension expert name")
+	}
+	if !strings.Contains(body, "test depth") {
+		t.Error("generateBody() missing tension topic")
+	}
+	if !strings.Contains(body, "Unit tests for every class") {
+		t.Error("generateBody() missing tension position")
 	}
 }
 
@@ -781,5 +887,45 @@ func TestMarshalExpertsJSON(t *testing.T) {
 	}
 	if strings.Contains(jsonStr, `"source"`) {
 		t.Error("JSON should NOT contain source field")
+	}
+
+	// Verify tensions omitted when empty
+	if strings.Contains(jsonStr, `"tensions"`) {
+		t.Error("JSON should NOT contain tensions field when empty")
+	}
+}
+
+func TestMarshalExpertsJSON_WithTensions(t *testing.T) {
+	experts := []*Expert{
+		{
+			ID:    "test-tensions",
+			Name:  "Test Tensions",
+			Focus: "Testing",
+			Tensions: []Tension{
+				{
+					Expert:       "other",
+					Topic:        "testing",
+					Position:     "Unit tests",
+					Counterpoint: "Integration tests",
+				},
+			},
+		},
+	}
+
+	data, err := MarshalExpertsJSON(experts)
+	if err != nil {
+		t.Fatalf("MarshalExpertsJSON() error = %v", err)
+	}
+
+	jsonStr := string(data)
+
+	if !strings.Contains(jsonStr, `"tensions"`) {
+		t.Error("JSON should contain tensions field")
+	}
+	if !strings.Contains(jsonStr, `"expert": "other"`) {
+		t.Error("JSON should contain tension expert")
+	}
+	if !strings.Contains(jsonStr, `"topic": "testing"`) {
+		t.Error("JSON should contain tension topic")
 	}
 }
