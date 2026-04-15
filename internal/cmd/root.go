@@ -131,6 +131,7 @@ func initCouncil(clean bool, toolFlag string) error {
 		config.CouncilDir,
 		config.Path(config.ExpertsDir),
 		config.Path(config.CommandsDir),
+		config.Path(config.PacksDir),
 	}
 
 	for _, dir := range dirs {
@@ -147,7 +148,7 @@ func initCouncil(clean bool, toolFlag string) error {
 	}
 
 	// Create .gitkeep files
-	for _, subdir := range []string{config.ExpertsDir, config.CommandsDir} {
+	for _, subdir := range []string{config.ExpertsDir, config.CommandsDir, config.PacksDir} {
 		path := config.Path(subdir, ".gitkeep")
 		if err := os.WriteFile(path, []byte(""), 0644); err != nil {
 			return fmt.Errorf("failed to create .gitkeep: %w", err)
