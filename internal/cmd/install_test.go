@@ -130,7 +130,7 @@ Missing name and focus.
 
 	t.Run("valid persona", func(t *testing.T) {
 		// Clean up any existing expert
-		os.Remove(filepath.Join(tmpDir, config.CouncilDir, config.ExpertsDir, "test-expert.md"))
+		_ = os.Remove(filepath.Join(tmpDir, config.CouncilDir, config.ExpertsDir, "test-expert.md"))
 
 		err := runInstall(server.URL + "/valid.md")
 		if err != nil {
@@ -174,7 +174,7 @@ Missing name and focus.
 
 	t.Run("duplicate expert", func(t *testing.T) {
 		// First install should succeed
-		os.Remove(filepath.Join(tmpDir, config.CouncilDir, config.ExpertsDir, "test-expert.md"))
+		_ = os.Remove(filepath.Join(tmpDir, config.CouncilDir, config.ExpertsDir, "test-expert.md"))
 		err := runInstall(server.URL + "/valid.md")
 		if err != nil {
 			t.Fatalf("first install error = %v", err)

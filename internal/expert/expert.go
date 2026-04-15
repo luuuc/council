@@ -369,13 +369,13 @@ func SaveToPath(e *Expert, path string) error {
 	loaded, err := LoadFile(path)
 	if err != nil {
 		// Clean up the bad file
-		os.Remove(path)
+		_ = os.Remove(path)
 		return fmt.Errorf("saved file is invalid: %w", err)
 	}
 
 	// Verify key fields match
 	if loaded.ID != e.ID || loaded.Name != e.Name {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return fmt.Errorf("saved file has corrupted data: id or name mismatch")
 	}
 

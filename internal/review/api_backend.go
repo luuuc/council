@@ -93,7 +93,7 @@ func (b *APIBackend) Review(ctx context.Context, e *expert.Expert, sub Submissio
 	if err != nil {
 		return ExpertVerdict{}, fmt.Errorf("API call failed for %s: %w", e.ID, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {

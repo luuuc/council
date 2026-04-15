@@ -252,10 +252,10 @@ var personasInstalledCmd = &cobra.Command{
 					count++
 				}
 			}
-			fmt.Fprintf(w, "%s\t%d\n", name, count)
+			_, _ = fmt.Fprintf(w, "%s\t%d\n", name, count)
 		}
 
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }

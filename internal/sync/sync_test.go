@@ -116,7 +116,7 @@ func TestSyncToAdapterClaude(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -177,7 +177,7 @@ func TestSyncToAdapterGeneric(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -214,7 +214,7 @@ func TestSyncAllNoExperts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -257,7 +257,7 @@ func TestFileExistsAndDirExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -295,7 +295,7 @@ func TestClaudeFormatAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -330,7 +330,7 @@ func TestSyncToAdapterOpenCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -478,7 +478,7 @@ func TestDetectTargets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
@@ -511,7 +511,7 @@ func TestDetectTargets_ReturnsDeterministicOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
