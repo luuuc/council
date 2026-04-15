@@ -28,9 +28,10 @@ type Config struct {
 
 // AIConfig holds AI CLI configuration
 type AIConfig struct {
-	Command string   `yaml:"command"`
-	Args    []string `yaml:"args,omitempty"`
-	Timeout int      `yaml:"timeout"`
+	Command     string   `yaml:"command"`
+	Args        []string `yaml:"args,omitempty"`
+	Timeout     int      `yaml:"timeout"`
+	Concurrency int      `yaml:"concurrency,omitempty"`
 }
 
 // Default returns a default configuration
@@ -105,6 +106,11 @@ func (c *Config) applyDefaults() {
 	// If no timeout specified, use default
 	if c.AI.Timeout == 0 {
 		c.AI.Timeout = defaults.AI.Timeout
+	}
+
+	// If no concurrency specified, use default
+	if c.AI.Concurrency == 0 {
+		c.AI.Concurrency = 4
 	}
 }
 
