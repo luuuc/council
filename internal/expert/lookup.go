@@ -12,6 +12,11 @@ type SuggestionBank map[string][]Expert
 func LookupPersona(bank SuggestionBank, nameOrID string) *Expert {
 	normalized := strings.ToLower(strings.TrimSpace(nameOrID))
 
+	// Try legacy alias resolution first
+	if newID, ok := LegacyAlias(normalized); ok {
+		normalized = newID
+	}
+
 	// First pass: exact matches
 	for _, experts := range bank {
 		for _, e := range experts {
@@ -102,7 +107,7 @@ func SuggestSimilar(bank SuggestionBank, input string) (*Expert, int) {
 	normalized := strings.ToLower(strings.TrimSpace(input))
 
 	// For short inputs (< 4 chars), try prefix matching on first names
-	// This handles cases like "Rob" → "Rob Pike", "Cal" → "Cal Newport"
+	// This handles cases like "Sable" → "Sable Okoro", "Iris" → "Iris Vance"
 	if len(normalized) < 4 && len(normalized) >= 2 {
 		var prefixMatches []*Expert
 		for _, experts := range bank {

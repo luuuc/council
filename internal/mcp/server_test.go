@@ -225,12 +225,12 @@ func TestToolsList(t *testing.T) {
 func TestToolsCallReview(t *testing.T) {
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada-redgrave": {
+				Expert: "ada-redgrave", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"bruce-schneier": {
-				Expert: "bruce-schneier", Verdict: review.VerdictPass,
+			"nadia-kowalski": {
+				Expert: "nadia-kowalski", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"No security concerns"},
 			},
 		},
@@ -446,7 +446,7 @@ func TestToolsCallExplainMissingFields(t *testing.T) {
 		},
 		{
 			name: "missing note",
-			args: map[string]any{"expert": "kent-beck"},
+			args: map[string]any{"expert": "ada-redgrave"},
 			want: "missing required field: note",
 		},
 	}
@@ -648,16 +648,16 @@ func setupTestCouncil(t *testing.T) func() {
 func testExperts() []*expert.Expert {
 	return []*expert.Expert{
 		{
-			ID:    "kent-beck",
-			Name:  "Kent Beck",
+			ID:    "ada-redgrave",
+			Name:  "The TDD Advocate",
 			Focus: "TDD",
-			Body:  "# Kent Beck - TDD\n\nYou are Kent Beck.",
+			Body:  "# The TDD Advocate - TDD\n\nYou are The TDD Advocate.",
 		},
 		{
-			ID:    "rob-pike",
-			Name:  "Rob Pike",
+			ID:    "sable-okoro",
+			Name:  "The Go Purist",
 			Focus: "Go clarity",
-			Body:  "# Rob Pike - Go clarity\n\nYou are Rob Pike.",
+			Body:  "# The Go Purist - Go clarity\n\nYou are The Go Purist.",
 		},
 	}
 }
@@ -668,18 +668,18 @@ func TestToolsCallReviewHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada-redgrave": {
+				Expert: "ada-redgrave", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"rob-pike": {
-				Expert: "rob-pike", Verdict: review.VerdictPass,
+			"sable-okoro": {
+				Expert: "sable-okoro", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"Clean and idiomatic"},
 			},
 		},
 	}
 
-	// Use the "go" builtin pack — it includes kent-beck and rob-pike
+	// Use the "go" builtin pack — it includes ada-redgrave and sable-okoro
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_review",
 		Arguments: map[string]any{
@@ -737,8 +737,8 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada-redgrave": {
+				Expert: "ada-redgrave", Verdict: review.VerdictComment,
 				Confidence: 0.9,
 				Notes: []string{"This pattern violates the Single Responsibility Principle. The function handles both parsing and validation, which should be separated for testability."},
 			},
@@ -748,7 +748,7 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_explain",
 		Arguments: map[string]any{
-			"expert": "kent-beck",
+			"expert": "ada-redgrave",
 			"note":   "No test for the empty-state CSV.",
 		},
 	}) + "\n"
@@ -853,16 +853,16 @@ func TestToolsCallListHappyPath(t *testing.T) {
 		t.Error("expected at least one expert in list")
 	}
 
-	// Verify kent-beck is in the list (he's in the go builtin pack)
+	// Verify sable-okoro is in the list (composite expert in the go builtin pack)
 	found := false
 	for _, e := range listOutput.Experts {
-		if e.ID == "kent-beck" {
+		if e.ID == "sable-okoro" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected kent-beck in go pack list")
+		t.Error("expected sable-okoro in go pack list")
 	}
 }
 

@@ -155,10 +155,10 @@ If the name matches a curated expert from the library, adds it directly.
 If no match is found, guides you through creating a custom expert.
 
 Modes:
-  council add "Kent Beck"       # Found in library - adds directly
+  council add "Ada Redgrave"    # Found in library - adds directly
   council add "My CTO"          # Not found - creates custom persona
   council add --interview       # AI-assisted persona creation
-  council add --from kent-beck  # Fork existing persona as starting point`,
+  council add --from ada-redgrave  # Fork existing persona as starting point`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {

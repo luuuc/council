@@ -97,17 +97,17 @@ func TestSelectExperts_GoProject(t *testing.T) {
 		t.Fatal("expected experts to be selected for Go project")
 	}
 
-	// Should include Rob Pike for Go
-	hasRobPike := false
+	// Should include The Go Purist for Go projects
+	hasSable := false
 	for _, e := range experts {
-		if e.ID == "rob-pike" {
-			hasRobPike = true
+		if e.ID == "sable-okoro" {
+			hasSable = true
 			break
 		}
 	}
 
-	if !hasRobPike {
-		t.Error("expected Rob Pike to be selected for Go project")
+	if !hasSable {
+		t.Error("expected The Go Purist to be selected for Go project")
 	}
 }
 
@@ -127,17 +127,17 @@ func TestSelectExperts_RailsProject(t *testing.T) {
 		t.Fatal("expected experts to be selected for Rails project")
 	}
 
-	// Should include DHH for Rails
-	hasDHH := false
+	// Should include The Rails Monolith for Rails projects
+	hasDiego := false
 	for _, e := range experts {
-		if e.ID == "dhh" {
-			hasDHH = true
+		if e.ID == "diego-valdez" {
+			hasDiego = true
 			break
 		}
 	}
 
-	if !hasDHH {
-		t.Error("expected DHH to be selected for Rails project")
+	if !hasDiego {
+		t.Error("expected The Rails Monolith to be selected for Rails project")
 	}
 }
 
@@ -149,17 +149,17 @@ func TestSelectExperts_FallbackToGeneralists(t *testing.T) {
 		t.Fatal("expected generalists to be selected")
 	}
 
-	// Should include Kent Beck as a generalist
-	hasKentBeck := false
+	// Should include The TDD Advocate as a generalist
+	hasAda := false
 	for _, e := range generalists {
-		if e.ID == "kent-beck" {
-			hasKentBeck = true
+		if e.ID == "ada-redgrave" {
+			hasAda = true
 			break
 		}
 	}
 
-	if !hasKentBeck {
-		t.Error("expected Kent Beck in generalists")
+	if !hasAda {
+		t.Error("expected The TDD Advocate in generalists")
 	}
 }
 

@@ -42,7 +42,7 @@ Input can be a diff from stdin or a file via --file.
 Examples:
   git diff main | council review --pack rails
   council review --pack code --file src/controller.rb
-  council review --expert kent-beck --file lib/utils.rb
+  council review --expert ada-redgrave --file lib/utils.rb
   git diff main | council review --pack rails --json`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {

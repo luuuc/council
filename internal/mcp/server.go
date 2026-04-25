@@ -341,7 +341,7 @@ func toolDefinitions() []toolDefinition {
 				Properties: map[string]schemaProperty{
 					"expert": {
 						Type:        "string",
-						Description: "Expert ID (e.g., \"kent-beck\", \"bruce-schneier\")",
+						Description: "Expert ID (e.g., \"ada-redgrave\", \"nadia-kowalski\")",
 					},
 					"note": {
 						Type:        "string",

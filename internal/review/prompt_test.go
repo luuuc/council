@@ -9,9 +9,9 @@ import (
 
 func TestBuildPrompt(t *testing.T) {
 	e := &expert.Expert{
-		ID:   "kent-beck",
-		Name: "Kent Beck",
-		Body: "# Kent Beck - Test-driven development\n\nYou are Kent Beck.",
+		ID:   "ada-redgrave",
+		Name: "Ada Redgrave",
+		Body: "# Ada Redgrave - Test-driven development\n\nYou are Ada Redgrave.",
 	}
 
 	sub := Submission{
@@ -22,12 +22,12 @@ func TestBuildPrompt(t *testing.T) {
 	prompt := BuildPrompt(e, sub)
 
 	checks := []string{
-		"You are Kent Beck",
-		"Kent Beck - Test-driven development",
+		"You are Ada Redgrave",
+		"Ada Redgrave - Test-driven development",
 		"diff --git a/main.go",
 		"PR: Add math utilities",
 		`"verdict"`,
-		`"kent-beck"`,
+		`"ada-redgrave"`,
 		"pass|comment|block|escalate",
 	}
 
@@ -40,9 +40,9 @@ func TestBuildPrompt(t *testing.T) {
 
 func TestBuildPromptNoContext(t *testing.T) {
 	e := &expert.Expert{
-		ID:   "kent-beck",
-		Name: "Kent Beck",
-		Body: "# Kent Beck\n\nExpert.",
+		ID:   "ada-redgrave",
+		Name: "Ada Redgrave",
+		Body: "# Ada Redgrave\n\nExpert.",
 	}
 
 	sub := Submission{Content: "some code"}
@@ -56,8 +56,8 @@ func TestBuildPromptNoContext(t *testing.T) {
 
 func TestBuildCollectivePrompt(t *testing.T) {
 	experts := []*expert.Expert{
-		{ID: "kent-beck", Name: "Kent Beck", Focus: "Test-driven development", Body: "TDD expert."},
-		{ID: "dhh", Name: "DHH", Focus: "Convention over configuration", Body: "Rails creator."},
+		{ID: "ada-redgrave", Name: "Ada Redgrave", Focus: "Test-driven development", Body: "TDD expert."},
+		{ID: "diego-valdez", Name: "Diego Valdez", Focus: "Convention over configuration", Body: "Rails creator."},
 		{ID: "owasp-sentinel", Name: "OWASP Sentinel", Focus: "Application security", Body: "Security expert."},
 	}
 
@@ -70,8 +70,8 @@ func TestBuildCollectivePrompt(t *testing.T) {
 
 	checks := []string{
 		"council of expert reviewers",
-		"Kent Beck — Test-driven development",
-		"DHH — Convention over configuration",
+		"Ada Redgrave — Test-driven development",
+		"Diego Valdez — Convention over configuration",
 		"OWASP Sentinel — Application security",
 		"TDD expert.",
 		"Rails creator.",
@@ -93,7 +93,7 @@ func TestBuildCollectivePrompt(t *testing.T) {
 
 func TestBuildCollectivePromptNoContext(t *testing.T) {
 	experts := []*expert.Expert{
-		{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD", Body: "Expert."},
+		{ID: "ada-redgrave", Name: "Ada Redgrave", Focus: "TDD", Body: "Expert."},
 	}
 
 	prompt := BuildCollectivePrompt(experts, Submission{Content: "some code"})

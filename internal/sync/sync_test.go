@@ -15,13 +15,13 @@ import (
 func TestGenerateCouncilCommand(t *testing.T) {
 	experts := []*expert.Expert{
 		{
-			ID:    "kent-beck",
-			Name:  "Kent Beck",
+			ID:    "ada-redgrave",
+			Name:  "The TDD Advocate",
 			Focus: "Test-driven development",
 		},
 		{
-			ID:    "dhh",
-			Name:  "DHH",
+			ID:    "diego-valdez",
+			Name:  "The Rails Monolith",
 			Focus: "Rails and productivity",
 		},
 	}
@@ -36,10 +36,10 @@ func TestGenerateCouncilCommand(t *testing.T) {
 	if !strings.Contains(result, "$ARGUMENTS") {
 		t.Error("generateCouncilCommand() missing $ARGUMENTS placeholder")
 	}
-	if !strings.Contains(result, "Kent Beck") {
+	if !strings.Contains(result, "The TDD Advocate") {
 		t.Error("generateCouncilCommand() missing first expert name")
 	}
-	if !strings.Contains(result, "DHH") {
+	if !strings.Contains(result, "The Rails Monolith") {
 		t.Error("generateCouncilCommand() missing second expert name")
 	}
 	if !strings.Contains(result, "Test-driven development") {
@@ -399,8 +399,8 @@ func TestSyncToAdapterOpenCode(t *testing.T) {
 
 func TestOpenCodeFormatAgent(t *testing.T) {
 	e := &expert.Expert{
-		ID:         "kent-beck",
-		Name:       "Kent Beck",
+		ID:         "ada-redgrave",
+		Name:       "The TDD Advocate",
 		Focus:      "TDD and clean code",
 		Philosophy: "Test-driven development leads to better design.",
 		Principles: []string{"Red-green-refactor", "Simple design"},
@@ -422,10 +422,10 @@ func TestOpenCodeFormatAgent(t *testing.T) {
 	}
 
 	// Verify body content
-	if !strings.Contains(result, "# Kent Beck") {
+	if !strings.Contains(result, "# The TDD Advocate") {
 		t.Error("FormatAgent() should have expert name as heading")
 	}
-	if !strings.Contains(result, "You are Kent Beck") {
+	if !strings.Contains(result, "You are The TDD Advocate") {
 		t.Error("FormatAgent() should have 'You are' identity intro")
 	}
 	if !strings.Contains(result, "## Philosophy") {

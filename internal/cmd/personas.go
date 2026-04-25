@@ -181,8 +181,8 @@ The repository will be cloned to your local config directory and
 its personas will be available in council setup and sync.
 
 Examples:
-  council personas install https://github.com/dhh/my-council.git
-  council personas install git@github.com:dhh/my-council.git`,
+  council personas install https://github.com/user/my-council.git
+  council personas install git@github.com:user/my-council.git`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		url := args[0]

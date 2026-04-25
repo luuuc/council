@@ -100,23 +100,25 @@ func TestSuggestSimilar(t *testing.T) {
 		input    string
 		wantName string // empty means expect nil
 	}{
-		// Single character typos
+		// Single character typos (matches against IDs)
 		{"Luc Perussault-Diall", "Luc Perussault-Diallo"},
-		{"kent-bek", "Kent Beck"},
-		{"Rob Pik", "Rob Pike"},
+		{"ada-redgrav", "The TDD Advocate"},
+		{"Sable Okor", "The Go Purist"},
 
 		// Case insensitive - exact matches should return nil (use LookupPersona)
-		{"ROB PIKE", ""},
-		{"rob pike", ""},
+		{"THE GO PURIST", ""},
+		{"the go purist", ""},
 
 		// First-name found by LookupPersona - should return nil
-		{"Luc", ""},    // LookupPersona finds this now
-		{"luc", ""},    // LookupPersona finds this now
-		{"Dieter", ""},  // LookupPersona finds this now
-		{"Cal", ""},     // LookupPersona finds Cal Newport (exact first-name match)
+		{"Luc", ""},
+		{"luc", ""},
+
+		// Legacy alias resolution - returns nil because LookupPersona resolves them
+		{"kent-beck", ""},
+		{"rob-pike", ""},
 
 		// Prefix matching for short inputs (2-3 chars) - unique prefix
-		{"Di", "Dieter Rams"}, // "Di" prefix matches only Dieter Rams
+		{"Lu", "Luc Perussault-Diallo"},
 
 		// No close match
 		{"xyz", ""},
@@ -150,22 +152,23 @@ func TestLookupPersona(t *testing.T) {
 		wantID  string
 		wantNil bool
 	}{
-		// Exact matches
-		{"Rob Pike", "rob-pike", false},
-		{"rob-pike", "rob-pike", false},
-		{"ROB PIKE", "rob-pike", false},
-		{"  Rob Pike  ", "rob-pike", false},
-		{"Kent Beck", "kent-beck", false},
+		// Exact matches by name
+		{"The Go Purist", "sable-okoro", false},
+		{"THE GO PURIST", "sable-okoro", false},
+		{"  The Go Purist  ", "sable-okoro", false},
+		{"The TDD Advocate", "ada-redgrave", false},
 
-		// First-name matching (unique first names)
+		// Exact match by ID
+		{"sable-okoro", "sable-okoro", false},
+		{"ada-redgrave", "ada-redgrave", false},
+
+		// First-name matching (only Luc has a non-"The" first name)
 		{"Luc", "luc-perussault-diallo", false},
 		{"luc", "luc-perussault-diallo", false},
-		{"Dieter", "dieter-rams", false},
 
-		// First-name matching should NOT work for ambiguous names
-		// (e.g., "Rob" could match multiple people - Rob Pike, Rob Walling)
-		// This returns nil because there are multiple matches
-		{"Rob", "", true},
+		// Legacy alias resolution
+		{"kent-beck", "ada-redgrave", false},
+		{"rob-pike", "sable-okoro", false},
 
 		// Unknown
 		{"Unknown Person", "", true},
@@ -192,19 +195,19 @@ func TestLookupPersona(t *testing.T) {
 
 func TestFilterPersonasByCategory(t *testing.T) {
 	personas := []PersonaJSON{
-		{ID: "rob-pike", Name: "Rob Pike", Category: "go", Focus: "Go simplicity"},
-		{ID: "dave-cheney", Name: "Dave Cheney", Category: "go", Focus: "Go performance"},
-		{ID: "kent-beck", Name: "Kent Beck", Category: "testing", Focus: "TDD"},
-		{ID: "dhh", Name: "DHH", Category: "rails", Focus: "Rails conventions"},
+		{ID: "sable-okoro", Name: "The Go Purist", Category: "go", Focus: "Go systems programming"},
+		{ID: "nolan-chambers", Name: "The Pythonista", Category: "python", Focus: "Python idioms"},
+		{ID: "ada-redgrave", Name: "The TDD Advocate", Category: "general", Focus: "TDD"},
+		{ID: "diego-valdez", Name: "The Rails Monolith", Category: "rails", Focus: "Rails conventions"},
 	}
 
 	tests := []struct {
 		category string
 		wantLen  int
 	}{
-		{"go", 2},
-		{"GO", 2},       // case-insensitive
-		{"testing", 1},
+		{"go", 1},
+		{"GO", 1},       // case-insensitive
+		{"general", 1},
 		{"rails", 1},
 		{"unknown", 0},
 	}
@@ -221,17 +224,17 @@ func TestFilterPersonasByCategory(t *testing.T) {
 
 func TestFilterPersonasBySearch(t *testing.T) {
 	personas := []PersonaJSON{
-		{ID: "rob-pike", Name: "Rob Pike", Category: "go", Focus: "Go simplicity"},
-		{ID: "kent-beck", Name: "Kent Beck", Category: "testing", Focus: "Test-driven development"},
-		{ID: "security-expert", Name: "Security Expert", Category: "security", Focus: "Application security"},
+		{ID: "sable-okoro", Name: "The Go Purist", Category: "go", Focus: "Go systems programming"},
+		{ID: "ada-redgrave", Name: "The TDD Advocate", Category: "general", Focus: "Test-driven development"},
+		{ID: "nadia-kowalski", Name: "The Threat Modeler", Category: "security", Focus: "Application security"},
 	}
 
 	tests := []struct {
 		search  string
 		wantLen int
 	}{
-		{"Pike", 1},
-		{"pike", 1},           // case-insensitive
+		{"Purist", 1},
+		{"purist", 1},         // case-insensitive
 		{"security", 1},       // matches name and focus (same persona)
 		{"test", 1},           // matches focus
 		{"xyz", 0},            // no match

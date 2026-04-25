@@ -13,9 +13,9 @@ import (
 func TestFilterCustomExperts(t *testing.T) {
 	experts := []*expert.Expert{
 		{ID: "custom-expert", Name: "Custom Expert"},
-		{ID: "kent-beck", Name: "Kent Beck"},     // In curated library
+		{ID: "ada-redgrave", Name: "The TDD Advocate"},   // In curated library
 		{ID: "another-custom", Name: "My CTO"},
-		{ID: "dieter-rams", Name: "Dieter Rams"}, // In curated library
+		{ID: "elara-nygaard", Name: "The Design Minimalist"}, // In curated library
 	}
 
 	filtered := filterCustomExperts(experts)
@@ -24,9 +24,9 @@ func TestFilterCustomExperts(t *testing.T) {
 		t.Errorf("expected 2 custom experts, got %d", len(filtered))
 	}
 
-	// Verify kent-beck and dieter-rams are filtered out
+	// Verify curated experts are filtered out
 	for _, e := range filtered {
-		if e.ID == "kent-beck" || e.ID == "dieter-rams" {
+		if e.ID == "ada-redgrave" || e.ID == "elara-nygaard" {
 			t.Errorf("curated expert %s should have been filtered out", e.ID)
 		}
 	}
@@ -37,8 +37,8 @@ func TestIsFromCuratedLibrary(t *testing.T) {
 		id       string
 		expected bool
 	}{
-		{"kent-beck", true},
-		{"dieter-rams", true},
+		{"ada-redgrave", true},
+		{"elara-nygaard", true},
 		{"custom-persona", false},
 		{"my-cto", false},
 	}
@@ -140,7 +140,7 @@ func TestRunPublish(t *testing.T) {
 		_ = os.RemoveAll("council-personas")
 
 		// Add a curated expert
-		curatedExpert := LookupPersona("Kent Beck")
+		curatedExpert := LookupPersona("ada-redgrave")
 		if curatedExpert != nil {
 			if err := curatedExpert.Save(); err != nil {
 				t.Fatalf("failed to save curated expert: %v", err)

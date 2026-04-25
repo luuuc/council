@@ -11,8 +11,8 @@ council init
 
 2. Add experts to your council:
 ```bash
-council add "Kent Beck"
-council add "Sandi Metz"
+council add "Ada Redgrave"
+council add "Sable Okoro"
 ```
 
 3. Sync to generate AGENTS.md:

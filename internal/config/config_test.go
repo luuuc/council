@@ -57,7 +57,7 @@ func TestPath(t *testing.T) {
 	}{
 		{[]string{}, ".council"},
 		{[]string{"config.yaml"}, filepath.Join(".council", "config.yaml")},
-		{[]string{"experts", "dhh.md"}, filepath.Join(".council", "experts", "dhh.md")},
+		{[]string{"experts", "diego-valdez.md"}, filepath.Join(".council", "experts", "diego-valdez.md")},
 	}
 
 	for _, tt := range tests {

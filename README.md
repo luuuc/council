@@ -4,7 +4,7 @@
 
 AI tools are eager to please. They validate your ideas, agree with your approach, and move fast. That's useful—but you lose something. Your own judgment fades within the AI's rapid flow. No one asks the hard questions.
 
-A council fixes this. You create a group of expert voices—real people, fictional characters, your team members, anyone—who review your work from their unique perspectives. Rob Pike asks if it's clear. Kent Beck asks where the tests are. Jason Fried asks if you really need that feature.
+A council fixes this. You create a group of expert voices—composite experts, fictional characters, your team members, anyone—who review your work from their unique perspectives. Sable Okoro asks if it's clear. Ada Redgrave asks where the tests are. Marcus Torrent asks if you really need that feature.
 
 The AI stops being one agreeable voice and becomes many distinct, challenging voices.
 
@@ -22,13 +22,13 @@ After setup, use `/council <topic>` to convene your experts.
 
 Your council is yours. Add whoever helps you do better work:
 
-- **Curated experts**: Kent Beck, Sandi Metz, Dieter Rams, DHH, and 100+ others
+- **Curated experts**: 48 composite personas covering Go, Rails, Python, security, design, and more
 - **Your team**: Add your CTO, your tech lead, your mentor
 - **Fictional characters**: Donald Duck for your cartoon project? Valid.
 - **Custom voices**: Create personas with specific philosophies and red flags
 
 ```bash
-council add "Kent Beck"              # From curated library
+council add "Ada Redgrave"           # From curated library
 council add "My Tech Lead"           # Create custom persona
 /council-add a security expert       # AI-assisted discovery
 ```
@@ -38,8 +38,8 @@ council add "My Tech Lead"           # Create custom persona
 ```
 Your Council                         Your AI Tool
 ┌─────────────────┐                  ┌─────────────────┐
-│ Rob Pike        │                  │ /council        │
-│ Kent Beck       │───── sync ──────▶│ /council-add    │
+│ Sable Okoro     │                  │ /council        │
+│ Ada Redgrave    │───── sync ──────▶│ /council-add    │
 │ Your CTO        │                  │ /council-remove │
 │ Custom Expert   │                  │                 │
 └─────────────────┘                  └─────────────────┘
@@ -67,7 +67,7 @@ Or step by step:
 
 ```bash
 council init     # Creates .council/ directory
-council add "Kent Beck"   # Add experts one by one
+council add "Ada Redgrave" # Add experts one by one
 council sync     # Syncs to your AI tool
 ```
 
@@ -87,14 +87,14 @@ council sync     # Syncs to your AI tool
 
 ## Review
 
-Run blind parallel reviews where each expert reviews independently — no expert sees another's output:
+Run collective reviews where all experts review together and react to each other's perspectives:
 
 ```bash
 git diff main | council review --pack go
 council review --pack rails --file app/models/user.rb --json
 ```
 
-Each expert returns a verdict (pass / comment / block / escalate). The engine synthesizes agreements, tensions, and a final recommendation.
+Each expert returns a verdict (pass / comment / block / escalate). The tension between perspectives produces richer, more nuanced reviews with agreements, disagreements, and a final recommendation. Falls back to per-expert review for small-context models.
 
 Works with any LLM backend — spawns CLI subprocesses (`claude`, `opencode`) or calls APIs directly (Anthropic, OpenAI, Ollama).
 

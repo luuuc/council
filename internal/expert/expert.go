@@ -134,6 +134,7 @@ func (e *Expert) generateBody() string {
 
 // Load reads an expert from disk
 func Load(id string) (*Expert, error) {
+	id, _ = LegacyAlias(id)
 	path := config.Path(config.ExpertsDir, id+".md")
 	return LoadFile(path)
 }
@@ -279,6 +280,7 @@ func Delete(id string) error {
 
 // Exists checks if an expert exists
 func Exists(id string) bool {
+	id, _ = LegacyAlias(id)
 	path := config.Path(config.ExpertsDir, id+".md")
 	_, err := os.Stat(path)
 	return err == nil

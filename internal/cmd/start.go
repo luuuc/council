@@ -293,7 +293,7 @@ func selectFromSuggestionBank(d *detect.Detection) []*expert.Expert {
 // selectGeneralists returns default generalists when detection finds nothing
 func selectGeneralists() []*expert.Expert {
 	var selected []*expert.Expert
-	ids := []string{"kent-beck", "dieter-rams", "jason-fried", "sandi-metz", "cal-newport"}
+	ids := []string{"ada-redgrave", "elara-nygaard", "marcus-torrent", "nadia-kowalski", "iris-vance"}
 
 	for _, id := range ids {
 		if len(selected) >= maxTotalExperts {
@@ -368,7 +368,9 @@ func mapDetectionToCategories(d *detect.Detection) []string {
 	return categories
 }
 
-// findExpertByID searches the suggestion bank for an expert by ID
+// findExpertByID searches the suggestion bank for an expert by ID.
+// Callers pass composite IDs directly — legacy alias resolution
+// happens at the public API boundary (expert.Load, expert.LookupPersona).
 func findExpertByID(id string) *expert.Expert {
 	for _, experts := range loadSuggestionBank() {
 		for i := range experts {

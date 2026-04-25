@@ -240,8 +240,8 @@ func TestSave(t *testing.T) {
 		{
 			name: "save expert with all fields",
 			expert: &Expert{
-				ID:         "dhh",
-				Name:       "DHH",
+				ID:         "diego-valdez",
+				Name:       "Diego Valdez",
 				Focus:      "Rails and convention over configuration",
 				Philosophy: "Optimize for programmer happiness.",
 				Principles: []string{"Convention over configuration", "DRY"},

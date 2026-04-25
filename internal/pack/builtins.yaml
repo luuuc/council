@@ -2,22 +2,22 @@ rails:
   name: rails
   description: Ruby on Rails review council
   members:
-    - id: kent-beck
-    - id: dhh
-    - id: bruce-schneier
-    - id: jason-fried
-    - id: matz
+    - id: ada-redgrave
+    - id: diego-valdez
+    - id: nadia-kowalski
+    - id: marcus-torrent
+    - id: tara-mishkin
     - id: luc-perussault-diallo
 
 go:
   name: go
   description: Go review council
   members:
-    - id: rob-pike
-    - id: dave-cheney
-    - id: kent-beck
-    - id: bruce-schneier
-    - id: antirez
+    - id: sable-okoro
+    - id: ada-redgrave
+    - id: nadia-kowalski
+    - id: niall-cassidy
+    - id: elara-nygaard
     - id: luc-perussault-diallo
 
 writing:
@@ -25,6 +25,6 @@ writing:
   description: Technical writing review council
   members:
     - id: luc-perussault-diallo
-    - id: jason-fried
-    - id: dieter-rams
-    - id: william-zinsser
+    - id: marcus-torrent
+    - id: elara-nygaard
+    - id: colette-marsh

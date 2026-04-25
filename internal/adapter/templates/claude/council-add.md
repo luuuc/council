@@ -8,7 +8,7 @@ Determine what type of input $ARGUMENTS is:
 
 | Type | Pattern | Examples |
 |------|---------|----------|
-| **Name** | Quoted string, or 2-3 capitalized words forming a person's name | `"Kent Beck"`, `Sandi Metz` |
+| **Name** | Quoted string, or 2-3 capitalized words forming a person's name | `"Ada Redgrave"`, `Sable Okoro` |
 | **Description** | Contains "a ", "someone", "expert in", "help with" | `a testing expert`, `someone for API design` |
 | **Keyword** | Single word describing a domain | `testing`, `APIs`, `security` |
 

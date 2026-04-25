@@ -23,7 +23,9 @@ func Resolve(p *Pack, available []*expert.Expert) ([]ResolvedMember, []string) {
 	var resolved []ResolvedMember
 	var warnings []string
 
-	// Match pack members to available experts
+	// Match pack members to available experts.
+	// Legacy alias resolution happens at the public API boundary
+	// (expert.Load, expert.LookupPersona), not here.
 	for _, m := range p.Members {
 		e, ok := byID[m.ID]
 		if !ok {
@@ -31,7 +33,7 @@ func Resolve(p *Pack, available []*expert.Expert) ([]ResolvedMember, []string) {
 			continue
 		}
 		resolved = append(resolved, ResolvedMember{Expert: e, Blocking: m.Blocking})
-		included[m.ID] = true
+		included[e.ID] = true
 	}
 
 	// Inject priority: always experts not already in the pack

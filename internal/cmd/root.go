@@ -25,8 +25,8 @@ var rootCmd = &cobra.Command{
 	Long: `council helps you create an expert council for AI coding assistants.
 
 The council pattern establishes quality standards through expert personas
-that represent excellence in specific domains - Rob Pike for Go clarity,
-Kent Beck for testing, Dieter Rams for design simplicity.
+that represent excellence in specific domains - Sable Okoro for Go clarity,
+Ada Redgrave for testing, Elara Nygaard for design simplicity.
 
 Quick start:
   council start          Zero-config setup (creates council, adds experts, syncs)
