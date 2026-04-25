@@ -14,7 +14,8 @@ clean:
 	rm -rf bin/
 
 install: build
-	cp bin/council /usr/local/bin/council
+	mkdir -p $(HOME)/.local/bin
+	cp bin/council $(HOME)/.local/bin/council
 
 lint:
 	@command -v golangci-lint >/dev/null 2>&1 || \

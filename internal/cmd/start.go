@@ -10,13 +10,14 @@ import (
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/detect"
 	"github.com/luuuc/council/internal/expert"
+	"github.com/luuuc/council/internal/pack"
 	"github.com/luuuc/council/internal/sync"
 	"github.com/spf13/cobra"
 )
 
 const (
-	maxStackExperts = 3 // Maximum stack-specific experts to add
-	maxTotalExperts = 5 // Maximum total experts in auto-selection
+	maxStackExperts = 4 // Maximum stack-specific experts to add
+	maxTotalExperts = 7 // Maximum total experts in auto-selection
 )
 
 func init() {
@@ -196,21 +197,60 @@ func printBackendDetection(backend, provider string) {
 	}
 }
 
-// selectExperts picks up to 5 experts based on detected stack
+// selectExperts picks experts based on detected stack.
+// It first checks for a matching built-in pack; if none matches, falls back to the suggestion bank.
 func selectExperts(d *detect.Detection) []*expert.Expert {
+	// Try built-in packs first — curated rosters for known stacks
+	if experts := selectFromPack(d); len(experts) > 0 {
+		return experts
+	}
+
+	// Fallback: build a council from the suggestion bank
+	return selectFromSuggestionBank(d)
+}
+
+// selectFromPack checks if a built-in pack matches the detected stack.
+func selectFromPack(d *detect.Detection) []*expert.Expert {
+	categories := mapDetectionToCategories(d)
+	builtins := pack.Builtins()
+
+	// Use the first matching pack (framework packs take priority — they appear later in categories)
+	var matchedPack *pack.Pack
+	for i := len(categories) - 1; i >= 0; i-- {
+		if p, ok := builtins[categories[i]]; ok {
+			matchedPack = p
+			break
+		}
+	}
+
+	if matchedPack == nil {
+		return nil
+	}
+
+	var selected []*expert.Expert
+	for _, m := range matchedPack.Members {
+		if e := findExpertByID(m.ID); e != nil {
+			selected = append(selected, e)
+		}
+	}
+
+	return selected
+}
+
+// selectFromSuggestionBank builds a council from the suggestion bank categories + core generals.
+func selectFromSuggestionBank(d *detect.Detection) []*expert.Expert {
 	var selected []*expert.Expert
 	seen := make(map[string]bool)
 
-	// Map categories from detection to suggestion bank categories
 	categories := mapDetectionToCategories(d)
 
-	// Add stack-specific experts
+	// Add stack-specific experts: first pass picks the primary (first) from each category
 	for _, cat := range categories {
 		if len(selected) >= maxStackExperts {
 			break
 		}
 		if experts, ok := loadSuggestionBank()[cat]; ok && len(experts) > 0 {
-			e := &experts[0] // Get first (primary) expert from category
+			e := &experts[0]
 			if !seen[e.ID] {
 				selected = append(selected, expertFromSuggestion(e))
 				seen[e.ID] = true
@@ -218,18 +258,32 @@ func selectExperts(d *detect.Detection) []*expert.Expert {
 		}
 	}
 
-	// Always try to add generalists to round out the council
-	generalists := []string{"kent-beck", "jason-fried", "dieter-rams"}
-	for _, id := range generalists {
-		if len(selected) >= maxTotalExperts {
+	// Second pass: fill remaining stack slots from categories (deeper bench)
+	for _, cat := range categories {
+		if len(selected) >= maxStackExperts {
 			break
 		}
-		if seen[id] {
-			continue
+		if experts, ok := loadSuggestionBank()[cat]; ok {
+			for i := 1; i < len(experts) && len(selected) < maxStackExperts; i++ {
+				e := &experts[i]
+				if !seen[e.ID] {
+					selected = append(selected, expertFromSuggestion(e))
+					seen[e.ID] = true
+				}
+			}
 		}
-		if e := findExpertByID(id); e != nil {
-			selected = append(selected, e)
-			seen[id] = true
+	}
+
+	// Always add core experts from the general category
+	if generals, ok := loadSuggestionBank()["general"]; ok {
+		for i := range generals {
+			if len(selected) >= maxTotalExperts {
+				break
+			}
+			if generals[i].Core && !seen[generals[i].ID] {
+				selected = append(selected, expertFromSuggestion(&generals[i]))
+				seen[generals[i].ID] = true
+			}
 		}
 	}
 
@@ -257,6 +311,12 @@ func selectGeneralists() []*expert.Expert {
 func mapDetectionToCategories(d *detect.Detection) []string {
 	var categories []string
 
+	// Collect detected framework names for context-aware suppression
+	frameworkNames := make(map[string]bool)
+	for _, fw := range d.Frameworks {
+		frameworkNames[fw.Name] = true
+	}
+
 	// Map languages
 	for _, lang := range d.Languages {
 		switch lang.Name {
@@ -267,7 +327,10 @@ func mapDetectionToCategories(d *detect.Detection) []string {
 		case "Python":
 			categories = append(categories, "python")
 		case "JavaScript", "TypeScript":
-			categories = append(categories, "javascript")
+			// In Rails projects, JS/TS is Stimulus/Turbo — covered by Rails experts
+			if !frameworkNames["Rails"] {
+				categories = append(categories, "javascript")
+			}
 		case "Rust":
 			categories = append(categories, "rust")
 		case "Elixir":
