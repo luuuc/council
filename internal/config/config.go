@@ -154,7 +154,9 @@ func Load() (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("council not initialized: run 'council init' first")
+			cfg := Default()
+			cfg.applyDefaults()
+			return cfg, nil
 		}
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}

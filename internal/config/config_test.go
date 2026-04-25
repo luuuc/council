@@ -119,10 +119,13 @@ func TestLoadAndSave(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(origDir) }()
 
-	// Load should fail when not initialized
-	_, err = Load()
-	if err == nil {
-		t.Error("Load() should error when council not initialized")
+	// Load should return defaults when not initialized
+	defaultCfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() should return defaults when not initialized, got error: %v", err)
+	}
+	if defaultCfg.Version != 1 {
+		t.Errorf("expected default version 1, got %d", defaultCfg.Version)
 	}
 
 	// Create .council directory and save config
