@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"bufio"
-	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -15,12 +14,7 @@ import (
 )
 
 var listJSON bool
-var addYes bool
-var addInterview bool
-var addFrom string
 var addNoSync bool
-var addCustomer bool
-var addRole bool
 
 func init() {
 	rootCmd.AddCommand(listCmd)
@@ -29,12 +23,7 @@ func init() {
 	rootCmd.AddCommand(removeCmd)
 
 	listCmd.Flags().BoolVar(&listJSON, "json", false, "Output in JSON format")
-	addCmd.Flags().BoolVarP(&addYes, "yes", "y", false, "Skip confirmation prompts")
-	addCmd.Flags().BoolVar(&addInterview, "interview", false, "AI-assisted persona creation")
-	addCmd.Flags().StringVar(&addFrom, "from", "", "Fork from existing persona ID")
 	addCmd.Flags().BoolVar(&addNoSync, "no-sync", false, "Skip automatic sync after adding")
-	addCmd.Flags().BoolVar(&addCustomer, "customer", false, "Add a customer persona from a description of the people the work is for")
-	addCmd.Flags().BoolVar(&addRole, "role", false, "Add a role persona (e.g. \"SRE\", \"Security Engineer\")")
 }
 
 var listCmd = &cobra.Command{
@@ -107,15 +96,18 @@ var showCmd = &cobra.Command{
 		fmt.Printf("Name:  %s\n", e.Name)
 		fmt.Printf("Focus: %s\n", e.Focus)
 
-		if len(e.Influences) > 0 {
-			fmt.Println("\nInfluences:")
-			for _, inf := range e.Influences {
-				fmt.Printf("  - %s\n", inf)
-			}
+		if e.Kind != "" {
+			fmt.Printf("Kind:  %s\n", e.Kind)
+		}
+		if e.Disclaimer != "" {
+			fmt.Printf("\n%s\n", e.Disclaimer)
 		}
 
-		if e.Backstory != "" {
-			fmt.Printf("\nBackstory:\n  %s\n", strings.TrimSpace(e.Backstory))
+		if len(e.Sources) > 0 {
+			fmt.Println("\nSources:")
+			for _, src := range e.Sources {
+				fmt.Printf("  - %s\n", src)
+			}
 		}
 
 		if e.Philosophy != "" {
@@ -125,6 +117,13 @@ var showCmd = &cobra.Command{
 		if len(e.Principles) > 0 {
 			fmt.Println("\nPrinciples:")
 			for _, p := range e.Principles {
+				fmt.Printf("  - %s\n", p)
+			}
+		}
+
+		if len(e.Inferred) > 0 {
+			fmt.Println("\nInferred (not stated by them):")
+			for _, p := range e.Inferred {
 				fmt.Printf("  - %s\n", p)
 			}
 		}
@@ -152,75 +151,77 @@ var showCmd = &cobra.Command{
 }
 
 var addCmd = &cobra.Command{
-	Use:   "add [name]",
-	Short: "Add expert to council (from library, custom, --interview, or --from)",
-	Long: `Adds an expert to your council.
+	Use:   "add <file | ->",
+	Short: "Add a member from a persona file your AI wrote",
+	Long: `Adds a member to the council from a persona file: markdown with YAML
+frontmatter, or bare YAML, read from a file or from stdin ("-").
 
-If the name matches a curated expert from the library, adds it directly.
-If no match is found, guides you through creating a custom expert.
+Council doesn't research or invent people. Your AI writes the persona (run
+'council assemble' for the format and rules), and Council checks it,
+applies the naming rules, and saves it:
 
-Modes:
-  council add "Jane Doe"          # Researches Virtual Jane Doe from public work
-  council add "Boris Cherny"      # Not in library - researches Virtual Boris Cherny
-  council add "My CTO"            # Unknown person - creates custom persona
-  council add --interview         # AI-assisted persona creation
-  council add --from jane-doe     # Fork an existing member as a starting point
-  council add --role "SRE"        # A role: what it guards and pushes back on
-  council add --customer "solo founders who invoice clients monthly"
-                                  # A customer: reacts as a user, not a reviewer`,
-	Args: cobra.MaximumNArgs(1),
+  person    a real person, named "Virtual {Name}"; needs public sources;
+            Council adds a no-affiliation disclaimer
+  role      a role such as SRE or security engineer
+  customer  a type of user, named "Customer: {label}"; needs evidence
+
+Examples:
+  council add persona.md
+  council add - <<'EOF'
+  name: Jane Doe
+  kind: person
+  focus: Test-driven development
+  sources:
+    - "A talk on TDD"
+  principles:
+    - Write the test first
+  EOF`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {
 			return fmt.Errorf("council not initialized: run 'council init' first")
 		}
-
-		// Customer and role personas are generated from a description
-		if addCustomer || addRole {
-			if addCustomer && addRole {
-				return fmt.Errorf("use either --customer or --role, not both")
-			}
-			if len(args) == 0 {
-				return fmt.Errorf("describe who to add, e.g. council add --customer \"solo founders who invoice monthly\" or council add --role \"SRE\"")
-			}
-			if addCustomer {
-				return runAddGenerated("a customer persona", func() (*expert.Expert, error) { return generateCustomer(args[0]) })
-			}
-			return runAddGenerated("the "+args[0]+" role", func() (*expert.Expert, error) { return generateRole(args[0]) })
-		}
-
-		// Interview mode - AI-assisted creation
-		if addInterview {
-			if !isInteractive() {
-				return fmt.Errorf("--interview requires an interactive terminal")
-			}
-			return runAddInterview()
-		}
-
-		// Fork mode - copy existing persona
-		if addFrom != "" {
-			if !isInteractive() {
-				return fmt.Errorf("--from requires an interactive terminal")
-			}
-			return runAddFork(addFrom)
-		}
-
-		// Standard add mode - requires a name argument
-		if len(args) == 0 {
-			return fmt.Errorf("requires a persona name argument\n\nUsage:\n  council add \"Name\"         Research a real person or create a custom persona\n  council add --interview    AI-assisted creation\n  council add --from ID      Fork an existing member")
-		}
-
-		name := args[0]
-
-		// Research the person, then fall back to a custom persona
-		if !isInteractive() && !addYes {
-			return fmt.Errorf("persona %q not found in curated library\n\n"+
-				"To research them as a real person and add them without prompts:\n  council add %q --yes\n\n"+
-				"To create a custom expert interactively, run without piping:\n  council add %q\n\n"+
-				"Or browse available personas:\n  council personas", name, name, name)
-		}
-
-		return runAddResearch(name)
+		return runAdd(args[0])
 	},
+}
+
+// runAdd validates a persona file (or stdin) and saves it as a member.
+func runAdd(arg string) error {
+	var data []byte
+	var err error
+	if arg == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(arg)
+		if os.IsNotExist(err) && !strings.ContainsAny(arg, "/.") {
+			return fmt.Errorf("council add takes a persona file, not a name.\n\n"+
+				"Council doesn't research people. Ask your AI to build the persona,\n"+
+				"e.g. /council-add %s (it follows 'council assemble'), then save it with:\n"+
+				"  council add persona.md   or   council add - < persona.md", arg)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("reading persona: %w", err)
+	}
+
+	e, err := expert.ParseLoose(string(data))
+	if err != nil {
+		return fmt.Errorf("could not read the persona: %w", err)
+	}
+	if err := expert.Prepare(e); err != nil {
+		return err
+	}
+	if expert.Exists(e.ID) {
+		return fmt.Errorf("%s (%s) is already on the council: remove it first with 'council remove %s' to replace it", e.Name, e.ID, e.ID)
+	}
+	if err := e.Save(); err != nil {
+		return err
+	}
+
+	fmt.Printf("Added %s (%s)\n", e.Name, e.ID)
+	fmt.Printf("File: %s\n", e.Path())
+	runAutoSync(addNoSync, nil)
+	return nil
 }
 
 var removeCmd = &cobra.Command{
@@ -243,7 +244,8 @@ var removeCmd = &cobra.Command{
 			return err
 		}
 
-		if !Confirm(fmt.Sprintf("Remove %s from the council?", e.Name)) {
+		// Ask only in a terminal; an AI tool removing a member has already asked.
+		if isTerminal(os.Stdin) && !Confirm(fmt.Sprintf("Remove %s from the council?", e.Name)) {
 			fmt.Println("Cancelled.")
 			return nil
 		}
@@ -256,98 +258,6 @@ var removeCmd = &cobra.Command{
 
 		return nil
 	},
-}
-
-// runAddResearch builds a Virtual persona from the person's public work.
-// With --yes it saves without prompts; otherwise it previews the persona.
-// Falls back to the manual creation flow when the AI doesn't know the
-// person (e.g. "My CTO") or no AI CLI is available.
-func runAddResearch(name string) error {
-	fmt.Printf("'%s' is not in the library. Researching their public work...\n\n", name)
-
-	exp, err := researchPerson(name)
-	if err != nil {
-		if errors.Is(err, errUnknownPerson) {
-			fmt.Printf("Couldn't find enough public work by %s to build a faithful persona.\n", name)
-		} else {
-			fmt.Printf("Research failed: %v\n", err)
-		}
-		if !isInteractive() {
-			return fmt.Errorf("could not add %q: run without --yes to create a custom persona", name)
-		}
-		fmt.Printf("Let's create a custom persona instead.\n\n")
-		return runAddCreationFlow(name)
-	}
-
-	if expert.Exists(exp.ID) {
-		return fmt.Errorf("expert '%s' already exists", exp.ID)
-	}
-
-	if addYes || !isInteractive() {
-		if err := exp.Save(); err != nil {
-			return err
-		}
-		fmt.Printf("Added %s (%s)\n", exp.Name, exp.ID)
-		fmt.Printf("File: %s\n", exp.Path())
-		runAutoSync(addNoSync, nil)
-		return nil
-	}
-
-	return reviewGeneratedExpert(bufio.NewReader(os.Stdin), exp, func() (*expert.Expert, error) {
-		return researchPerson(name)
-	})
-}
-
-// runAddCreationFlow guides the user through creating a custom expert
-// for the project council (.council/experts/).
-func runAddCreationFlow(name string) error {
-	reader := bufio.NewReader(os.Stdin)
-
-	// Generate ID from name
-	id := expert.ToID(name)
-
-	// Check if expert already exists
-	if expert.Exists(id) {
-		return fmt.Errorf("expert '%s' already exists", id)
-	}
-
-	// Focus (required)
-	fmt.Print("Focus (one-line description of their expertise): ")
-	focus, _ := reader.ReadString('\n')
-	focus = trimNewline(focus)
-	if focus == "" {
-		return fmt.Errorf("focus is required")
-	}
-
-	// Philosophy (optional)
-	fmt.Print("Philosophy (optional, press Enter to skip): ")
-	philosophy, _ := reader.ReadString('\n')
-	philosophy = trimNewline(philosophy)
-
-	// Create expert
-	e := &expert.Expert{
-		ID:         id,
-		Name:       name,
-		Focus:      focus,
-		Philosophy: philosophy,
-	}
-
-	// Save to project council
-	if err := e.Save(); err != nil {
-		return err
-	}
-
-	fmt.Println()
-	fmt.Printf("Created %s (%s)\n", e.Name, e.ID)
-	fmt.Printf("File: %s\n", e.Path())
-	runAutoSync(addNoSync, nil)
-
-	return nil
-}
-
-// trimNewline removes trailing newline characters from a string
-func trimNewline(s string) string {
-	return strings.TrimRight(s, "\r\n")
 }
 
 // runAutoSync runs sync after adding an expert.
@@ -372,76 +282,4 @@ func runAutoSync(skipSync bool, cfg *config.Config) {
 		fmt.Printf("Warning: sync failed: %v\n", err)
 		fmt.Println("Run 'council sync' to retry.")
 	}
-}
-
-// runAddFork creates a new expert based on an existing one.
-func runAddFork(fromID string) error {
-	// Try to load from project council first
-	var source *expert.Expert
-	var err error
-
-	source, err = expert.Load(fromID)
-	if err != nil {
-		return fmt.Errorf("expert '%s' not found in .council/experts/ (see: council list)", fromID)
-	}
-
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Printf("Fork '%s' as starting point\n", source.Name)
-	fmt.Println()
-
-	// Prompt for new name
-	fmt.Printf("New name: [%s (Custom)] ", source.Name)
-	nameInput, _ := reader.ReadString('\n')
-	nameInput = trimNewline(nameInput)
-	if nameInput == "" {
-		nameInput = source.Name + " (Custom)"
-	}
-
-	// Generate and prompt for ID
-	suggestedID := expert.ToID(nameInput)
-	fmt.Printf("New ID: [%s] ", suggestedID)
-	idInput, _ := reader.ReadString('\n')
-	idInput = trimNewline(idInput)
-	if idInput == "" {
-		idInput = suggestedID
-	}
-
-	if expert.Exists(idInput) {
-		return fmt.Errorf("expert '%s' already exists", idInput)
-	}
-
-	// Create new expert based on source
-	e := &expert.Expert{
-		ID:         idInput,
-		Name:       nameInput,
-		Focus:      source.Focus,
-		Category:   "custom",
-		Priority:   source.Priority,
-		Philosophy: source.Philosophy,
-		Principles: source.Principles,
-		RedFlags:   source.RedFlags,
-		Tensions:   source.Tensions,
-		Triggers:   source.Triggers,
-	}
-
-	// Save to project council
-	if err := e.Save(); err != nil {
-		return err
-	}
-
-	fmt.Println()
-	fmt.Printf("Created %s (forked from %s)\n", e.Name, source.Name)
-	fmt.Printf("File: %s\n", e.Path())
-
-	// Offer to edit
-	fmt.Println()
-	if Confirm("Open in editor to customize?") {
-		if err := openInEditor(e.Path()); err != nil {
-			return err
-		}
-	}
-
-	runAutoSync(addNoSync, nil)
-	return nil
 }

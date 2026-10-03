@@ -41,14 +41,33 @@ var councilPrompt = promptDefinition{
 	},
 }
 
+var assemblePrompt = promptDefinition{
+	Name:        "assemble",
+	Description: "Assemble or extend the council: your AI proposes members for this project, you choose",
+	Arguments: []promptArgument{
+		{Name: "focus", Description: "Optional: what the council should be good at (e.g. product launch, security)"},
+	},
+}
+
 func (s *Server) handlePromptsList(req *jsonrpcRequest) {
-	s.sendResult(req.ID, map[string]any{"prompts": []promptDefinition{councilPrompt}})
+	s.sendResult(req.ID, map[string]any{"prompts": []promptDefinition{councilPrompt, assemblePrompt}})
 }
 
 func (s *Server) handlePromptsGet(req *jsonrpcRequest) {
 	var params promptGetParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		s.sendError(req.ID, errCodeInvalidParams, "invalid params", err.Error())
+		return
+	}
+	if params.Name == assemblePrompt.Name {
+		text := "Assemble a council for this project: call council_assemble and follow the brief it returns, step by step."
+		if focus := params.Arguments["focus"]; focus != "" {
+			text += " The council should be good at: " + focus + "."
+		}
+		s.sendResult(req.ID, map[string]any{
+			"description": assemblePrompt.Description,
+			"messages":    []promptMessage{{Role: "user", Content: toolContent{Type: "text", Text: text}}},
+		})
 		return
 	}
 	if params.Name != councilPrompt.Name {

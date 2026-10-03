@@ -14,6 +14,9 @@ var opencodeInstallTemplate string
 //go:embed templates/opencode/council-add.md
 var opencodeCouncilAddTemplate string
 
+//go:embed templates/opencode/council-assemble.md
+var opencodeCouncilAssembleTemplate string
+
 //go:embed templates/opencode/council-remove.md
 var opencodeCouncilRemoveTemplate string
 
@@ -48,8 +51,9 @@ func (o *OpenCode) Templates() Templates {
 	return Templates{
 		Install: opencodeInstallTemplate,
 		Commands: map[string]string{
-			"council-add":    opencodeCouncilAddTemplate,
-			"council-remove": opencodeCouncilRemoveTemplate,
+			"council-assemble": opencodeCouncilAssembleTemplate,
+			"council-add":      opencodeCouncilAddTemplate,
+			"council-remove":   opencodeCouncilRemoveTemplate,
 		},
 	}
 }
@@ -69,11 +73,6 @@ func (o *OpenCode) FormatAgent(e *expert.Expert) string {
 	parts = append(parts, "")
 	parts = append(parts, fmt.Sprintf("You are %s, known for expertise in %s.", e.Name, e.Focus))
 	parts = append(parts, "")
-
-	if e.Backstory != "" {
-		parts = append(parts, strings.TrimSpace(e.Backstory))
-		parts = append(parts, "")
-	}
 
 	if e.Philosophy != "" {
 		parts = append(parts, "## Philosophy")
@@ -121,4 +120,3 @@ func (o *OpenCode) FormatCommand(name, description, body string) string {
 	parts = append(parts, body)
 	return strings.Join(parts, "\n")
 }
-

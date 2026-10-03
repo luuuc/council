@@ -61,7 +61,7 @@ func testExperts() []*expert.Expert {
 	return []*expert.Expert{
 		{
 			ID:    "ada",
-			Name:  "Ada Redgrave",
+			Name:  "Virtual Ada",
 			Focus: "Testing and quality assurance",
 			Body:  "You care about edge cases, test coverage, and correctness.",
 		},

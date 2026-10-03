@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/luuuc/council/internal/brief"
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/review"
@@ -173,8 +174,21 @@ func turnPrompt(id string, t review.Turn) string {
 	return b.String()
 }
 
-// handleAddPersona implements the council_add_persona MCP tool.
-func (s *Server) handleAddPersona(args map[string]any) toolCallResult {
+// handleAssemble implements the council_assemble MCP tool.
+func (s *Server) handleAssemble() toolCallResult {
+	if !config.Exists() {
+		return errorResult("no council in this directory: start the server with `council mcp --dir <project>` for a project that has run `council init`")
+	}
+	text, err := brief.Assemble()
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to build the brief: %v", err))
+	}
+	return textResult(text)
+}
+
+// handleAdd implements the council_add MCP tool: the same checks and naming
+// rules as 'council add'.
+func (s *Server) handleAdd(args map[string]any) toolCallResult {
 	raw, ok := args["persona"].(string)
 	if !ok || strings.TrimSpace(raw) == "" {
 		return errorResult("missing required field: persona")
@@ -183,31 +197,15 @@ func (s *Server) handleAddPersona(args map[string]any) toolCallResult {
 		return errorResult("no council in this directory: start the server with `council mcp --dir <project>` for a project that has run `council init`")
 	}
 
-	text := strings.TrimSpace(raw)
-	if !strings.HasPrefix(text, "---") {
-		text = "---\n" + text + "\n---"
-	}
-	e, err := expert.Parse([]byte(text))
+	e, err := expert.ParseLoose(raw)
 	if err != nil {
-		return errorResult(fmt.Sprintf("could not read persona: %v", err))
+		return errorResult(fmt.Sprintf("could not read the persona: %v", err))
 	}
-	if strings.TrimSpace(e.Name) == "" || strings.TrimSpace(e.Focus) == "" {
-		return errorResult("persona needs at least name and focus")
-	}
-
-	kind, _ := args["kind"].(string)
-	switch kind {
-	case "", "person":
-		expert.NormalizeVirtual(e, e.Name)
-	case expert.KindRole:
-		expert.NormalizeRole(e, e.Name)
-	case expert.KindCustomer:
-		expert.NormalizeCustomer(e)
-	default:
-		return errorResult(fmt.Sprintf("unknown kind %q: use person, role, or customer", kind))
+	if err := expert.Prepare(e); err != nil {
+		return errorResult(err.Error())
 	}
 	if expert.Exists(e.ID) {
-		return errorResult(fmt.Sprintf("expert %q already exists", e.ID))
+		return errorResult(fmt.Sprintf("%s (%s) is already on the council", e.Name, e.ID))
 	}
 	if err := e.Save(); err != nil {
 		return errorResult(fmt.Sprintf("failed to save persona: %v", err))
@@ -216,23 +214,6 @@ func (s *Server) handleAddPersona(args map[string]any) toolCallResult {
 	return textResult(fmt.Sprintf("Added %s (%s) to the council. File: %s\n"+
 		"Run `council sync` in the project to update Claude Code and OpenCode configs.", e.Name, e.ID, e.Path()))
 }
-
-// addPersonaFormat documents the persona YAML for the council_add_persona tool.
-const addPersonaFormat = `name: Their Full Name
-focus: What they are known for (max 60 chars)
-influences:
-  - "A real talk, book, essay, or project — what it shows about their views"
-philosophy: |
-  2-4 sentences in first person, faithful to their documented views.
-principles:
-  - A position they have argued for publicly
-red_flags:
-  - A pattern they would push back on in a review
-tensions:
-  - expert: existing-member-id
-    topic: what they disagree about
-    position: this person's documented position
-    counterpoint: the other member's position`
 
 func newSessionID() (string, error) {
 	buf := make([]byte, 4)

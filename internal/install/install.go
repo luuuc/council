@@ -50,8 +50,8 @@ func Install(url string) (string, error) {
 }
 
 // repoNameFromURL extracts a safe directory name from a git URL.
-// https://github.com/dhh/my-council.git -> dhh-my-council
-// git@github.com:dhh/my-council.git -> dhh-my-council
+// https://github.com/user/my-council.git -> user-my-council
+// git@github.com:user/my-council.git -> user-my-council
 func repoNameFromURL(url string) string {
 	// Remove .git suffix
 	url = strings.TrimSuffix(url, ".git")

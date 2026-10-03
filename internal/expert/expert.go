@@ -30,14 +30,14 @@ type Tension struct {
 var bodyTemplate = template.Must(template.New("body").Parse(`# {{.Name}} - {{.Focus}}
 
 You are {{.Name}}, known for expertise in {{.Focus}}.
-{{- if .Backstory}}
+{{- if .Disclaimer}}
 
-{{.Backstory}}
-{{end}}
-{{if .Influences}}
+({{.Disclaimer}})
+{{- end}}
+{{if .Sources}}
 ## Drawn From
 
-{{range .Influences}}- {{.}}
+{{range .Sources}}- {{.}}
 {{end}}
 {{end}}{{if .Philosophy}}## Philosophy
 
@@ -46,6 +46,14 @@ You are {{.Name}}, known for expertise in {{.Focus}}.
 {{if .Principles}}## Principles
 
 {{range .Principles}}- {{.}}
+{{end}}
+{{end}}
+{{- if .Inferred}}
+## Inferred From Their Work
+
+These positions are read from their work, not stated by them. Hold them more loosely.
+
+{{range .Inferred}}- {{.}}
 {{end}}
 {{end}}
 {{if .RedFlags}}## Red Flags
@@ -67,7 +75,7 @@ Explain your reasoning. Suggest concrete improvements.
 // Kinds of council member. A Council mixes real people, roles, and the
 // customers the work is for.
 const (
-	KindPerson   = ""         // a real person, named "Virtual {Name}" (or a custom persona)
+	KindPerson   = "person"   // a real person, named "Virtual {Name}" (also the default for custom personas)
 	KindRole     = "role"     // a role such as SRE or security engineer
 	KindCustomer = "customer" // a type of customer the work is for
 )
@@ -108,16 +116,16 @@ type Expert struct {
 	Name       string    `yaml:"name" json:"name"`
 	Focus      string    `yaml:"focus" json:"focus"`
 	Kind       string    `yaml:"kind,omitempty" json:"kind,omitempty"` // KindPerson, KindRole, or KindCustomer
-	Influences []string  `yaml:"influences,omitempty" json:"influences,omitempty"`
-	Backstory  string    `yaml:"backstory,omitempty" json:"backstory,omitempty"`
+	Disclaimer string    `yaml:"disclaimer,omitempty" json:"disclaimer,omitempty"`
+	Sources    []string  `yaml:"sources,omitempty" json:"sources,omitempty"` // where the views come from: public work for people, evidence for customers
 	Philosophy string    `yaml:"philosophy,omitempty" json:"philosophy,omitempty"`
-	Principles []string  `yaml:"principles,omitempty" json:"principles,omitempty"`
+	Principles []string  `yaml:"principles,omitempty" json:"principles,omitempty"` // documented positions
+	Inferred   []string  `yaml:"inferred,omitempty" json:"inferred,omitempty"`     // positions inferred from their work, not stated by them
 	RedFlags   []string  `yaml:"red_flags,omitempty" json:"red_flags,omitempty"`
 	Tensions   []Tension `yaml:"tensions,omitempty" json:"tensions,omitempty"`
 
-	// Suggestion metadata
-	Core     bool     `yaml:"core,omitempty" json:"-"`     // Always suggest for matching intention
-	Triggers []string `yaml:"triggers,omitempty" json:"-"` // Only suggest when patterns detected
+	// LegacyInfluences reads the old "influences" field into Sources.
+	LegacyInfluences []string `yaml:"influences,omitempty" json:"-"`
 
 	// Personal council metadata (used by creator commands)
 	Category string `yaml:"category,omitempty" json:"category,omitempty"` // e.g., "custom", "rails", "go"
@@ -221,6 +229,10 @@ func Parse(data []byte) (*Expert, error) {
 	}
 
 	e.Body = body
+	if len(e.Sources) == 0 && len(e.LegacyInfluences) > 0 {
+		e.Sources = e.LegacyInfluences
+	}
+	e.LegacyInfluences = nil
 	return &e, nil
 }
 

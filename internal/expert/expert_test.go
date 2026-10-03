@@ -63,7 +63,7 @@ Body content.`,
 			wantErr: false,
 		},
 		{
-			name: "expert with influences and backstory",
+			name: "old influences load as sources; backstory is ignored",
 			input: `---
 id: ada
 name: Virtual Ada
@@ -85,8 +85,7 @@ red_flags:
 				ID:         "ada",
 				Name:       "Virtual Ada",
 				Focus:      "Test-driven development and incremental design",
-				Influences: []string{"Ada — TDD, red-green-refactor", "Kim — Working with legacy code"},
-				Backstory:  "Former embedded systems engineer who moved to web development.\n",
+				Sources:    []string{"Ada — TDD, red-green-refactor", "Kim — Working with legacy code"},
 				Philosophy: "Untested code is a liability.",
 				Principles: []string{"Red-green-refactor"},
 				RedFlags:   []string{"Code without tests"},
@@ -182,15 +181,12 @@ Body.`,
 			if got.Philosophy != tt.want.Philosophy {
 				t.Errorf("Parse() Philosophy = %v, want %v", got.Philosophy, tt.want.Philosophy)
 			}
-			if got.Backstory != tt.want.Backstory {
-				t.Errorf("Parse() Backstory = %q, want %q", got.Backstory, tt.want.Backstory)
-			}
-			if len(got.Influences) != len(tt.want.Influences) {
-				t.Errorf("Parse() Influences len = %v, want %v", len(got.Influences), len(tt.want.Influences))
+			if len(got.Sources) != len(tt.want.Sources) {
+				t.Errorf("Parse() Sources len = %v, want %v", len(got.Sources), len(tt.want.Sources))
 			} else {
-				for i, inf := range got.Influences {
-					if inf != tt.want.Influences[i] {
-						t.Errorf("Parse() Influences[%d] = %q, want %q", i, inf, tt.want.Influences[i])
+				for i, src := range got.Sources {
+					if src != tt.want.Sources[i] {
+						t.Errorf("Parse() Sources[%d] = %q, want %q", i, src, tt.want.Sources[i])
 					}
 				}
 			}
@@ -250,13 +246,15 @@ func TestSave(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "save expert with influences and backstory",
+			name: "save expert with sources, inferred positions, and disclaimer",
 			expert: &Expert{
-				ID:         "composite",
+				ID:         "ada",
 				Name:       "Virtual Ada",
 				Focus:      "Test-driven development",
-				Influences: []string{"Ada — TDD", "Kim — Legacy code"},
-				Backstory:  "Former embedded systems engineer.",
+				Kind:       KindPerson,
+				Disclaimer: "Modeled on public material. Not affiliated with or endorsed by Ada.",
+				Sources:    []string{"A talk on TDD", "A book on legacy code"},
+				Inferred:   []string{"Prefers small commits"},
 				Philosophy: "Untested code is a liability.",
 				Principles: []string{"Red-green-refactor"},
 				RedFlags:   []string{"Code without tests"},
@@ -399,8 +397,8 @@ That's all!`,
 			wantErr:   false,
 		},
 		{
-			name: "yaml in generic code block",
-			input: "```\nexperts:\n  - id: test\n    name: Test\n    focus: Testing\n```",
+			name:      "yaml in generic code block",
+			input:     "```\nexperts:\n  - id: test\n    name: Test\n    focus: Testing\n```",
 			wantCount: 1,
 			wantErr:   false,
 		},
@@ -575,21 +573,30 @@ func TestGenerateBody(t *testing.T) {
 	}
 }
 
-func TestGenerateBody_WithBackstory(t *testing.T) {
+func TestGenerateBody_SourcesInferredDisclaimer(t *testing.T) {
 	e := &Expert{
-		ID:        "ada",
-		Name:      "Virtual Ada",
-		Focus:     "Test-driven development",
-		Backstory: "Former embedded systems engineer who moved to web development.",
+		ID:         "ada",
+		Name:       "Virtual Ada",
+		Focus:      "Test-driven development",
+		Disclaimer: "Modeled on public material. Not affiliated with or endorsed by Ada.",
+		Sources:    []string{"A talk on TDD"},
+		Principles: []string{"Test first"},
+		Inferred:   []string{"Prefers small commits"},
 	}
 
 	body := e.generateBody()
 
-	if !strings.Contains(body, "You are Virtual Ada") {
-		t.Error("generateBody() should use 'You are' identity, not 'channeling'")
-	}
-	if !strings.Contains(body, "Former embedded systems engineer") {
-		t.Error("generateBody() missing backstory content")
+	for _, want := range []string{
+		"You are Virtual Ada",
+		"(Modeled on public material. Not affiliated with or endorsed by Ada.)",
+		"## Drawn From\n\n- A talk on TDD",
+		"## Principles\n\n- Test first",
+		"## Inferred From Their Work",
+		"- Prefers small commits",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("generateBody() missing %q:\n%s", want, body)
+		}
 	}
 }
 
@@ -929,10 +936,8 @@ func TestMarshalExpertsJSON(t *testing.T) {
 			Category:   "testing",
 			Priority:   "high",
 			// Internal fields should NOT be in JSON output
-			Core:     true,
-			Triggers: []string{"test"},
-			Body:     "# Body content",
-			Source:   "custom",
+			Body:   "# Body content",
+			Source: "custom",
 		},
 	}
 
@@ -958,12 +963,6 @@ func TestMarshalExpertsJSON(t *testing.T) {
 	}
 
 	// Verify excluded fields (internal metadata)
-	if strings.Contains(jsonStr, `"core"`) {
-		t.Error("JSON should NOT contain core field")
-	}
-	if strings.Contains(jsonStr, `"triggers"`) {
-		t.Error("JSON should NOT contain triggers field")
-	}
 	if strings.Contains(jsonStr, `"body"`) && strings.Contains(jsonStr, "Body content") {
 		t.Error("JSON should NOT contain body field")
 	}
@@ -1026,5 +1025,65 @@ func TestDefaultMembers(t *testing.T) {
 	}
 	if m.Focus == "" || len(m.Principles) == 0 || len(m.RedFlags) == 0 || m.Philosophy == "" {
 		t.Errorf("default member should be a complete example of the format: %+v", m)
+	}
+}
+
+func TestPrepare(t *testing.T) {
+	tests := []struct {
+		name     string
+		in       Expert
+		wantErr  string
+		wantName string
+		wantID   string
+	}{
+		{"person", Expert{Name: "Jane Doe", Focus: "Testing", Sources: []string{"A talk"}, Principles: []string{"Test first"}},
+			"", "Virtual Jane Doe", "jane-doe"},
+		{"person needs sources", Expert{Name: "Jane Doe", Focus: "Testing", Principles: []string{"x"}},
+			"public sources", "", ""},
+		{"person with only inferred", Expert{Kind: "person", Name: "Virtual Jane Doe", Focus: "T", Sources: []string{"s"}, Inferred: []string{"x"}},
+			"", "Virtual Jane Doe", "jane-doe"},
+		{"role", Expert{Kind: "role", Name: "Virtual SRE", Focus: "Uptime", Principles: []string{"Rollback plans"}},
+			"", "SRE", "sre"},
+		{"customer", Expert{Kind: "customer", Name: "Freelancer", Focus: "Bills hourly", Sources: []string{"Support threads"}, Principles: []string{"Invoice fast"}},
+			"", "Customer: Freelancer", "customer-freelancer"},
+		{"customer needs evidence", Expert{Kind: "customer", Name: "Freelancer", Focus: "Bills hourly", Principles: []string{"x"}},
+			"evidence", "", ""},
+		{"unknown kind", Expert{Kind: "alien", Name: "X", Focus: "Y"}, "unknown kind", "", ""},
+		{"missing focus", Expert{Name: "X"}, "name and focus", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := tt.in
+			err := Prepare(&e)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Prepare() error = %v, want it to mention %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Prepare() error = %v", err)
+			}
+			if e.Name != tt.wantName || e.ID != tt.wantID {
+				t.Errorf("got %q (%s), want %q (%s)", e.Name, e.ID, tt.wantName, tt.wantID)
+			}
+			if tt.name == "person" && e.Disclaimer != "Modeled on public material. Not affiliated with or endorsed by Jane Doe." {
+				t.Errorf("disclaimer = %q", e.Disclaimer)
+			}
+		})
+	}
+}
+
+func TestParseLoose(t *testing.T) {
+	for _, raw := range []string{
+		"---\nname: Jane\nfocus: x\n---\n",
+		"---\nname: Jane\nfocus: x\n",
+		"name: Jane\nfocus: x",
+		"Here is the persona:\n---\nname: Jane\nfocus: x\n---",
+	} {
+		e, err := ParseLoose(raw)
+		if err != nil || e.Name != "Jane" {
+			t.Errorf("ParseLoose(%q) = %+v, %v", raw, e, err)
+		}
 	}
 }

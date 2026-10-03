@@ -99,4 +99,3 @@ func (g *Generic) GenerateAgentsMd(experts []*expert.Expert) string {
 
 	return strings.Join(parts, "\n")
 }
-

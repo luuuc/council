@@ -210,8 +210,8 @@ func TestToolsList(t *testing.T) {
 		t.Fatalf("unmarshal result: %v", err)
 	}
 
-	if len(result.Tools) != 6 {
-		t.Fatalf("expected 6 tools, got %d", len(result.Tools))
+	if len(result.Tools) != 7 {
+		t.Fatalf("expected 7 tools, got %d", len(result.Tools))
 	}
 
 	names := make(map[string]bool)
@@ -219,7 +219,7 @@ func TestToolsList(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	for _, name := range []string{"council_review", "council_list", "council_explain", "council_convene", "council_turn", "council_add_persona"} {
+	for _, name := range []string{"council_review", "council_list", "council_explain", "council_convene", "council_turn", "council_assemble", "council_add"} {
 		if !names[name] {
 			t.Errorf("missing tool %q", name)
 		}

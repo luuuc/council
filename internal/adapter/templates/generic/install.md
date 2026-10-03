@@ -9,11 +9,10 @@ Set up the council for your project.
 council init
 ```
 
-2. Add members to your council: people you choose (researched from their public work), roles, and customers:
+2. Assemble the council with your AI: it follows the brief from `council assemble` (propose people, roles, and customers; the user chooses; build each persona) and saves each member:
 ```bash
-council add "Jane Doe"
-council add --role "SRE"
-council add --customer "who your users are"
+council assemble
+council add persona.md
 ```
 
 3. Sync to generate AGENTS.md:

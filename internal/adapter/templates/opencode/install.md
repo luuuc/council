@@ -20,8 +20,8 @@ This creates `.council/` and installs the `/council` commands. The council start
 
 After setup, you can modify your council:
 
-- `council add "Jane Doe" --yes` - add a person, researched from their public work
-- `council add --role "SRE" --yes` / `council add --customer "..." --yes` - add a role or a customer
+- `council assemble` - the brief for proposing and building members; save each with `council add -`
+- `/council-add <who>` - add one member: a person, a role, or a customer
 - `/council-add` - interactive expert search
 - `council remove <id>` - remove an expert
 - `council sync` - sync changes to your AI tool

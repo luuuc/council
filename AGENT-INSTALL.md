@@ -74,57 +74,15 @@ This creates the `.council/` directory, detects your AI tool (Claude Code, OpenC
 
 ## Step 4: Assemble the Council
 
-A good council mixes people with different incentives, and includes the people the work is for.
+Run:
 
-1. **Read the project**: code, README, docs, goals, who the users are. It doesn't have to be code.
-2. **Propose 4 to 6 members**, each with one line on why they're useful:
-   - people with documented public positions relevant to this project, chosen to disagree with each other
-   - a role whose incentives are missing (e.g. SRE, security engineer, product-minded CTO)
-   - for anything users touch, a customer
-3. **Let the user choose** with **AskUserQuestion** (multi-select). They can swap anyone, or name people themselves.
-4. **Add each chosen member** (always pass `--yes`: your shell can't answer interactive prompts):
-
-### Add a customer
-
-Ask in one question who the users are (e.g. "freelancers who bill clients by the hour"), then:
 ```bash
-council add --customer "<their description>" --yes
+council assemble
 ```
 
-### Add a role
+and follow the brief it prints. In short: read the project, propose 4 to 7 members with a reason each (people with documented public positions who will disagree, roles whose incentives are missing, and a customer for anything users touch), let the user choose with **AskUserQuestion** (multi-select), build each persona from public material or evidence, and save it with `council add -`.
 
-Ask which role, then:
-```bash
-council add --role "<role, e.g. SRE>" --yes
-```
-
-### Add a person
-
-Anyone with documented public work. Council researches them and names them "Virtual {Name}":
-```bash
-council add "Jane Doe" --yes
-```
-
-Or use the `/council-add` skill to search by description:
-```
-/council-add a security expert
-/council-add someone for API design
-```
-
-### Mix AI models (if more than one AI CLI is installed)
-
-Check which AI CLIs are installed:
-```bash
-command -v claude codex opencode
-```
-
-If two or more are present, offer to spread members across them: models from different labs disagree more honestly. With the user's OK, add to `.council/config.yaml` under `ai:` (opencode takes a `provider/model` from `opencode models`):
-```yaml
-  mix:
-    - command: claude
-    - command: codex
-    - command: opencode
-```
+Later, the user can run `/council-assemble` to extend the council, or `/council-add <who>` to add one member.
 
 ### Removing Experts
 

@@ -31,14 +31,17 @@ Your council is yours. Add whoever helps you do better work:
 - **Your customers**: the user types you are actually building for
 - **Your team**: your CTO, your tech lead, your mentor
 
-```bash
-council add "Jane Doe"               # Researches Virtual Jane Doe from public work
-council add --role "SRE"             # A role, with that role's incentives
-council add --customer "freelancers who bill clients by the hour"
-                                     # A customer: reacts as a user, not a reviewer
-council add "My Tech Lead"           # Create custom persona
-/council-add a security expert       # AI-assisted discovery
+In your AI tool:
+
 ```
+/council-assemble                    # Your AI reads the project, proposes members with reasons, you choose
+/council-add Jane Doe                # Add one person, researched from public work
+/council-add an SRE                  # Add a role
+/council-add freelancers who bill by the hour
+                                     # Add a customer, built from evidence (docs, support, analytics)
+```
+
+Your AI builds each persona and saves it with `council add`. People need public sources and get a no-affiliation disclaimer; customers need evidence.
 
 ## How It Works
 
@@ -68,7 +71,7 @@ Then:
 
 ```bash
 council init               # Creates .council/ and installs the slash commands
-council add "Jane Doe"     # Add members one by one
+council assemble           # The brief your AI follows to build the council
 council sync               # Syncs changes to your AI tool
 ```
 
@@ -77,11 +80,8 @@ council sync               # Syncs changes to your AI tool
 | Command | What it does |
 |---------|--------------|
 | `council init` | Create `.council/` and install the slash commands for your AI tool |
-| `council add "Name"` | Research a real person from public work, or create a custom persona |
-| `council add --role "SRE"` | Add a role (SRE, security engineer, product-minded CTO) |
-| `council add --customer "..."` | Add a customer persona from a description of your users |
-| `council add --interview` | AI-assisted persona creation |
-| `council add --from ID` | Fork existing persona as starting point |
+| `council assemble` | Print the brief your AI follows to propose and build members |
+| `council add <file \| ->` | Check and save a persona your AI wrote (person, role, or customer) |
 | `council list` | See your council members |
 | `council remove <id>` | Remove an expert |
 | `council sync` | Sync to your AI tool |
@@ -156,7 +156,7 @@ Use Council as a tool in any MCP-capable AI tool:
 Exposes these tools over stdin/stdout JSON-RPC, plus a `council` prompt for prompt menus. See [docs/integrations.md](docs/integrations.md) for Claude Desktop setup.
 - `council_review` — sequential council review, returns structured verdict with replies
 - `council_convene` / `council_turn` — the same review with the client's model taking each member's turn (no AI CLI or API key needed, e.g. Claude Desktop)
-- `council_add_persona` — save a Virtual persona the client researched
+- `council_assemble` / `council_add` — the brief for building members, and saving each one
 - `council_list` — list pack members (no LLM calls)
 - `council_explain` — expand on a review note with expert reasoning
 

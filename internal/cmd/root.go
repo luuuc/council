@@ -31,7 +31,7 @@ and expose trade-offs. You make the decision.
 
 Quick start:
   council init           Create .council/ and install the slash commands
-  council add "Name"     Add a person (researched from public work) or a custom persona
+  council assemble       The brief your AI follows to propose and build members
   council sync           Sync council to AI tool configs`,
 }
 
@@ -183,8 +183,8 @@ func initCouncil(clean bool, toolFlag string) error {
 
 	runAutoSync(false, cfg)
 	fmt.Println("")
-	fmt.Println("Next: add members with council add \"Name\" (a real person, researched from public work),")
-	fmt.Println("council add --role \"SRE\", or council add --customer \"who your users are\".")
+	fmt.Println("Next: assemble the council from your AI tool with /council-assemble")
+	fmt.Println("(or have your AI follow 'council assemble').")
 
 	return nil
 }

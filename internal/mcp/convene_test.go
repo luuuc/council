@@ -98,13 +98,15 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 	}
 }
 
-func TestAddPersonaSavesVirtualPersona(t *testing.T) {
+func TestAddSavesVirtualPersona(t *testing.T) {
 	cleanup := setupTestCouncil(t)
 	defer cleanup()
 
 	s := NewServer(strings.NewReader(""), io.Discard, "test")
-	res := s.handleAddPersona(map[string]any{"persona": `name: Jay
+	res := s.handleAdd(map[string]any{"persona": `name: Jay
 focus: TypeScript and agentic coding
+sources:
+  - "A talk on agentic coding"
 principles:
   - Give the agent a way to verify its work
 tensions:
@@ -152,15 +154,23 @@ func TestCouncilPrompt(t *testing.T) {
 			t.Errorf("prompt missing %q: %s", want, text)
 		}
 	}
+
+	list, _ := json.Marshal(resps[0].Result)
+	if !strings.Contains(string(list), `"name":"assemble"`) {
+		t.Errorf("prompts/list should offer assemble: %s", list)
+	}
 }
 
-func TestAddPersonaCustomer(t *testing.T) {
+func TestAddCustomer(t *testing.T) {
 	cleanup := setupTestCouncil(t)
 	defer cleanup()
 
 	s := NewServer(strings.NewReader(""), io.Discard, "test")
-	res := s.handleAddPersona(map[string]any{"kind": "customer", "persona": `name: Freelance Designer
+	res := s.handleAdd(map[string]any{"persona": `name: Freelance Designer
+kind: customer
 focus: Solo designer who bills clients monthly
+sources:
+  - "Support threads about invoicing"
 principles:
   - Send an invoice in two minutes`})
 	if res.IsError {
@@ -171,8 +181,27 @@ principles:
 		t.Fatalf("customer not saved as expected: %+v, %v", e, err)
 	}
 
-	if bad := s.handleAddPersona(map[string]any{"kind": "alien", "persona": "name: X\nfocus: Y"}); !bad.IsError {
+	if bad := s.handleAdd(map[string]any{"persona": "name: X\nkind: alien\nfocus: Y"}); !bad.IsError {
 		t.Error("unknown kind should be rejected")
+	}
+	if bad := s.handleAdd(map[string]any{"persona": "name: Jane Doe\nfocus: Y\nprinciples:\n  - x"}); !bad.IsError || !strings.Contains(bad.Content[0].Text, "public sources") {
+		t.Errorf("a person without sources should be rejected, got %+v", bad)
+	}
+}
+
+func TestAssembleBrief(t *testing.T) {
+	cleanup := setupTestCouncil(t)
+	defer cleanup()
+
+	s := NewServer(strings.NewReader(""), io.Discard, "test")
+	res := s.handleAssemble()
+	if res.IsError {
+		t.Fatalf("assemble failed: %s", res.Content[0].Text)
+	}
+	for _, want := range []string{"# Assemble a Council", "- ada: Virtual Ada", "Current councils (packs):", "council add -"} {
+		if !strings.Contains(res.Content[0].Text, want) {
+			t.Errorf("brief missing %q", want)
+		}
 	}
 }
 

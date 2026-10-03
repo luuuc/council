@@ -40,11 +40,11 @@ Pick **council** from the prompt menu, choose a pack, and describe what to revie
 
 > "Ask the writing council about this launch post"
 
-To add a real person to your Council, ask Claude to research them:
+To assemble or extend your Council, pick **assemble** from the prompt menu, or ask:
 
-> "Add Boris Cherny to my council"
+> "Assemble a council for this project"
 
-Claude researches their public work and saves "Virtual Boris Cherny" with `council_add_persona`. The same tool adds roles ("Add an SRE to my council") and customers ("Add a customer: freelancers who bill by the hour"). Run `council sync` in the project afterwards to update Claude Code and OpenCode.
+Claude reads the project, proposes members with reasons (people with documented public positions, roles, customers), lets you choose, builds each persona, and saves it with `council_add`. Run `council sync` in the project afterwards to update Claude Code and OpenCode.
 
 ### What's Exposed
 
@@ -53,7 +53,7 @@ Claude researches their public work and saves "Virtual Boris Cherny" with `counc
 | `council` prompt | Convenes a pack on a topic |
 | `council_review` tool | Sequential review with one AI call per member (needs an AI CLI or API key) |
 | `council_convene` / `council_turn` tools | The same review with Claude taking each member's turn (no key needed) |
-| `council_add_persona` tool | Saves a Virtual persona Claude researched |
+| `council_assemble` / `council_add` tools | The brief for building members, and saving each one |
 | `council_list` tool | Lists a pack's members and their tensions |
 | `council_explain` tool | Expands on a review note (needs an AI CLI or API key) |
 

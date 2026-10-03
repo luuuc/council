@@ -387,8 +387,10 @@ func TestOpenCode_Templates(t *testing.T) {
 		t.Error("OpenCode council-add template should not use AskUserQuestion")
 	}
 	// OpenCode templates should use numbered options
-	if !strings.Contains(templates.Commands["council-add"], "Which option? (1/2/3)") {
-		t.Error("OpenCode council-add template should use numbered options")
+	for _, name := range []string{"council-add", "council-assemble"} {
+		if !strings.Contains(templates.Commands[name], "numbered list") {
+			t.Errorf("OpenCode %s template should use a numbered list", name)
+		}
 	}
 }
 

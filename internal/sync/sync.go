@@ -229,8 +229,9 @@ func generateCouncilCommand(a adapter.Adapter, experts []*expert.Expert, packs [
 
 func commandDescription(name string) string {
 	descriptions := map[string]string{
-		"council-add":    "Add expert to council with AI-generated content",
-		"council-remove": "Remove expert from council",
+		"council-assemble": "Assemble the council: your AI proposes members, you choose",
+		"council-add":      "Add a member: a person, a role, or a customer",
+		"council-remove":   "Remove expert from council",
 	}
 	if desc, ok := descriptions[name]; ok {
 		return desc

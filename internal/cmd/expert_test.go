@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,25 +46,6 @@ func testInTempDir(t *testing.T, fn func(t *testing.T, dir string)) {
 	fn(t, tmpDir)
 }
 
-func TestAddCmd_NotFound(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// With new behavior, unknown personas trigger creation flow
-		// In interactive mode without input, it will fail on "focus is required"
-		// This tests that the creation flow is triggered
-		err := addCmd.RunE(addCmd, []string{"Unknown Person XYZ"})
-		if err == nil {
-			t.Fatal("expected error for unknown persona without focus input, got nil")
-		}
-
-		errMsg := err.Error()
-		// Either we get the creation flow asking for focus (interactive)
-		// or we get "not found" (non-interactive - stdin is piped/closed)
-		if !strings.Contains(errMsg, "focus is required") && !strings.Contains(errMsg, "not found") {
-			t.Errorf("error message should contain 'focus is required' or 'not found', got: %v", err)
-		}
-	})
-}
-
 func TestAddCmd_NoCouncilInit(t *testing.T) {
 	// Save current directory
 	origDir, err := os.Getwd()
@@ -92,101 +74,6 @@ func TestAddCmd_NoCouncilInit(t *testing.T) {
 	if !strings.Contains(err.Error(), "council not initialized") {
 		t.Errorf("error should mention 'council not initialized', got: %v", err)
 	}
-}
-
-// Note: Interactive flag tests (--interview, --from) are skipped because
-// isInteractive() behavior varies by test environment. The flags are tested
-// implicitly through the NoArgWithoutFlags test which verifies the error
-// messages include these options.
-
-func TestAddCmd_NoArgWithoutFlags(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// No argument and no flags should produce helpful error
-		err := addCmd.RunE(addCmd, []string{})
-		if err == nil {
-			t.Fatal("expected error for add without args, got nil")
-		}
-
-		errMsg := err.Error()
-		if !strings.Contains(errMsg, "requires a persona name argument") {
-			t.Errorf("error should mention 'requires a persona name argument', got: %v", err)
-		}
-		// Should suggest alternatives
-		if !strings.Contains(errMsg, "--interview") || !strings.Contains(errMsg, "--from") {
-			t.Errorf("error should suggest --interview and --from alternatives, got: %v", err)
-		}
-	})
-}
-
-func TestTrimNewline(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "unix newline",
-			input:    "hello\n",
-			expected: "hello",
-		},
-		{
-			name:     "windows newline",
-			input:    "hello\r\n",
-			expected: "hello",
-		},
-		{
-			name:     "no newline",
-			input:    "hello",
-			expected: "hello",
-		},
-		{
-			name:     "multiple trailing newlines",
-			input:    "hello\n\n\n",
-			expected: "hello",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-		{
-			name:     "only newlines",
-			input:    "\n\r\n",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := trimNewline(tt.input)
-			if result != tt.expected {
-				t.Errorf("trimNewline(%q) = %q, expected %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestAddCmd_DuplicateExpert(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		stubAI(t, `---
-name: Cleo
-focus: Simple, clear code
-principles:
-  - Clear is better than clever
-red_flags:
-  - Clever code
----`)
-		addYes = true
-		t.Cleanup(func() { addYes = false })
-
-		if err := addCmd.RunE(addCmd, []string{"Cleo"}); err != nil {
-			t.Fatalf("first add failed: %v", err)
-		}
-		err := addCmd.RunE(addCmd, []string{"Cleo"})
-		if err == nil || !strings.Contains(err.Error(), "already exists") {
-			t.Errorf("second add should fail with 'already exists', got %v", err)
-		}
-	})
 }
 
 func TestListExperts(t *testing.T) {
@@ -237,4 +124,74 @@ func TestInitAddsDefaultMember(t *testing.T) {
 	if expert.Exists("luc-perussault-diallo") {
 		t.Error("default member should be removable")
 	}
+}
+
+// writePersona writes a persona file for council add.
+func writePersona(t *testing.T, dir, name, body string) string {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(body), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestAddCmd_Person(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		path := writePersona(t, dir, "jane.md", `Here is the persona:
+---
+name: Jane Doe
+focus: Test-driven development
+sources:
+  - "A talk on TDD"
+principles:
+  - Write the test first
+inferred:
+  - Prefers small commits
+---`)
+		addNoSync = true
+		t.Cleanup(func() { addNoSync = false })
+
+		if err := addCmd.RunE(addCmd, []string{path}); err != nil {
+			t.Fatalf("add: %v", err)
+		}
+		e, err := expert.Load("jane-doe")
+		if err != nil {
+			t.Fatalf("persona not saved: %v", err)
+		}
+		if e.Name != "Virtual Jane Doe" || e.Kind != expert.KindPerson {
+			t.Errorf("got %q kind %q", e.Name, e.Kind)
+		}
+		if !strings.Contains(e.Body, "Not affiliated with or endorsed by Jane Doe") || !strings.Contains(e.Body, "## Inferred From Their Work") {
+			t.Errorf("body should carry the disclaimer and inferred positions:\n%s", e.Body)
+		}
+
+		// Adding the same person again is refused.
+		err = addCmd.RunE(addCmd, []string{path})
+		if err == nil || !strings.Contains(err.Error(), "already on the council") {
+			t.Errorf("duplicate add should be refused, got %v", err)
+		}
+	})
+}
+
+func TestAddCmd_RejectsPersonWithoutSources(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		path := writePersona(t, dir, "jane.md", "name: Jane Doe\nfocus: Testing\nprinciples:\n  - Test first\n")
+		err := addCmd.RunE(addCmd, []string{path})
+		if err == nil || !strings.Contains(err.Error(), "public sources") {
+			t.Fatalf("expected a sources error, got %v", err)
+		}
+		if expert.Exists("jane-doe") {
+			t.Error("rejected persona should not be saved")
+		}
+	})
+}
+
+func TestAddCmd_NameInsteadOfFile(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		err := addCmd.RunE(addCmd, []string{"Jane Doe"})
+		if err == nil || !strings.Contains(err.Error(), "takes a persona file, not a name") || !strings.Contains(err.Error(), "council assemble") {
+			t.Errorf("a name should get a pointer to the AI flow, got %v", err)
+		}
+	})
 }
