@@ -74,7 +74,9 @@ func councilCandidates(picks []*expert.Expert) []councilCandidate {
 
 // pickCouncil lets the user check and uncheck members before saving.
 // It's a plain numbered list read line by line, so it works in any terminal.
-func pickCouncil(in io.Reader, out io.Writer, picks []*expert.Expert) ([]*expert.Expert, error) {
+// If newCustomer is set, typing "c" builds a customer persona from a
+// description of the people the work is for and adds it, checked.
+func pickCouncil(in io.Reader, out io.Writer, picks []*expert.Expert, newCustomer func(description string) (*expert.Expert, error)) ([]*expert.Expert, error) {
 	candidates := councilCandidates(picks)
 	reader := bufio.NewReader(in)
 
@@ -94,6 +96,9 @@ func pickCouncil(in io.Reader, out io.Writer, picks []*expert.Expert) ([]*expert
 			_, _ = fmt.Fprintf(out, "  %2d. %s %s — %s\n", i+1, box, c.Expert.Name, detail)
 		}
 		_, _ = fmt.Fprintln(out)
+		if newCustomer != nil {
+			_, _ = fmt.Fprintln(out, "Type \"c\" to add a customer: someone this work is for, who reacts as a user.")
+		}
 		_, _ = fmt.Fprint(out, "Type numbers to check or uncheck (e.g. \"7 9\"), or press Enter to confirm: ")
 
 		line, err := reader.ReadString('\n')
@@ -113,6 +118,26 @@ func pickCouncil(in io.Reader, out io.Writer, picks []*expert.Expert) ([]*expert
 				return nil, fmt.Errorf("no members picked")
 			}
 			_, _ = fmt.Fprintln(out, "Pick at least one member.")
+			continue
+		}
+
+		if newCustomer != nil && strings.EqualFold(line, "c") {
+			_, _ = fmt.Fprint(out, "Describe the people this is for (e.g. \"solo founders who invoice clients monthly\"): ")
+			desc, readErr := reader.ReadString('\n')
+			desc = strings.TrimSpace(desc)
+			if desc == "" {
+				if readErr != nil {
+					return nil, fmt.Errorf("input ended before confirming")
+				}
+				continue
+			}
+			_, _ = fmt.Fprintln(out, "Building a customer persona...")
+			c, genErr := newCustomer(desc)
+			if genErr != nil {
+				_, _ = fmt.Fprintf(out, "Could not build a customer persona: %v\n", genErr)
+				continue
+			}
+			candidates = append(candidates, councilCandidate{Expert: c, Why: "customer: " + c.Focus, Checked: true})
 			continue
 		}
 

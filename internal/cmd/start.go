@@ -122,7 +122,7 @@ func runStart() error {
 
 	// Step 5: Let the user adjust the picks in a real terminal
 	if !startYes && isTerminal(os.Stdin) && isTerminal(os.Stdout) {
-		picked, err := pickCouncil(os.Stdin, os.Stdout, experts)
+		picked, err := pickCouncil(os.Stdin, os.Stdout, experts, generateCustomer)
 		if err != nil {
 			_ = os.RemoveAll(config.CouncilDir)
 			return fmt.Errorf("no council created: %w", err)

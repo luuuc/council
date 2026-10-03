@@ -44,7 +44,7 @@ To add a real person to your Council, ask Claude to research them:
 
 > "Add Boris Cherny to my council"
 
-Claude researches their public work and saves "Virtual Boris Cherny" with `council_add_persona`. Run `council sync` in the project afterwards to update Claude Code and OpenCode.
+Claude researches their public work and saves "Virtual Boris Cherny" with `council_add_persona`. The same tool adds roles ("Add an SRE to my council") and customers ("Add a customer: freelancers who bill by the hour"). Run `council sync` in the project afterwards to update Claude Code and OpenCode.
 
 ### What's Exposed
 

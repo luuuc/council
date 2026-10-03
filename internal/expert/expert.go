@@ -98,6 +98,42 @@ When reviewing code, focus on your area of expertise. Be direct and specific.
 Explain your reasoning. Suggest concrete improvements.
 `))
 
+// Kinds of council member. A Council mixes real people, roles, and the
+// customers the work is for.
+const (
+	KindPerson   = ""         // a real person, named "Virtual {Name}" (or a custom persona)
+	KindRole     = "role"     // a role such as SRE or security engineer
+	KindCustomer = "customer" // a type of customer the work is for
+)
+
+// customerBodyTemplate frames a customer persona: they react as a user,
+// not as a reviewer.
+var customerBodyTemplate = template.Must(template.New("customer-body").Parse(`# {{.Name}} - {{.Focus}}
+
+You are {{.Name}}: {{.Focus}}. You are not a reviewer or an expert. You are
+one of the people this work is for, and you react to it as a user would.
+{{- if .Philosophy}}
+
+## Your Situation
+
+{{.Philosophy}}
+{{end}}
+{{if .Principles}}## What You're Trying to Get Done
+
+{{range .Principles}}- {{.}}
+{{end}}
+{{end}}
+{{if .RedFlags}}## What Makes You Give Up
+
+{{range .RedFlags}}- {{.}}
+{{end}}
+{{end}}## How You React
+
+Speak as yourself, in plain words. Say whether you would use this, what
+confuses you, what is missing for you, and whether it is worth your time or
+money. You don't judge code quality; you judge whether this helps you.
+`))
+
 // Expert represents an expert persona.
 // This is the canonical type used throughout the codebase for both
 // project experts and custom/installed personas.
@@ -105,6 +141,7 @@ type Expert struct {
 	ID         string    `yaml:"id" json:"id"`
 	Name       string    `yaml:"name" json:"name"`
 	Focus      string    `yaml:"focus" json:"focus"`
+	Kind       string    `yaml:"kind,omitempty" json:"kind,omitempty"` // KindPerson, KindRole, or KindCustomer
 	Influences []string  `yaml:"influences,omitempty" json:"influences,omitempty"`
 	Backstory  string    `yaml:"backstory,omitempty" json:"backstory,omitempty"`
 	Philosophy string    `yaml:"philosophy,omitempty" json:"philosophy,omitempty"`
@@ -164,7 +201,11 @@ func (e *Expert) Save() error {
 
 func (e *Expert) generateBody() string {
 	var buf bytes.Buffer
-	if err := bodyTemplate.Execute(&buf, e); err != nil {
+	tmpl := bodyTemplate
+	if e.Kind == KindCustomer {
+		tmpl = customerBodyTemplate
+	}
+	if err := tmpl.Execute(&buf, e); err != nil {
 		// Fallback to simple format if template fails
 		return fmt.Sprintf("# %s - %s\n\nExpert in %s.", e.Name, e.Focus, e.Focus)
 	}

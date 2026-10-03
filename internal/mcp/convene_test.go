@@ -153,3 +153,25 @@ func TestCouncilPrompt(t *testing.T) {
 		}
 	}
 }
+
+func TestAddPersonaCustomer(t *testing.T) {
+	cleanup := setupTestCouncil(t)
+	defer cleanup()
+
+	s := NewServer(strings.NewReader(""), io.Discard, "test")
+	res := s.handleAddPersona(map[string]any{"kind": "customer", "persona": `name: Freelance Designer
+focus: Solo designer who bills clients monthly
+principles:
+  - Send an invoice in two minutes`})
+	if res.IsError {
+		t.Fatalf("add customer failed: %s", res.Content[0].Text)
+	}
+	e, err := expert.Load("customer-freelance-designer")
+	if err != nil || e.Name != "Customer: Freelance Designer" || e.Kind != expert.KindCustomer {
+		t.Fatalf("customer not saved as expected: %+v, %v", e, err)
+	}
+
+	if bad := s.handleAddPersona(map[string]any{"kind": "alien", "persona": "name: X\nfocus: Y"}); !bad.IsError {
+		t.Error("unknown kind should be rejected")
+	}
+}

@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/luuuc/council/internal/expert"
@@ -47,4 +49,57 @@ func councilMemberList() string {
 		fmt.Fprintf(&b, "- %s: %s — %s\n", m.ID, m.Name, m.Focus)
 	}
 	return b.String()
+}
+
+//go:embed prompts/customer.txt
+var customerPrompt string
+
+//go:embed prompts/role.txt
+var rolePrompt string
+
+// generateCustomer builds a customer persona from a description of the
+// people the work is for.
+func generateCustomer(description string) (*expert.Expert, error) {
+	exp, err := generateExpert(fmt.Sprintf(customerPrompt, description))
+	if err != nil {
+		return nil, err
+	}
+	expert.NormalizeCustomer(exp)
+	return exp, nil
+}
+
+// generateRole builds a persona for a role such as SRE or security engineer.
+func generateRole(title string) (*expert.Expert, error) {
+	exp, err := generateExpert(fmt.Sprintf(rolePrompt, title, councilMemberList()))
+	if err != nil {
+		return nil, err
+	}
+	expert.NormalizeRole(exp, title)
+	return exp, nil
+}
+
+// runAddGenerated builds a persona with the AI, then previews it (or saves
+// it directly with --yes or without a terminal).
+func runAddGenerated(what string, generate func() (*expert.Expert, error)) error {
+	fmt.Printf("Building %s...\n\n", what)
+
+	exp, err := generate()
+	if err != nil {
+		return fmt.Errorf("could not build %s: %w", what, err)
+	}
+	if expert.Exists(exp.ID) {
+		return fmt.Errorf("expert '%s' already exists", exp.ID)
+	}
+
+	if addYes || !isInteractive() {
+		if err := exp.Save(); err != nil {
+			return err
+		}
+		fmt.Printf("Added %s (%s)\n", exp.Name, exp.ID)
+		fmt.Printf("File: %s\n", exp.Path())
+		runAutoSync(addNoSync, nil)
+		return nil
+	}
+
+	return reviewGeneratedExpert(bufio.NewReader(os.Stdin), exp, generate)
 }

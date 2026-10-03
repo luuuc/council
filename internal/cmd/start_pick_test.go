@@ -59,7 +59,7 @@ func TestPickCouncil(t *testing.T) {
 
 	// Uncheck Kent Beck, check the first challenger, ignore junk, confirm.
 	var out strings.Builder
-	got, err := pickCouncil(strings.NewReader("2 3 99 x\n\n"), &out, picks)
+	got, err := pickCouncil(strings.NewReader("2 3 99 x\n\n"), &out, picks, nil)
 	if err != nil {
 		t.Fatalf("pickCouncil: %v", err)
 	}
@@ -76,7 +76,29 @@ func TestPickCouncil(t *testing.T) {
 	}
 
 	// Unchecking everyone requires picking someone before confirming.
-	if _, err := pickCouncil(strings.NewReader("1 2\n\n"), &out, picks); err == nil {
+	if _, err := pickCouncil(strings.NewReader("1 2\n\n"), &out, picks, nil); err == nil {
 		t.Error("expected an error when input ends with nobody picked")
+	}
+}
+
+func TestPickCouncilAddsCustomer(t *testing.T) {
+	picks := []*expert.Expert{findExpertByID("rob-pike")}
+	newCustomer := func(desc string) (*expert.Expert, error) {
+		if desc != "solo founders" {
+			t.Errorf("description = %q", desc)
+		}
+		return &expert.Expert{ID: "customer-solo-founder", Name: "Customer: Solo Founder", Focus: "runs everything alone", Kind: expert.KindCustomer}, nil
+	}
+
+	var out strings.Builder
+	got, err := pickCouncil(strings.NewReader("c\nsolo founders\n\n"), &out, picks, newCustomer)
+	if err != nil {
+		t.Fatalf("pickCouncil: %v", err)
+	}
+	if len(got) != 2 || got[1].ID != "customer-solo-founder" {
+		t.Fatalf("expected Rob Pike plus the new customer, got %d members", len(got))
+	}
+	if !strings.Contains(out.String(), "[x] Customer: Solo Founder — customer: runs everything alone") {
+		t.Errorf("the new customer should be listed and checked:\n%s", out.String())
 	}
 }

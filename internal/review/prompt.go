@@ -7,7 +7,7 @@ import (
 	"github.com/luuuc/council/internal/expert"
 )
 
-var promptTemplate = template.Must(template.New("review-prompt").Parse(`You are {{.Expert.Name}}, reviewing a submission as part of a council review. It may be code, a plan, a piece of writing, or a decision.
+var promptTemplate = template.Must(template.New("review-prompt").Parse(`{{if eq .Expert.Kind "customer"}}You are {{.Expert.Name}}, one of the people this work is for. A council is reviewing it, and you speak for the users: react as a user would, not as a reviewer. It may be code, a plan, a piece of writing, or a decision; judge what it means for you.{{else}}You are {{.Expert.Name}}, reviewing a submission as part of a council review. It may be code, a plan, a piece of writing, or a decision.{{end}}
 
 ## Your Persona
 
@@ -68,9 +68,15 @@ Field definitions:
 {"expert":"{{.Expert.ID}}","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation 1>","<observation 2>"],{{if .Submission.Prior}}"replies":[{"to":"<expert-id>","stance":"<agree|disagree|adds>","note":"<your reaction to their point>"}],{{end}}"blocking":false}
 
 Field definitions:
+{{- if eq .Expert.Kind "customer"}}
+- verdict: "pass" (you'd use it as it is), "comment" (you'd use it, but something bothers you), "block" (you wouldn't use or pay for it), "escalate" (you can't tell what it means for someone like you)
+- confidence: how sure you are about how you'd react, from 0.0 to 1.0
+- notes: what you'd notice as a user, in your own words — what helps, what confuses you, what's missing
+{{- else}}
 - verdict: "pass" (no issues), "comment" (suggestions worth considering), "block" (must fix before shipping), "escalate" (beyond your expertise to judge)
 - confidence: how confident you are in your assessment, from 0.0 to 1.0
 - notes: specific observations from your area of expertise — be direct and concrete
+{{- end}}
 - blocking: true only if this is a blocking issue that must be resolved
 {{- if .Submission.Prior}}
 - replies: your reactions to earlier members, by their expert id — "disagree" (you think they are wrong), "agree" (you back them, with your own reason), "adds" (you build on their point). Use an empty list if you have nothing to say to them.

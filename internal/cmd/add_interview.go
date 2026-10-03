@@ -244,6 +244,16 @@ func parseGeneratedExpert(raw string) (*expert.Expert, error) {
 		response = response[idx:]
 	}
 
+	// Models sometimes leave out the closing "---" (or both markers);
+	// the YAML is still complete, so add them.
+	response = strings.TrimSpace(response)
+	if !strings.HasPrefix(response, "---") {
+		response = "---\n" + response
+	}
+	if !strings.Contains(response[3:], "\n---") {
+		response += "\n---\n"
+	}
+
 	exp, err := expert.Parse([]byte(response))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse AI response: %w\n\nRaw response:\n%s", err, raw)
@@ -278,9 +288,14 @@ func displayExpertPreview(e *expert.Expert) {
 		}
 	}
 
+	principles, redFlags := "Principles:", "Red Flags:"
+	if e.Kind == expert.KindCustomer {
+		principles, redFlags = "Trying to get done:", "Gives up when:"
+	}
+
 	if len(e.Principles) > 0 {
 		fmt.Println("|                                                         |")
-		fmt.Println("| Principles:                                             |")
+		fmt.Printf("| %-55s |\n", principles)
 		for _, pr := range e.Principles {
 			fmt.Printf("|   - %-52s |\n", truncate(pr, 52))
 		}
@@ -288,7 +303,7 @@ func displayExpertPreview(e *expert.Expert) {
 
 	if len(e.RedFlags) > 0 {
 		fmt.Println("|                                                         |")
-		fmt.Println("| Red Flags:                                              |")
+		fmt.Printf("| %-55s |\n", redFlags)
 		for _, rf := range e.RedFlags {
 			fmt.Printf("|   - %-52s |\n", truncate(rf, 52))
 		}

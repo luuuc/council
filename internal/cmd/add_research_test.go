@@ -119,3 +119,82 @@ func TestFormatExpertForEditKeepsAllFields(t *testing.T) {
 		t.Errorf("influences and tensions should survive editing, got %d and %d", len(back.Influences), len(back.Tensions))
 	}
 }
+
+func TestAddCmd_Customer(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		prompt := stubAI(t, `---
+name: Freelance Designer
+focus: Solo designer who bills five to ten clients a month
+kind: customer
+philosophy: |
+  I juggle client work and invoicing alone.
+principles:
+  - Send an invoice in under two minutes
+red_flags:
+  - Setup that takes an afternoon
+tensions:
+  - expert: rob-pike
+    topic: x
+    position: y
+    counterpoint: z
+---`)
+		addYes, addCustomer = true, true
+		t.Cleanup(func() { addYes, addCustomer = false, false })
+
+		if err := addCmd.RunE(addCmd, []string{"solo designers who invoice monthly"}); err != nil {
+			t.Fatalf("addCmd failed: %v", err)
+		}
+		if !strings.Contains(*prompt, "solo designers who invoice monthly") {
+			t.Errorf("prompt should carry the description:\n%s", *prompt)
+		}
+
+		e, err := expert.Load("customer-freelance-designer")
+		if err != nil {
+			t.Fatalf("customer not saved: %v", err)
+		}
+		if e.Name != "Customer: Freelance Designer" || e.Kind != expert.KindCustomer || len(e.Tensions) != 0 {
+			t.Errorf("unexpected customer: name=%q kind=%q tensions=%d", e.Name, e.Kind, len(e.Tensions))
+		}
+		if !strings.Contains(e.Body, "What You're Trying to Get Done") || !strings.Contains(e.Body, "react to it as a user") {
+			t.Errorf("customer body should frame them as a user:\n%s", e.Body)
+		}
+	})
+}
+
+func TestAddCmd_Role(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		stubAI(t, `---
+name: Virtual Site Reliability Engineer
+focus: Uptime, rollbacks, and on-call load
+principles:
+  - Every change needs a rollback plan
+red_flags:
+  - Deploys without alerts
+---`)
+		addYes, addRole = true, true
+		t.Cleanup(func() { addYes, addRole = false, false })
+
+		if err := addCmd.RunE(addCmd, []string{"SRE"}); err != nil {
+			t.Fatalf("addCmd failed: %v", err)
+		}
+		e, err := expert.Load("site-reliability-engineer")
+		if err != nil {
+			t.Fatalf("role not saved: %v", err)
+		}
+		if e.Name != "Site Reliability Engineer" || e.Kind != expert.KindRole {
+			t.Errorf("roles are never Virtual: name=%q kind=%q", e.Name, e.Kind)
+		}
+	})
+}
+
+func TestParseGeneratedExpertWithoutClosingMarker(t *testing.T) {
+	for _, raw := range []string{
+		"---\nname: Freelance Designer\nfocus: Bills clients monthly\n",
+		"name: Freelance Designer\nfocus: Bills clients monthly",
+	} {
+		e, err := parseGeneratedExpert(raw)
+		if err != nil || e.Name != "Freelance Designer" {
+			t.Errorf("parseGeneratedExpert(%q) = %+v, %v", raw, e, err)
+		}
+	}
+}

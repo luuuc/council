@@ -48,6 +48,8 @@ Rules:
 - decisions: questions for the author, not recommendations. Name what each
   choice costs. Leave out anything every member agrees on.
 - agreements: points nobody disputed that the author should act on.
+- Members whose id starts with "customer-" speak for the users. Where what
+  they need conflicts with what the experts want, make that a disagreement.
 
 Respond with ONLY the JSON object. Nothing else.`))
 

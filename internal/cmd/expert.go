@@ -19,6 +19,8 @@ var addYes bool
 var addInterview bool
 var addFrom string
 var addNoSync bool
+var addCustomer bool
+var addRole bool
 
 func init() {
 	rootCmd.AddCommand(listCmd)
@@ -31,6 +33,8 @@ func init() {
 	addCmd.Flags().BoolVar(&addInterview, "interview", false, "AI-assisted persona creation")
 	addCmd.Flags().StringVar(&addFrom, "from", "", "Fork from existing persona ID")
 	addCmd.Flags().BoolVar(&addNoSync, "no-sync", false, "Skip automatic sync after adding")
+	addCmd.Flags().BoolVar(&addCustomer, "customer", false, "Add a customer persona from a description of the people the work is for")
+	addCmd.Flags().BoolVar(&addRole, "role", false, "Add a role persona (e.g. \"SRE\", \"Security Engineer\")")
 }
 
 var listCmd = &cobra.Command{
@@ -160,11 +164,28 @@ Modes:
   council add "Boris Cherny"      # Not in library - researches Virtual Boris Cherny
   council add "My CTO"            # Unknown person - creates custom persona
   council add --interview         # AI-assisted persona creation
-  council add --from kent-beck    # Fork existing persona as starting point`,
+  council add --from kent-beck    # Fork existing persona as starting point
+  council add --role "SRE"        # A role: what it guards and pushes back on
+  council add --customer "solo founders who invoice clients monthly"
+                                  # A customer: reacts as a user, not a reviewer`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {
 			return fmt.Errorf("council not initialized: run 'council start' first")
+		}
+
+		// Customer and role personas are generated from a description
+		if addCustomer || addRole {
+			if addCustomer && addRole {
+				return fmt.Errorf("use either --customer or --role, not both")
+			}
+			if len(args) == 0 {
+				return fmt.Errorf("describe who to add, e.g. council add --customer \"solo founders who invoice monthly\" or council add --role \"SRE\"")
+			}
+			if addCustomer {
+				return runAddGenerated("a customer persona", func() (*expert.Expert, error) { return generateCustomer(args[0]) })
+			}
+			return runAddGenerated("the "+args[0]+" role", func() (*expert.Expert, error) { return generateRole(args[0]) })
 		}
 
 		// Interview mode - AI-assisted creation

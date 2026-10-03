@@ -32,6 +32,9 @@ Your council is yours. Add whoever helps you do better work:
 ```bash
 council add "Kent Beck"             # Adds Virtual Kent Beck from the library
 council add "Boris Cherny"           # Not in the library: researches Virtual Boris Cherny
+council add --role "SRE"             # A role, with that role's incentives
+council add --customer "freelancers who bill clients by the hour"
+                                     # A customer: reacts as a user, not a reviewer
 council add "My Tech Lead"           # Create custom persona
 /council-add a security expert       # AI-assisted discovery
 ```
@@ -80,6 +83,8 @@ council sync     # Syncs to your AI tool
 |---------|--------------|
 | `council start` | Setup: detect stack, pick your council, sync (`--yes` or no terminal: no questions) |
 | `council add "Name"` | Add from the library, research a real person, or create custom |
+| `council add --role "SRE"` | Add a role (SRE, security engineer, product-minded CTO) |
+| `council add --customer "..."` | Add a customer persona from a description of your users |
 | `council add --interview` | AI-assisted persona creation |
 | `council add --from ID` | Fork existing persona as starting point |
 | `council list` | See your council members |

@@ -376,14 +376,21 @@ func toolDefinitions() []toolDefinition {
 		},
 		{
 			Name: "council_add_persona",
-			Description: "Add a persona modeled on a real person to the project council. Research the person's public talks, writing, and decisions first, " +
-				"and stay faithful to what they have actually said. Council names them \"Virtual {Name}\". Check council_list first so tensions use real member IDs.",
+			Description: "Add a member to the project council. kind \"person\" (default): a real person; research their public talks, writing, and decisions first, " +
+				"stay faithful to what they have actually said, and Council names them \"Virtual {Name}\". kind \"role\": a role such as SRE or security engineer, " +
+				"with the incentives of that role. kind \"customer\": a type of customer the work is for; philosophy is their situation, principles are what they're " +
+				"trying to get done, red_flags are what makes them give up, and they get no tensions. Check council_list first so tensions use real member IDs.",
 			InputSchema: toolSchema{
 				Type: "object",
 				Properties: map[string]schemaProperty{
 					"persona": {
 						Type:        "string",
 						Description: "The persona as YAML in this format:\n" + addPersonaFormat,
+					},
+					"kind": {
+						Type:        "string",
+						Description: "person (default), role, or customer",
+						Enum:        []string{"person", "role", "customer"},
 					},
 				},
 				Required: []string{"persona"},

@@ -159,7 +159,17 @@ func (s *Server) handleAddPersona(args map[string]any) toolCallResult {
 		return errorResult("persona needs at least name and focus")
 	}
 
-	expert.NormalizeVirtual(e, e.Name)
+	kind, _ := args["kind"].(string)
+	switch kind {
+	case "", "person":
+		expert.NormalizeVirtual(e, e.Name)
+	case expert.KindRole:
+		expert.NormalizeRole(e, e.Name)
+	case expert.KindCustomer:
+		expert.NormalizeCustomer(e)
+	default:
+		return errorResult(fmt.Sprintf("unknown kind %q: use person, role, or customer", kind))
+	}
 	if expert.Exists(e.ID) {
 		return errorResult(fmt.Sprintf("expert %q already exists", e.ID))
 	}
