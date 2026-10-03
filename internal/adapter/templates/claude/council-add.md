@@ -11,8 +11,16 @@ Determine what type of input $ARGUMENTS is:
 | **Name** | Quoted string, or 2-3 capitalized words forming a person's name | `"Kent Beck"`, `Sandi Metz` |
 | **Description** | Contains "a ", "someone", "expert in", "help with" | `a testing expert`, `someone for API design` |
 | **Keyword** | Single word describing a domain | `testing`, `APIs`, `security` |
+| **Customer** | Describes the people the work is for: "customers", "users who", "people who" | `freelancers who bill hourly`, `customer: small agency owners` |
+| **Role** | A job title, not a person's name | `SRE`, `security engineer`, `a product-minded CTO` |
 
 **If ambiguous, treat as description and search.**
+
+**Customer or Role input: build it with the CLI and stop.**
+- Customer: `council add --customer "<the description>" --yes`
+- Role: `council add --role "<the role title>" --yes`
+
+Then run `council sync` and confirm with "Added {Name} ({id}) to the council". Customers react as users, not reviewers; roles carry that role's incentives. "a security expert" (looking for a person) is a Description; "security engineer" (a job title) is a Role. If unsure, ask.
 
 ## Step 2: Search Curated Personas
 

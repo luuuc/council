@@ -44,7 +44,7 @@ Tell the user which experts exist, then use **AskUserQuestion**:
 | "Start fresh" | Remove everything and set up from scratch |
 | "All set" | Keep everything as is |
 
-- If **Add more**: Skip to "Customize" (Step 4)
+- If **Add more**: Skip to "Shape the Council" (Step 4)
 - If **Start fresh**: Run `council init --clean`, then run `council start`
 - If **All set**: Skip to "Done"
 
@@ -76,56 +76,77 @@ This single command:
 1. Creates the `.council/` directory
 2. Detects your AI tool (Claude Code, OpenCode, or generic)
 3. Detects your project stack (languages, frameworks, testing tools)
-4. Adds 5 experts matched to your stack
+4. Adds experts matched to your stack (real people, named "Virtual X")
 5. Syncs everything to your AI tool
 
 Output looks like:
 ```
 ✓ Detected: Claude Code
-✓ Detected: Go, CLI tool
-✓ Added 5 experts: Rob Pike, Kent Beck, Jason Fried, Dieter Rams, Sandi Metz
+✓ Detected: Go
+✓ Added 6 experts: Virtual Rob Pike, Virtual Kent Beck, Virtual Bruce Schneier, Virtual Gene Kim, Virtual Dieter Rams, Virtual Luc Perussault-Diallo
 
 Your council is ready. Try: /council <topic>
 ```
 
-**That's it.** Your council is ready to use.
+## Step 4: Shape the Council
 
-## Step 4: Customize (Optional)
-
-Ask if the user wants to customize their council using **AskUserQuestion**:
+A good council mixes people with different incentives, and includes the people the work is for. Tell the user who was added, then use **AskUserQuestion** (multi-select):
 
 | Label | Description |
 |-------|-------------|
-| "Looks good" | Keep the auto-selected experts |
-| "Customize" | Add or remove experts |
+| "Add a customer" | Someone the work is for, who reacts as a user |
+| "Add a role" | e.g. SRE, security engineer, product-minded CTO |
+| "Add or remove people" | Real people from the library or researched |
+| "Looks good" | Keep the council as it is |
 
-If **Looks good**: Skip to "Done".
+Always pass `--yes`: your shell can't answer interactive prompts.
 
-If **Customize**: Help them modify the council.
+### Add a customer
 
-### Adding Experts
+Ask in one question who the users are (e.g. "freelancers who bill clients by the hour"), then:
+```bash
+council add --customer "<their description>" --yes
+```
 
-Browse available personas:
+### Add a role
+
+Ask which role, then:
+```bash
+council add --role "<role, e.g. SRE>" --yes
+```
+
+### Add or remove people
+
+Browse the library:
 ```bash
 council personas --json
 ```
 
-Add from the curated library:
+Add someone from the library, or anyone with documented public work (Council researches them and names them "Virtual {Name}"):
 ```bash
-council add "Kent Beck"
-council add "Sandi Metz"
+council add "Kent Beck" --yes
+council add "Boris Cherny" --yes
 ```
 
-For experts not in the library, `council add` triggers a creation flow:
-```bash
-council add "My CTO"
-# Prompts for focus and philosophy
-```
-
-Or use the `/council-add` skill to search and discover:
+Or use the `/council-add` skill to search by description:
 ```
 /council-add a security expert
 /council-add someone for API design
+```
+
+### Mix AI models (if more than one AI CLI is installed)
+
+Check which AI CLIs are installed:
+```bash
+command -v claude codex opencode
+```
+
+If two or more are present, offer to spread members across them: models from different labs disagree more honestly. With the user's OK, add to `.council/config.yaml` under `ai:` (opencode takes a `provider/model` from `opencode models`):
+```yaml
+  mix:
+    - command: claude
+    - command: codex
+    - command: opencode
 ```
 
 ### Removing Experts
@@ -159,5 +180,6 @@ Tell the user setup is complete and list their experts, then use **AskUserQuesti
 If **Try it now**: Ask what they'd like the council to review (a file, function, or topic), then run `/council` for them.
 
 Remind them of available commands:
-- `/council <topic>` - Get expert code reviews
+- `/council <topic>` - Convene the council on code, a plan, or a decision. It ends with where members disagree and what you need to decide
+- `/council <topic> with the product and security councils` - Several councils that challenge each other
 - `/council-add <description>` - Search and add experts by description
