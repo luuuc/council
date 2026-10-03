@@ -1011,3 +1011,20 @@ func TestMarshalExpertsJSON_WithTensions(t *testing.T) {
 		t.Error("JSON should contain tension topic")
 	}
 }
+
+func TestDefaultMembers(t *testing.T) {
+	members, err := DefaultMembers()
+	if err != nil {
+		t.Fatalf("DefaultMembers: %v", err)
+	}
+	if len(members) != 1 {
+		t.Fatalf("expected the author's persona as the only default member, got %d", len(members))
+	}
+	m := members[0]
+	if m.ID != "luc-perussault-diallo" || m.Name != "Virtual Luc Perussault-Diallo" {
+		t.Errorf("unexpected default member: %s (%s)", m.Name, m.ID)
+	}
+	if m.Focus == "" || len(m.Principles) == 0 || len(m.RedFlags) == 0 || m.Philosophy == "" {
+		t.Errorf("default member should be a complete example of the format: %+v", m)
+	}
+}

@@ -14,7 +14,7 @@ council list
 council init
 ```
 
-This creates `.council/` and installs the `/council` commands. The council starts empty: propose members for this project (people with documented public positions who will disagree, a role, a customer), let the user choose, then add them.
+This creates `.council/` and installs the `/council` commands. The council starts with the author's persona as an example member. Propose members for this project (people with documented public positions who will disagree, a role, a customer), let the user choose, then add them.
 
 ## Customization
 

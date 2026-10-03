@@ -10,6 +10,7 @@ import (
 
 	"github.com/luuuc/council/internal/adapter"
 	"github.com/luuuc/council/internal/config"
+	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/sync"
 	"github.com/spf13/cobra"
 )
@@ -163,6 +164,23 @@ func initCouncil(clean bool, toolFlag string) error {
 	}
 
 	fmt.Printf("Initialized .council/ directory for %s\n", displayName)
+
+	// Every council starts with the author's persona, as a ready-to-use
+	// example. It can be removed like any other member.
+	defaults, err := expert.DefaultMembers()
+	if err != nil {
+		return err
+	}
+	for _, e := range defaults {
+		if expert.Exists(e.ID) {
+			continue
+		}
+		if err := e.Save(); err != nil {
+			return err
+		}
+		fmt.Printf("Added %s, the author's persona, as an example member (remove with: council remove %s)\n", e.Name, e.ID)
+	}
+
 	runAutoSync(false, cfg)
 	fmt.Println("")
 	fmt.Println("Next: add members with council add \"Name\" (a real person, researched from public work),")

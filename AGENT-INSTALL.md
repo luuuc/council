@@ -70,7 +70,7 @@ Continue to Step 3.
 council init
 ```
 
-This creates the `.council/` directory, detects your AI tool (Claude Code, OpenCode, or generic), and installs the `/council` commands. The council starts empty: Council doesn't pick people, you and the user do.
+This creates the `.council/` directory, detects your AI tool (Claude Code, OpenCode, or generic), and installs the `/council` commands. Council doesn't pick people, you and the user do. The council starts with one member, the author's persona (Virtual Luc Perussault-Diallo), as a working example; the user can keep it or remove it with `council remove luc-perussault-diallo`.
 
 ## Step 4: Assemble the Council
 

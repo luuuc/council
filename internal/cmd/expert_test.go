@@ -209,3 +209,32 @@ func TestListExperts(t *testing.T) {
 		}
 	})
 }
+
+func TestInitAddsDefaultMember(t *testing.T) {
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(orig) })
+
+	if err := initCouncil(false, "generic"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+
+	e, err := expert.Load("luc-perussault-diallo")
+	if err != nil {
+		t.Fatalf("new councils should start with the author's persona: %v", err)
+	}
+	if e.Name != "Virtual Luc Perussault-Diallo" || e.Body == "" {
+		t.Errorf("default member not saved as a full persona: %+v", e)
+	}
+
+	// It can be removed like any other member.
+	if err := expert.Delete("luc-perussault-diallo"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if expert.Exists("luc-perussault-diallo") {
+		t.Error("default member should be removable")
+	}
+}

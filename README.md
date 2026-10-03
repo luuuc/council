@@ -6,7 +6,7 @@ AI tools are eager to please. They validate your ideas and move fast. No one ask
 
 A Council fixes this. It is a team of AI reviewers modeled on real people, real roles, and real perspectives. You choose who sits on it; your AI builds each persona from public material. Personas based on real people carry the **Virtual** prefix ("Virtual Jane Doe"): a model of their public positions, not the person, and not affiliated with or endorsed by them. Mix them with roles like a security engineer or an SRE, and with the customers you build for.
 
-Council ships no people. It ships the engine, the persona format, and the instructions your AI follows.
+Council ships no people. It ships the engine, the persona format, and the instructions your AI follows. The one exception is the author's own persona, Virtual Luc Perussault-Diallo: every new council starts with it as a ready-to-use example, and you can remove it like any other member.
 
 Members are picked to disagree. Each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
 
