@@ -45,12 +45,8 @@ go:
         counterpoint: Errors should assert behavior, not type — check capabilities
       - expert: matz
         topic: simplicity vs expressiveness
-        position: Clear is better than clever — explicitness over magic
-        counterpoint: Expressiveness IS clarity — the language should disappear behind the intent
-      - expert: dieter-rams
-        topic: code organization
-        position: Working code that's slightly messy ships — perfectionism is a trap
-        counterpoint: Structure and naming are interfaces — invest in clarity even when the code works
+        position: Clear is better than clever — one obvious way to do it beats expressive magic
+        counterpoint: Ruby is designed to make programmers happy — a language should let you say things the way that reads most naturally
 
   - id: dave-cheney
     name: Virtual Dave Cheney
@@ -119,12 +115,8 @@ ruby:
     tensions:
       - expert: rob-pike
         topic: simplicity vs expressiveness
-        position: Expressiveness IS clarity — the language should disappear behind the intent
-        counterpoint: Clear is better than clever — explicitness over magic
-      - expert: dhh
-        topic: ORM philosophy
-        position: Objects should model behavior — ActiveRecord is a convenience, not architecture
-        counterpoint: ActiveRecord IS the architecture — follow what the framework gives you
+        position: Ruby is designed to make programmers happy — a language should let you say things the way that reads most naturally
+        counterpoint: Clear is better than clever — one obvious way to do it beats expressive magic
 
   - id: sandi-metz
     name: Virtual Sandi Metz
@@ -222,18 +214,14 @@ rails:
         topic: test depth
         position: System tests that cover user flows, minimal unit tests
         counterpoint: Comprehensive unit tests for every class
-      - expert: matz
-        topic: ORM philosophy
-        position: ActiveRecord IS the architecture — follow what the framework gives you
-        counterpoint: Objects should model behavior — ActiveRecord is convenience, not architecture
       - expert: eileen-uchitelle
         topic: convention vs performance
-        position: Follow the convention — optimize later if needed
-        counterpoint: Know what the ORM generates — convention hides expensive queries
+        position: Conceptual compression — the framework should let you not think about SQL until you have to
+        counterpoint: At scale you must understand what Rails does underneath — and fix it upstream in Rails instead of working around it
       - expert: rob-pike
         topic: convention vs minimalism
-        position: Conventions prevent bikeshedding — follow the framework
-        counterpoint: Conventions are someone else's decisions — understand before following
+        position: Convention over configuration — sharp defaults spare you a thousand decisions
+        counterpoint: Explicit code beats hidden magic — a reader should see what the program does
 
   - id: eileen-uchitelle
     name: Virtual Eileen Uchitelle
@@ -267,8 +255,8 @@ rails:
     tensions:
       - expert: dhh
         topic: convention vs performance
-        position: Know what the ORM generates — convention hides expensive queries
-        counterpoint: Follow the convention — optimize later if needed
+        position: At scale you must understand what Rails does underneath — and fix it upstream in Rails instead of working around it
+        counterpoint: Conceptual compression — the framework should let you not think about SQL until you have to
 
   - id: tenderlove
     name: Virtual Aaron Patterson
@@ -392,8 +380,8 @@ python:
     tensions:
       - expert: anders-hejlsberg
         topic: type strictness
-        position: Duck typing is freedom — if it works, the type doesn't matter
-        counterpoint: Types are documentation the compiler enforces — be explicit at boundaries
+        position: Readable Python and duck typing first — type hints are optional and shouldn't make code harder to read
+        counterpoint: Static types scale large codebases — the compiler and the editor catch what reviewers miss
 
 swift:
   - id: chris-lattner
@@ -426,11 +414,6 @@ swift:
       - Class hierarchies where value types would be simpler and safer
       - Reimplementing what Swift already provides
       - Complex entry points that overwhelm newcomers
-    tensions:
-      - expert: jake-wharton
-        topic: platform-native vs cross-platform
-        position: Native gives you the full platform — cross-platform always compromises
-        counterpoint: Shared business logic saves time — only the UI needs to be native
 
   - id: john-sundell
     name: Virtual John Sundell
@@ -527,11 +510,6 @@ kotlin:
       - Callbacks when reactive streams would be clearer
       - Breaking binary compatibility on minor updates
       - Missing examples in library documentation
-    tensions:
-      - expert: chris-lattner
-        topic: platform-native vs cross-platform
-        position: Shared business logic saves time — only the UI needs to be native
-        counterpoint: Native gives you the full platform — cross-platform always compromises
 
   - id: roman-elizarov
     name: Virtual Roman Elizarov
@@ -630,8 +608,8 @@ frontend:
     tensions:
       - expert: dan-abramov
         topic: progressive enhancement vs SPA
-        position: Start with HTML, layer JavaScript on top — the network is unreliable
-        counterpoint: Modern apps are interactive — server rendering can't match client-side UX
+        position: Start with HTML and layer JavaScript on top — the network and the browser are unreliable
+        counterpoint: UI is a function of state — composing components in JavaScript is how you keep complex interfaces manageable
       - expert: guillermo-rauch
         topic: framework vs fundamentals
         position: Web standards last decades — frameworks last years
@@ -700,12 +678,12 @@ javascript:
     tensions:
       - expert: jeremy-keith
         topic: progressive enhancement vs SPA
-        position: Modern apps are interactive — server rendering can't match client-side UX
-        counterpoint: Start with HTML, layer JavaScript on top — the network is unreliable
+        position: UI is a function of state — composing components in JavaScript is how you keep complex interfaces manageable
+        counterpoint: Start with HTML and layer JavaScript on top — the network and the browser are unreliable
       - expert: rich-harris
         topic: runtime vs compiled
-        position: React's virtual DOM gives you a mental model for UI — the runtime is the feature
-        counterpoint: The framework should disappear after build — no runtime library, no overhead
+        position: A predictable model — UI as a function of state — matters more than shaving the runtime
+        counterpoint: The virtual DOM is pure overhead — let a compiler do the work at build time
 
 elixir:
   - id: jose-valim
@@ -739,8 +717,8 @@ elixir:
     tensions:
       - expert: rich-hickey
         topic: OTP vs pure functional
-        position: Processes ARE the architecture — state belongs in supervised processes
-        counterpoint: Minimize state — pure functions with atoms beat stateful processes
+        position: Isolated processes under supervisors are how reliable systems are built — let it crash
+        counterpoint: Minimize state — immutable values and pure functions beat stateful entities
 
   - id: sasa-juric
     name: Virtual Saša Jurić
@@ -892,8 +870,8 @@ typescript:
     tensions:
       - expert: raymond-hettinger
         topic: type strictness
-        position: Types are documentation the compiler enforces — be explicit at boundaries
-        counterpoint: Duck typing is freedom — if it works, the type doesn't matter
+        position: Static types scale large codebases — the compiler and the editor catch what reviewers miss
+        counterpoint: Readable Python and duck typing first — type hints are optional and shouldn't make code harder to read
 
   - id: matt-pocock
     name: Virtual Matt Pocock
@@ -1023,11 +1001,6 @@ csharp:
       - God classes with too many responsibilities
       - Stringly-typed code when types would be safer
       - Throwing exceptions for control flow
-    tensions:
-      - expert: joshua-bloch
-        topic: ceremony vs pragmatism
-        position: Modern C# is lean — records, pattern matching, minimal APIs, no ceremony
-        counterpoint: API design is permanent — invest in structure, don't chase minimal
 
   - id: nick-chapsas
     name: Virtual Nick Chapsas
@@ -1089,11 +1062,6 @@ php:
       - Not using queues for slow operations
       - Reinventing what Laravel already provides
       - Fighting the framework instead of working with it
-    tensions:
-      - expert: dhh
-        topic: framework loyalty
-        position: Laravel IS the convention — follow it completely
-        counterpoint: Rails IS the convention — every framework thinks it's the one true way
 
   - id: nuno-maduro
     name: Virtual Nuno Maduro
@@ -1216,11 +1184,6 @@ node:
       - Security-sensitive operations without explicit permissions
       - CommonJS in new projects when ESM is available
       - Ignoring web platform standards for Node-specific solutions
-    tensions:
-      - expert: matz
-        topic: server vs client rendering
-        position: Keep logic on the server — streams and SSR give you speed without shipping a runtime to the browser
-        counterpoint: Rich client interactions need client-side state — server rendering can't replace real interactivity
 
   - id: matteo-collina
     name: Virtual Matteo Collina
@@ -1285,8 +1248,8 @@ rust:
     tensions:
       - expert: bjarne-stroustrup
         topic: safety vs control
-        position: The borrow checker catches bugs you would have shipped — fight for safety
-        counterpoint: Sometimes you need raw pointers and manual memory — the abstraction costs are real
+        position: Memory safety should be the default — the borrow checker catches bugs you would have shipped
+        counterpoint: C++ can be made safe with guidelines and profiles without giving up control or decades of existing code
 
 clojure:
   - id: rich-hickey
@@ -1328,8 +1291,8 @@ clojure:
         counterpoint: Objects model behavior — data and methods belong together
       - expert: jose-valim
         topic: OTP vs pure functional
-        position: Minimize state — pure functions with atoms beat stateful processes
-        counterpoint: Processes ARE the architecture — state belongs in supervised processes
+        position: Minimize state — immutable values and pure functions beat stateful entities
+        counterpoint: Isolated processes under supervisors are how reliable systems are built — let it crash
 
   - id: alex-miller
     name: Virtual Alex Miller
@@ -1520,8 +1483,8 @@ svelte:
     tensions:
       - expert: dan-abramov
         topic: runtime vs compiled
-        position: The framework should disappear after build — no runtime library, no overhead
-        counterpoint: React's virtual DOM gives you a mental model for UI — the runtime is the feature
+        position: The virtual DOM is pure overhead — let a compiler do the work at build time
+        counterpoint: A predictable model — UI as a function of state — matters more than shaving the runtime
 
   - id: tan-li-hau
     name: Virtual Tan Li Hau (lihautan)
@@ -1583,11 +1546,6 @@ flutter:
       - Complex state management in simple apps
       - Fighting the widget model instead of embracing it
       - Not leveraging hot reload for rapid iteration
-    tensions:
-      - expert: chris-lattner
-        topic: native vs cross-platform mobile
-        position: Cross-platform from one codebase — native UI adapts per platform
-        counterpoint: Native gives you the full platform API — cross-platform always compromises
 
   - id: remi-rousselet
     name: Virtual Rémi Rousselet
@@ -1653,8 +1611,8 @@ cpp:
     tensions:
       - expert: steve-klabnik
         topic: safety vs control
-        position: Sometimes you need raw pointers and manual memory — the abstraction costs are real
-        counterpoint: The borrow checker catches bugs you would have shipped — fight for safety
+        position: C++ can be made safe with guidelines and profiles without giving up control or decades of existing code
+        counterpoint: Memory safety should be the default — the borrow checker catches bugs you would have shipped
 
   - id: john-carmack
     name: Virtual John Carmack
@@ -1838,11 +1796,6 @@ writing:
       - Decorative adjectives that obstruct understanding
       - Pompous language ("facilitate" instead of simpler alternatives)
       - First sentences that don't compel reading the second
-    tensions:
-      - expert: jason-fried
-        topic: documentation depth
-        position: Say it once, say it clearly, cut the rest — brevity is a feature
-        counterpoint: Ship the feature, document later — working software over comprehensive docs
 
   - id: stephen-king
     name: Virtual Stephen King
@@ -1951,8 +1904,8 @@ product:
         counterpoint: Ship something real, then iterate — imagination is not validation
       - expert: mark-roberge
         topic: product-led vs sales-led
-        position: Empowered teams own outcomes — the product should sell itself
-        counterpoint: Sales reveals what the product can't — discovery calls surface real objections
+        position: Empowered product teams discover what to build — not sales requests turned into a feature roadmap
+        counterpoint: Sales is a repeatable, measurable engine — hire, train, and coach it with data
 
   - id: teresa-torres
     name: Virtual Teresa Torres
@@ -2077,8 +2030,8 @@ design-ux:
     tensions:
       - expert: dieter-rams
         topic: user testing vs design principles
-        position: Five users find 85% of problems — test with real people
-        counterpoint: Good design follows principles — user testing validates, it doesn't create
+        position: Design for how people actually behave — observe real users; human error is usually design error
+        counterpoint: Good design follows principles — less, but better, thorough down to the last detail
 
   - id: jakob-nielsen
     name: Virtual Jakob Nielsen
@@ -2239,8 +2192,8 @@ sales:
     tensions:
       - expert: marty-cagan
         topic: product-led vs sales-led
-        position: Sales reveals what the product can't — discovery calls surface real objections
-        counterpoint: Empowered teams own outcomes — the product should sell itself
+        position: Sales is a repeatable, measurable engine — hire, train, and coach it with data
+        counterpoint: Empowered product teams discover what to build — not sales requests turned into a feature roadmap
 
   - id: aaron-ross
     name: Virtual Aaron Ross
@@ -2368,11 +2321,6 @@ leadership:
       - Same management style regardless of employee maturity
       - No indicators until problems are visible
       - Comfort with success instead of constructive paranoia
-    tensions:
-      - expert: elad-gil
-        topic: team growth vs company growth
-        position: Engineering culture is systems — career ladders, processes, delegation
-        counterpoint: Company operations transcend engineering — hiring, communication, board dynamics
 
   - id: camille-fournier
     name: Virtual Camille Fournier
@@ -2464,11 +2412,6 @@ operations:
       - Communication breakdowns blamed on individuals
       - Founders owning too little to stay motivated
       - Assuming what worked at 50 works at 500
-    tensions:
-      - expert: andy-grove
-        topic: team growth vs company growth
-        position: Company operations transcend engineering — hiring, communication, board dynamics
-        counterpoint: Engineering culture is systems — career ladders, processes, delegation
 
   - id: ben-horowitz
     name: Virtual Ben Horowitz
@@ -2685,8 +2628,8 @@ security:
     tensions:
       - expert: jason-fried
         topic: security vs shipping speed
-        position: Security is never a v2 feature — ship it incomplete and you've shipped a vulnerability
-        counterpoint: Ship the smallest thing that works — most security concerns are hypothetical until you have users
+        position: Security is a process, not a product — it has to be designed in, not bolted on later
+        counterpoint: It's a problem when it's a problem — don't build for hypothetical issues before they're real
 
 legal:
   - id: heather-meeker
@@ -3015,14 +2958,6 @@ general:
         topic: abstraction
         position: Extract when the pattern emerges three times
         counterpoint: A little copying is better than a little dependency
-      - expert: jason-fried
-        topic: abstraction timing
-        position: Refactor when the pattern emerges — duplication is cheaper than the wrong abstraction
-        counterpoint: The framework already made the decision — follow the convention, don't extract
-      - expert: gene-kim
-        topic: refactoring vs flow
-        position: Refactor mercilessly — tidyings keep the code healthy
-        counterpoint: Flow matters more — don't interrupt delivery to perfect the code
 
   - id: jason-fried
     name: Virtual Jason Fried
@@ -3065,8 +3000,8 @@ general:
         counterpoint: Every detail matters — nothing should be arbitrary
       - expert: bruce-schneier
         topic: security vs shipping speed
-        position: Ship the smallest thing that works — most security concerns are hypothetical until you have users
-        counterpoint: Security is never a v2 feature — ship it incomplete and you've shipped a vulnerability
+        position: It's a problem when it's a problem — don't build for hypothetical issues before they're real
+        counterpoint: Security is a process, not a product — it has to be designed in, not bolted on later
       - expert: marty-cagan
         topic: discovery vs shipping
         position: Ship something real, then iterate — imagination is not validation
@@ -3107,14 +3042,10 @@ general:
         topic: polish vs shipping
         position: Every detail matters — nothing should be arbitrary
         counterpoint: Ship something real, then iterate
-      - expert: rob-pike
-        topic: code organization
-        position: Structure and naming are interfaces — invest in clarity even when the code works
-        counterpoint: Working code that's slightly messy ships — perfectionism is a trap
       - expert: don-norman
         topic: user testing vs design principles
-        position: Good design follows principles — user testing validates, it doesn't create
-        counterpoint: Five users find 85% of problems — test with real people
+        position: Good design follows principles — less, but better, thorough down to the last detail
+        counterpoint: Design for how people actually behave — observe real users; human error is usually design error
 
   - id: gene-kim
     name: Virtual Gene Kim
@@ -3144,15 +3075,6 @@ general:
       - Hero culture where firefighting is rewarded
       - Silos where Dev, Ops, and Security don't share goals
       - Fear of failure preventing experimentation
-    tensions:
-      - expert: cal-newport
-        topic: flow vs deep work
-        position: Optimize flow from dev to prod — speed of delivery is the metric
-        counterpoint: Deep work requires uninterrupted blocks — flow is about focus, not throughput
-      - expert: kent-beck
-        topic: refactoring vs flow
-        position: Flow matters more — don't interrupt delivery to perfect the code
-        counterpoint: Refactor mercilessly — tidyings keep the code healthy
 
   - id: taiichi-ohno
     name: Virtual Taiichi Ohno
@@ -3210,11 +3132,6 @@ general:
       - Pseudo-productivity - equating busyness with effectiveness
       - No boundaries between work and non-work time
       - Attention fragmented across too many projects simultaneously
-    tensions:
-      - expert: gene-kim
-        topic: flow vs deep work
-        position: Deep work requires uninterrupted blocks — flow is about focus, not throughput
-        counterpoint: Optimize flow from dev to prod — speed of delivery is the metric
 
   - id: luc-perussault-diallo
     name: Virtual Luc Perussault-Diallo
