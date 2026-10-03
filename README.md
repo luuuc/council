@@ -118,7 +118,7 @@ council packs create my-pack               # Create custom pack
 council packs add my-pack kent-beck        # Add expert to pack
 ```
 
-Built-in packs: `go`, `rails`, `writing`. Custom packs override built-ins with the same name.
+Built-in packs: `code` (any language), `go`, `rails`, `writing`. Custom packs override built-ins with the same name.
 
 ## MCP Server
 
@@ -179,7 +179,7 @@ jobs:
 | `OPENAI_API_KEY` | OpenAI | `gpt-4.1` | BYOK |
 | Neither | GitHub Models | `gpt-4.1-mini` | Free (150 req/day) |
 
-**Free tier limits:** 150 requests/day. Sequential review makes one request per expert, so a 6-expert pack allows about 25 PR reviews/day. Files over 8K tokens are skipped. Max 25 files per review. Per-file review means cross-file issues are invisible — use BYOK for larger context.
+**Free tier limits:** 150 requests/day. On the free tier the Action uses `--mode collective` (one request per review) by default; set `mode: sequential` for a real debate at one request per expert (about 25 reviews/day with a 6-expert pack). With an API key, sequential is the default. Files over 8K tokens are skipped. Max 25 files per review. Per-file review means cross-file issues are invisible — use BYOK for larger context.
 
 See [`action/examples/`](action/examples/) for more workflow examples.
 

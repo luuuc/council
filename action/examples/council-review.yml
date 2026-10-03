@@ -22,5 +22,8 @@ jobs:
       - uses: luuuc/council/action@v1
         with:
           pack: code
+          # Optional: sequential (experts react to each other, one request per expert)
+          # or collective (one request). Default: collective on the free tier.
+          # mode: sequential
           # Optional: BYOK for better results
           # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

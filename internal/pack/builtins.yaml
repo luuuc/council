@@ -28,3 +28,14 @@ writing:
     - id: jason-fried
     - id: dieter-rams
     - id: william-zinsser
+
+code:
+  name: code
+  description: General code review council, any language
+  members:
+    - id: kent-beck
+    - id: bruce-schneier
+    - id: jason-fried
+    - id: gene-kim
+    - id: dieter-rams
+    - id: luc-perussault-diallo

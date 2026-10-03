@@ -23,6 +23,10 @@ inputs:
     description: 'OpenAI API key (BYOK alternative)'
     required: false
     default: ''
+  mode:
+    description: 'Review mode: sequential (one LLM call per expert, experts react to each other) or collective (one call). Default: collective on the free GitHub Models tier, sequential with an API key'
+    required: false
+    default: ''
   version:
     description: 'Council binary version (default: latest)'
     required: false
@@ -120,6 +124,7 @@ runs:
       shell: bash
       env:
         INPUT_PACK: ${{ inputs.pack }}
+        INPUT_MODE: ${{ inputs.mode }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GITHUB_TOKEN: ${{ github.token }}
@@ -135,6 +140,18 @@ runs:
         if [ -n "$INPUT_PACK" ]; then
           ARGS="$ARGS --pack $INPUT_PACK"
         fi
+
+        # Sequential review makes one request per expert; the free GitHub
+        # Models tier allows 150 requests/day, so default to one call there.
+        MODE="$INPUT_MODE"
+        if [ -z "$MODE" ]; then
+          if [ "$COUNCIL_PROVIDER" = "github" ]; then MODE=collective; else MODE=sequential; fi
+        fi
+        # Older council releases have no --mode (they always run collective).
+        REVIEW_HELP=$(council review --help 2>/dev/null || true)
+        case "$REVIEW_HELP" in
+          *"--mode string"*) ARGS="$ARGS --mode $MODE" ;;
+        esac
 
         council $ARGS --file /tmp/council-pr.diff > /tmp/council-output.json 2>/tmp/council-stderr.log || {
           echo "::warning::Council review failed, posting error comment"

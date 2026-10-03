@@ -5,7 +5,7 @@ import "testing"
 func TestBuiltins(t *testing.T) {
 	packs := Builtins()
 
-	expected := []string{"rails", "go", "writing"}
+	expected := []string{"rails", "go", "writing", "code"}
 	for _, name := range expected {
 		p, ok := packs[name]
 		if !ok {
@@ -34,6 +34,7 @@ func TestBuiltinsSpecificMembers(t *testing.T) {
 		{"rails", []string{"kent-beck", "dhh", "bruce-schneier", "jason-fried", "matz", "luc-perussault-diallo"}},
 		{"go", []string{"rob-pike", "kent-beck", "bruce-schneier", "gene-kim", "dieter-rams", "luc-perussault-diallo"}},
 		{"writing", []string{"luc-perussault-diallo", "jason-fried", "dieter-rams", "william-zinsser"}},
+		{"code", []string{"kent-beck", "bruce-schneier", "jason-fried", "gene-kim", "dieter-rams", "luc-perussault-diallo"}},
 	}
 
 	for _, tt := range tests {
