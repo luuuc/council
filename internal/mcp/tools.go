@@ -23,28 +23,9 @@ func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCall
 		return errorResult("missing required field: content")
 	}
 
-	// Resolve pack and experts
-	p, err := pack.Get(packName)
+	inputs, err := resolvePackInputs(packName)
 	if err != nil {
-		return errorResult(fmt.Sprintf("pack %q not found: %v", packName, err))
-	}
-
-	available, err := expert.List()
-	if err != nil {
-		return errorResult(fmt.Sprintf("failed to list experts: %v", err))
-	}
-
-	resolved, _ := pack.Resolve(p, available)
-	if len(resolved) == 0 {
-		return errorResult(fmt.Sprintf("no experts resolved for pack %q", packName))
-	}
-
-	inputs := make([]review.ExpertInput, len(resolved))
-	for i, rm := range resolved {
-		inputs[i] = review.ExpertInput{
-			Expert:   rm.Expert,
-			Blocking: rm.Blocking,
-		}
+		return errorResult(err.Error())
 	}
 
 	sub := review.Submission{Content: content}
@@ -52,7 +33,9 @@ func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCall
 	// Get backend (also caches config)
 	backend, err := s.getBackend()
 	if err != nil {
-		return errorResult(fmt.Sprintf("backend error: %v", err))
+		return errorResult(fmt.Sprintf("backend error: %v\n\n"+
+			"No AI backend is available for separate calls. Use council_convene instead: "+
+			"it runs the same council with you taking each member's turn.", err))
 	}
 
 	runner := &review.Runner{
@@ -72,6 +55,33 @@ func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCall
 	return toolCallResult{
 		Content: []toolContent{{Type: "text", Text: string(data)}},
 	}
+}
+
+// resolvePackInputs resolves a pack's members into review inputs, in pack order.
+func resolvePackInputs(packName string) ([]review.ExpertInput, error) {
+	p, err := pack.Get(packName)
+	if err != nil {
+		return nil, fmt.Errorf("pack %q not found: %v", packName, err)
+	}
+
+	available, err := expert.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list experts: %v", err)
+	}
+
+	resolved, _ := pack.Resolve(p, available)
+	if len(resolved) == 0 {
+		return nil, fmt.Errorf("no experts resolved for pack %q", packName)
+	}
+
+	inputs := make([]review.ExpertInput, len(resolved))
+	for i, rm := range resolved {
+		inputs[i] = review.ExpertInput{
+			Expert:   rm.Expert,
+			Blocking: rm.Blocking,
+		}
+	}
+	return inputs, nil
 }
 
 // listExpertInfo is the JSON structure returned by council_list.

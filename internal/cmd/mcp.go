@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -9,8 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var mcpDir string
+
 func init() {
 	rootCmd.AddCommand(mcpCmd)
+	mcpCmd.Flags().StringVar(&mcpDir, "dir", "", "Project directory with the .council/ to use (for clients like Claude Desktop that don't start servers in a project)")
 }
 
 var mcpCmd = &cobra.Command{
@@ -22,9 +26,14 @@ This command is designed to be spawned by MCP-capable AI tools
 (Claude Code, Cursor, Claude Desktop) as a subprocess. It speaks
 JSON-RPC 2.0 over stdin/stdout and exposes council tools:
 
-  council_review   Submit code for blind council review
-  council_list     List experts in a pack
-  council_explain  Expand on a review note
+  council_review       Run a sequential council review (one AI call per member)
+  council_convene      Run the review with the client's own model taking
+  council_turn         each member's turn (no AI CLI or API key needed)
+  council_add_persona  Add a Virtual persona the client researched
+  council_list         List experts in a pack
+  council_explain      Expand on a review note
+
+It also offers a "council" prompt for the client's prompt menu.
 
 Configuration:
   Add to .mcp.json in your project:
@@ -35,9 +44,18 @@ Configuration:
         "args": ["mcp"]
       }
     }
-  }`,
+  }
+
+  Claude Desktop starts servers outside any project. To use a project's
+  council there, pass its directory: "args": ["mcp", "--dir", "/path/to/project"]`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if mcpDir != "" {
+			if err := os.Chdir(mcpDir); err != nil {
+				return fmt.Errorf("cannot use --dir %q: %w", mcpDir, err)
+			}
+		}
+
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
 

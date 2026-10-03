@@ -135,8 +135,10 @@ Use Council as a tool in any MCP-capable AI tool:
 }
 ```
 
-Exposes three tools over stdin/stdout JSON-RPC:
+Exposes these tools over stdin/stdout JSON-RPC, plus a `council` prompt for prompt menus. See [docs/integrations.md](docs/integrations.md) for Claude Desktop setup.
 - `council_review` — sequential council review, returns structured verdict with replies
+- `council_convene` / `council_turn` — the same review with the client's model taking each member's turn (no AI CLI or API key needed, e.g. Claude Desktop)
+- `council_add_persona` — save a Virtual persona the client researched
 - `council_list` — list pack members (no LLM calls)
 - `council_explain` — expand on a review note with expert reasoning
 

@@ -4,7 +4,7 @@ This guide covers how to use your council with different AI tools and platforms.
 
 ## Claude Desktop (MCP)
 
-Claude Desktop supports the Model Context Protocol (MCP), allowing local tools to extend Claude's capabilities. The `council mcp` command starts an MCP server that exposes your council to Claude Desktop.
+Claude Desktop connects to Council through MCP. It has no headless mode, so Council can't call it in the background. Instead, Claude in Desktop takes each member's turn itself: Council runs the meeting, hands Claude one member's prompt at a time with the earlier reviews, and returns the debate at the end. No API key or extra AI tool is needed.
 
 ### Setup
 
@@ -21,50 +21,52 @@ which council  # Should output the path to council
   "mcpServers": {
     "council": {
       "command": "council",
-      "args": ["mcp"]
+      "args": ["mcp", "--dir", "/path/to/your/project"]
     }
   }
 }
 ```
 
+Claude Desktop starts MCP servers outside any project, so `--dir` points Council at the project whose `.council/` you want. Without it, the built-in packs (`go`, `rails`, `writing`) still work.
+
 3. Restart Claude Desktop completely (quit and reopen)
 
-4. Verify the connection by asking Claude: "What tools do you have available?"
+### Usage
+
+Pick **council** from the prompt menu, choose a pack, and describe what to review. Or ask directly:
+
+> "Convene the go council on this code"
+> [paste code]
+
+> "Ask the writing council about this launch post"
+
+To add a real person to your Council, ask Claude to research them:
+
+> "Add Boris Cherny to my council"
+
+Claude researches their public work and saves "Virtual Boris Cherny" with `council_add_persona`. Run `council sync` in the project afterwards to update Claude Code and OpenCode.
 
 ### What's Exposed
 
-The MCP server provides:
-
 | Feature | Description |
 |---------|-------------|
-| `list_experts` tool | Lists all experts with their focus areas |
-| `get_expert` tool | Gets detailed info about a specific expert |
-| `consult_council` tool | Gets perspectives from all experts |
-| `council://experts/{id}` resource | Direct access to expert profiles |
-| `/council` prompt | Template for expert review sessions |
+| `council` prompt | Convenes a pack on a topic |
+| `council_review` tool | Sequential review with one AI call per member (needs an AI CLI or API key) |
+| `council_convene` / `council_turn` tools | The same review with Claude taking each member's turn (no key needed) |
+| `council_add_persona` tool | Saves a Virtual persona Claude researched |
+| `council_list` tool | Lists a pack's members and their tensions |
+| `council_explain` tool | Expands on a review note (needs an AI CLI or API key) |
 
-### Usage Examples
-
-**List your council:**
-> "Show me my expert council"
-
-**Get specific expert advice:**
-> "What would DHH say about this service object pattern?"
-
-**Full council review:**
-> "Review this code with my council"
-> [paste code]
+`council_review` uses separate AI calls, so members are more independent. When it can't find an AI CLI or API key, Claude falls back to `council_convene`.
 
 ### Troubleshooting
 
 **Council not appearing:**
-- Ensure `council` is in your PATH
+- Ensure `council` is in your PATH, or use the full path as `command`
 - Check Claude Desktop logs: `~/Library/Logs/Claude/`
-- Verify your `.council/` directory exists with experts
 
-**"council not initialized" errors:**
-- Run `council init` in the directory where you want to use your council
-- The MCP server uses the current working directory
+**"no council in this directory":**
+- Add `--dir /path/to/project` to the server args, for a project that has run `council start`
 
 ## Local LLMs (Ollama, LM Studio, etc.)
 

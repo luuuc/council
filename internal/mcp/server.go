@@ -59,7 +59,8 @@ type mcpServerInfo struct {
 }
 
 type serverCapability struct {
-	Tools *toolsCapability `json:"tools,omitempty"`
+	Tools   *toolsCapability   `json:"tools,omitempty"`
+	Prompts *promptsCapability `json:"prompts,omitempty"`
 }
 
 type toolsCapability struct{}
@@ -103,11 +104,12 @@ type toolContent struct {
 
 // Server is the MCP server that reads JSON-RPC from reader and writes to writer.
 type Server struct {
-	reader  io.Reader
-	writer  io.Writer
-	config  *config.Config
-	backend review.Backend
-	version string
+	reader   io.Reader
+	writer   io.Writer
+	config   *config.Config
+	backend  review.Backend
+	version  string
+	sessions map[string]*session // council_convene runs in progress
 }
 
 // Option configures a Server.
@@ -169,6 +171,10 @@ func (s *Server) dispatch(ctx context.Context, req *jsonrpcRequest) {
 		s.handleToolsList(req)
 	case "tools/call":
 		s.handleToolsCall(ctx, req)
+	case "prompts/list":
+		s.handlePromptsList(req)
+	case "prompts/get":
+		s.handlePromptsGet(req)
 	default:
 		s.sendError(req.ID, errCodeMethodNotFound, "method not found", req.Method)
 	}
@@ -186,7 +192,8 @@ func (s *Server) handleInitialize(req *jsonrpcRequest) {
 			Version: v,
 		},
 		Capabilities: serverCapability{
-			Tools: &toolsCapability{},
+			Tools:   &toolsCapability{},
+			Prompts: &promptsCapability{},
 		},
 	})
 }
@@ -212,6 +219,12 @@ func (s *Server) handleToolsCall(ctx context.Context, req *jsonrpcRequest) {
 		result = s.handleList(params.Arguments)
 	case "council_explain":
 		result = s.handleExplain(ctx, params.Arguments)
+	case "council_convene":
+		result = s.handleConvene(params.Arguments)
+	case "council_turn":
+		result = s.handleTurn(params.Arguments)
+	case "council_add_persona":
+		result = s.handleAddPersona(params.Arguments)
 	default:
 		s.sendError(req.ID, errCodeInvalidParams, "unknown tool", params.Name)
 		return
@@ -317,6 +330,63 @@ func toolDefinitions() []toolDefinition {
 					},
 				},
 				Required: []string{"pack", "content"},
+			},
+		},
+		{
+			Name: "council_convene",
+			Description: "Start a council review where you take each member's turn yourself. Use this when council_review reports no AI backend " +
+				"(for example in Claude Desktop with no AI CLI or API key). Returns the first member's prompt; write that member's review " +
+				"and pass it to council_turn, which returns the next member's prompt with the earlier reviews, until the council finishes.",
+			InputSchema: toolSchema{
+				Type: "object",
+				Properties: map[string]schemaProperty{
+					"pack": {
+						Type:        "string",
+						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\")",
+					},
+					"content": {
+						Type:        "string",
+						Description: "What the council reviews: a diff, code, a document, or a brief describing a question, plan, or decision",
+					},
+					"context": {
+						Type:        "string",
+						Description: "Optional background for the council (e.g., the goal, constraints, or options being considered)",
+					},
+				},
+				Required: []string{"pack", "content"},
+			},
+		},
+		{
+			Name:        "council_turn",
+			Description: "Submit the current member's review in a council_convene session. Returns the next member's prompt, or the final debate when every member has spoken.",
+			InputSchema: toolSchema{
+				Type: "object",
+				Properties: map[string]schemaProperty{
+					"session": {
+						Type:        "string",
+						Description: "Session ID returned by council_convene",
+					},
+					"review": {
+						Type:        "string",
+						Description: "The member's review as the JSON object their prompt asks for",
+					},
+				},
+				Required: []string{"session", "review"},
+			},
+		},
+		{
+			Name: "council_add_persona",
+			Description: "Add a persona modeled on a real person to the project council. Research the person's public talks, writing, and decisions first, " +
+				"and stay faithful to what they have actually said. Council names them \"Virtual {Name}\". Check council_list first so tensions use real member IDs.",
+			InputSchema: toolSchema{
+				Type: "object",
+				Properties: map[string]schemaProperty{
+					"persona": {
+						Type:        "string",
+						Description: "The persona as YAML in this format:\n" + addPersonaFormat,
+					},
+				},
+				Required: []string{"persona"},
 			},
 		},
 		{

@@ -16,9 +16,6 @@ var researchPrompt string
 // person to build a faithful persona.
 var errUnknownPerson = errors.New("not enough public work to build a persona")
 
-// virtualPrefix names personas modeled on real people.
-const virtualPrefix = "Virtual "
-
 // researchPerson builds a "Virtual {name}" persona from the person's public
 // work using the headless AI CLI. Current council members are offered as
 // tension partners so the new member arrives with disagreements.
@@ -35,37 +32,8 @@ func researchPerson(name string) (*expert.Expert, error) {
 	if err != nil {
 		return nil, err
 	}
-	normalizeVirtualPersona(exp, name)
+	expert.NormalizeVirtual(exp, name)
 	return exp, nil
-}
-
-// normalizeVirtualPersona enforces the naming rule for real-person personas:
-// name "Virtual {Name}", ID from the real name, and tensions only with
-// members who are actually on the council.
-func normalizeVirtualPersona(exp *expert.Expert, requested string) {
-	base := strings.TrimSpace(strings.TrimPrefix(exp.Name, virtualPrefix))
-	if base == "" {
-		base = strings.TrimSpace(strings.TrimPrefix(requested, virtualPrefix))
-	}
-	exp.Name = virtualPrefix + base
-	exp.ID = expert.ToID(base)
-	if exp.Category == "" {
-		exp.Category = "custom"
-	}
-
-	members := map[string]bool{}
-	if list, err := expert.List(); err == nil {
-		for _, m := range list {
-			members[m.ID] = true
-		}
-	}
-	var kept []expert.Tension
-	for _, t := range exp.Tensions {
-		if members[t.Expert] && t.Expert != exp.ID {
-			kept = append(kept, t)
-		}
-	}
-	exp.Tensions = kept
 }
 
 // councilMemberList renders current members for the research prompt.
