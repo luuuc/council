@@ -20,8 +20,11 @@ const (
 	maxTotalExperts = 7 // Maximum total experts in auto-selection
 )
 
+var startYes bool
+
 func init() {
 	rootCmd.AddCommand(startCmd)
+	startCmd.Flags().BoolVarP(&startYes, "yes", "y", false, "Skip the picker and use the suggested experts")
 }
 
 var startCmd = &cobra.Command{
@@ -32,8 +35,9 @@ var startCmd = &cobra.Command{
 What it does:
   1. Creates .council/ directory
   2. Detects your project's stack
-  3. Adds 5 experts based on your stack
-  4. Syncs to your AI tool
+  3. Suggests experts for your stack, plus people who will disagree with them
+  4. In a terminal, lets you check and uncheck members (skip with --yes)
+  5. Syncs to your AI tool
 
 If you already have a council, use 'council add' to add more experts.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -116,7 +120,17 @@ func runStart() error {
 		experts = selectGeneralists()
 	}
 
-	// Step 5: Add selected experts
+	// Step 5: Let the user adjust the picks in a real terminal
+	if !startYes && isTerminal(os.Stdin) && isTerminal(os.Stdout) {
+		picked, err := pickCouncil(os.Stdin, os.Stdout, experts)
+		if err != nil {
+			_ = os.RemoveAll(config.CouncilDir)
+			return fmt.Errorf("no council created: %w", err)
+		}
+		experts = picked
+	}
+
+	// Step 6: Add selected experts
 	var added []*expert.Expert
 	for _, e := range experts {
 		if err := e.Save(); err != nil {
@@ -137,7 +151,7 @@ func runStart() error {
 	}
 	fmt.Printf("✓ Added %d experts: %s\n", len(added), joinNames(names))
 
-	// Step 6: Sync to AI tool
+	// Step 7: Sync to AI tool
 	if err := sync.SyncAll(cfg, sync.Options{}); err != nil {
 		return fmt.Errorf("sync failed: %w", err)
 	}

@@ -63,7 +63,7 @@ go install github.com/luuuc/council/cmd/council@latest
 Then:
 
 ```bash
-council start    # Zero-config setup (creates council, detects stack, adds experts)
+council start    # Detects your stack, suggests experts plus people who will disagree with them, lets you pick
 ```
 
 Or step by step:
@@ -78,7 +78,7 @@ council sync     # Syncs to your AI tool
 
 | Command | What it does |
 |---------|--------------|
-| `council start` | Zero-config setup (init + detect + add experts + sync) |
+| `council start` | Setup: detect stack, pick your council, sync (`--yes` or no terminal: no questions) |
 | `council add "Name"` | Add from the library, research a real person, or create custom |
 | `council add --interview` | AI-assisted persona creation |
 | `council add --from ID` | Fork existing persona as starting point |
