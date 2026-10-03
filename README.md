@@ -8,7 +8,7 @@ A Council fixes this. It is a team of AI reviewers modeled on real people, real 
 
 Members are picked to disagree. Each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
 
-Code review is one use. Product, writing, architecture, and security decisions are others. See [docs/direction.md](docs/direction.md) for where Council is heading.
+Code review is one use. Product, writing, architecture, and security decisions are others.
 
 ## Get Started
 
