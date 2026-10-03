@@ -30,7 +30,7 @@ func TestGenerateCouncilCommand(t *testing.T) {
 	result := generateCouncilCommand(claude, experts, nil)
 
 	// Check for key elements
-	if !strings.Contains(result, "Code Review Council") {
+	if !strings.Contains(result, "# Council\n") {
 		t.Error("generateCouncilCommand() missing title")
 	}
 	if !strings.Contains(result, "$ARGUMENTS") {
@@ -45,6 +45,9 @@ func TestGenerateCouncilCommand(t *testing.T) {
 	if !strings.Contains(result, "Test-driven development") {
 		t.Error("generateCouncilCommand() missing first expert focus")
 	}
+	if !strings.Contains(result, "council review") {
+		t.Error("generateCouncilCommand() should run the council review engine")
+	}
 }
 
 func TestGenerateCouncilCommand_EmptyExperts(t *testing.T) {
@@ -55,7 +58,7 @@ func TestGenerateCouncilCommand_EmptyExperts(t *testing.T) {
 	result := generateCouncilCommand(claude, experts, nil)
 
 	// Should still have the header and instructions
-	if !strings.Contains(result, "Code Review Council") {
+	if !strings.Contains(result, "# Council\n") {
 		t.Error("generateCouncilCommand() should have title even with empty experts")
 	}
 	if !strings.Contains(result, "Instructions") {

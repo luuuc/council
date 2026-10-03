@@ -109,11 +109,24 @@ func runReview(cmd *cobra.Command) error {
 		},
 	}
 
-	// Progress message
-	if packName != "" {
-		fmt.Fprintf(os.Stderr, "Reviewing with %d experts (pack: %s)...\n", len(inputs), packName)
-	} else {
-		fmt.Fprintf(os.Stderr, "Reviewing with %d experts...\n", len(inputs))
+	// Progress goes to stderr so JSON output on stdout stays clean.
+	runner.OnStart = func(e *expert.Expert, turn, total int) {
+		fmt.Fprintf(os.Stderr, "[%d/%d] %s is reviewing...\n", turn, total, e.Name)
+	}
+
+	// Human output streams each expert as soon as they finish.
+	human := reviewOutput != "github-pr" && !reviewJSON
+	streamed := 0
+	if human {
+		fmt.Print(review.FormatHeader(packName, len(inputs)))
+		runner.OnVerdict = func(verdicts []review.ExpertVerdict) {
+			fmt.Print(review.FormatPerspective(verdicts))
+			streamed++
+		}
+	}
+
+	if mode == review.ModeCollective {
+		fmt.Fprintf(os.Stderr, "Reviewing with %d experts in one call...\n", len(inputs))
 	}
 
 	// Run review
@@ -138,7 +151,13 @@ func runReview(cmd *cobra.Command) error {
 		}
 		fmt.Println(string(data))
 	} else {
-		fmt.Print(review.FormatHuman(result, packName, len(inputs)))
+		// Collective mode returns everything at once: print what wasn't streamed.
+		if streamed == 0 {
+			for i := range result.Perspectives {
+				fmt.Print(review.FormatPerspective(result.Perspectives[:i+1]))
+			}
+		}
+		fmt.Print(review.FormatClosing(result))
 	}
 
 	return nil
@@ -257,6 +276,6 @@ func buildBackend(cfg *config.Config) (review.Backend, error) {
 		}
 		return review.NewCLIBackend(aiCmd, cfg.AI.Args), nil
 	default:
-		return nil, fmt.Errorf("no backend available\n\nInstall an AI CLI (claude, opencode) or set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN)")
+		return nil, fmt.Errorf("no backend available\n\nInstall an AI CLI (claude, opencode, codex) or set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN)")
 	}
 }

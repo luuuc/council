@@ -1,6 +1,7 @@
 package review
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -21,7 +22,8 @@ type CLIBackend struct {
 	Args    []string
 }
 
-// knownCLIDefaults returns default args for known AI CLIs.
+// knownCLIDefaults returns the headless-mode args for known AI CLIs.
+// The prompt is appended as the last argument.
 func knownCLIDefaults(command string) []string {
 	base := command
 	// Handle full paths: /usr/local/bin/claude -> claude
@@ -33,7 +35,9 @@ func knownCLIDefaults(command string) []string {
 	case "claude":
 		return []string{"-p", "--output-format", "text"}
 	case "opencode":
-		return []string{"-p"}
+		return []string{"run"}
+	case "codex":
+		return []string{"exec", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "--color", "never"}
 	default:
 		return nil
 	}
@@ -51,18 +55,14 @@ func NewCLIBackend(command string, args []string) *CLIBackend {
 	}
 }
 
-// Review executes a single expert review via subprocess.
-func (b *CLIBackend) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
-	prompt := sub.RawPrompt
-	if prompt == "" {
-		prompt = BuildPrompt(e, sub)
-	}
+// Run sends a prompt to the CLI in headless mode and returns its answer.
+// The answer is read from stdout; stderr is used only when stdout is empty,
+// since CLIs like codex and opencode write progress logs to stderr.
+func (b *CLIBackend) Run(ctx context.Context, prompt string) (string, error) {
+	args := make([]string, len(b.Args))
+	copy(args, b.Args)
 
-	// Build command args
-	baseArgs := make([]string, len(b.Args))
-	copy(baseArgs, b.Args)
-
-	cmd := exec.CommandContext(ctx, b.Command, baseArgs...)
+	cmd := exec.CommandContext(ctx, b.Command, args...)
 
 	// Use stdin for large prompts to avoid ARG_MAX limits (~256KB on most systems).
 	// Threshold set conservatively below typical limits.
@@ -73,15 +73,38 @@ func (b *CLIBackend) Review(ctx context.Context, e *expert.Expert, sub Submissio
 		cmd.Args = append(cmd.Args, prompt)
 	}
 
-	// CombinedOutput captures both stdout and stderr. Some CLIs write
-	// review output to stderr in non-interactive mode.
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		detail := ""
-		if len(output) > 0 {
-			detail = ": " + truncateBytes(output, 200)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		detail := stderr.Bytes()
+		if len(detail) == 0 {
+			detail = stdout.Bytes()
 		}
-		return ExpertVerdict{}, fmt.Errorf("subprocess failed for %s%s: %w", e.ID, detail, err)
+		if len(detail) > 0 {
+			return "", fmt.Errorf("%s failed: %s: %w", b.Command, truncateBytes(bytes.TrimSpace(detail), 200), err)
+		}
+		return "", fmt.Errorf("%s failed: %w", b.Command, err)
+	}
+
+	out := strings.TrimSpace(stdout.String())
+	if out == "" {
+		out = strings.TrimSpace(stderr.String())
+	}
+	return out, nil
+}
+
+// Review executes a single expert review via subprocess.
+func (b *CLIBackend) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
+	prompt := sub.RawPrompt
+	if prompt == "" {
+		prompt = BuildPrompt(e, sub)
+	}
+
+	output, err := b.Run(ctx, prompt)
+	if err != nil {
+		return ExpertVerdict{}, fmt.Errorf("review by %s: %w", e.ID, err)
 	}
 
 	// RawPrompt mode: return the raw text directly instead of parsing verdict JSON.
@@ -90,37 +113,18 @@ func (b *CLIBackend) Review(ctx context.Context, e *expert.Expert, sub Submissio
 			Expert:     e.ID,
 			Verdict:    VerdictComment,
 			Confidence: 1.0,
-			Notes:      []string{strings.TrimSpace(string(output))},
+			Notes:      []string{output},
 		}, nil
 	}
 
-	verdict := ParseVerdict(e.ID, output)
-	return verdict, nil
+	return ParseVerdict(e.ID, []byte(output)), nil
 }
 
 // ReviewCollective executes a collective review with all experts via subprocess.
 func (b *CLIBackend) ReviewCollective(ctx context.Context, experts []*expert.Expert, sub Submission) (*SynthesizedResult, error) {
-	prompt := BuildCollectivePrompt(experts, sub)
-
-	baseArgs := make([]string, len(b.Args))
-	copy(baseArgs, b.Args)
-
-	cmd := exec.CommandContext(ctx, b.Command, baseArgs...)
-
-	const argMaxSafe = 128 * 1024
-	if len(prompt) > argMaxSafe {
-		cmd.Stdin = strings.NewReader(prompt)
-	} else {
-		cmd.Args = append(cmd.Args, prompt)
-	}
-
-	output, err := cmd.CombinedOutput()
+	output, err := b.Run(ctx, BuildCollectivePrompt(experts, sub))
 	if err != nil {
-		detail := ""
-		if len(output) > 0 {
-			detail = ": " + truncateBytes(output, 200)
-		}
-		return nil, fmt.Errorf("subprocess failed for collective review%s: %w", detail, err)
+		return nil, fmt.Errorf("collective review: %w", err)
 	}
 
 	expertIDs := make([]string, len(experts))
@@ -128,7 +132,7 @@ func (b *CLIBackend) ReviewCollective(ctx context.Context, experts []*expert.Exp
 		expertIDs[i] = e.ID
 	}
 
-	return ParseCollectiveResult(output, expertIDs), nil
+	return ParseCollectiveResult([]byte(output), expertIDs), nil
 }
 
 // truncateBytes returns a string of at most maxLen bytes from b.

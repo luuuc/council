@@ -222,12 +222,12 @@ func generateCouncilCommand(a adapter.Adapter, experts []*expert.Expert, packs [
 	var buf bytes.Buffer
 	if err := councilCommandTemplate.Execute(&buf, data); err != nil {
 		// Fallback to simple format if template fails
-		return "# Code Review Council\n\nConvene the council to review: $ARGUMENTS\n"
+		return "# Council\n\nConvene the council on: $ARGUMENTS\n"
 	}
 	body := buf.String()
 
 	// Format according to adapter's command format
-	return a.FormatCommand("council", "Convene the council to review code", body)
+	return a.FormatCommand("council", "Convene the council to review code, a plan, or a decision", body)
 }
 
 func commandDescription(name string) string {

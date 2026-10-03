@@ -68,7 +68,7 @@ func Default() *Config {
 }
 
 // KnownAICLIs is the list of AI CLIs to detect, in order of preference
-var KnownAICLIs = []string{"claude", "opencode", "aichat", "llm"}
+var KnownAICLIs = []string{"claude", "opencode", "codex", "aichat", "llm"}
 
 // DetectAICommand returns the configured AI command, or detects one if not set.
 // Returns empty string with nil error when backend is "api" and no CLI is needed.
@@ -98,7 +98,7 @@ func (c *Config) DetectAICommand() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no AI command configured and none detected\n\nInstall claude, opencode, aichat, or llm, set an API key (ANTHROPIC_API_KEY or OPENAI_API_KEY), or set ai.command in .council/config.yaml")
+	return "", fmt.Errorf("no AI command configured and none detected\n\nInstall claude, opencode, codex, aichat, or llm, set an API key (ANTHROPIC_API_KEY or OPENAI_API_KEY), or set ai.command in .council/config.yaml")
 }
 
 // DetectBackend determines the backend and provider to use.

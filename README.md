@@ -100,7 +100,11 @@ Each expert returns a verdict (pass / comment / block / escalate), notes, and re
 
 Sequential review makes one LLM call per expert. `--mode collective` makes a single call that plays every expert at once: cheaper, but the debate is simulated.
 
-Works with any LLM backend — spawns CLI subprocesses (`claude`, `opencode`) or calls APIs directly (Anthropic, OpenAI, Ollama).
+Each expert's review prints as soon as it's done, so you watch the debate unfold.
+
+Works with any LLM backend: runs an AI CLI headless (`claude -p`, `opencode run`, `codex exec`) or calls APIs directly (Anthropic, OpenAI, Ollama). The first CLI found is used; set `ai.command` in `.council/config.yaml` to pick one.
+
+`/council` in Claude Code and OpenCode runs the same review: point it at files, your current changes, or a question, and it presents the debate and what you need to decide.
 
 ## Packs
 

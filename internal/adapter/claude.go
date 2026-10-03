@@ -76,9 +76,9 @@ func (c *Claude) FormatCommand(name, description, body string) string {
 // CouncilCommandTemplate is exported for use by sync when generating the dynamic /council command.
 // The template receives a CouncilTemplateData struct.
 func CouncilCommandTemplate() string {
-	return `# Code Review Council
+	return `# Council
 
-Convene the council to review: $ARGUMENTS
+Convene the council on: $ARGUMENTS
 
 ## Council Members
 
@@ -94,17 +94,44 @@ Use ` + "`--pack <name>`" + ` in your arguments to convene a specific pack inste
 
 {{range .Packs}}- **{{.Name}}**{{if .Description}} — {{.Description}}{{end}} ({{len .Members}} members)
 {{end}}
-When a --pack argument is provided, only review with the experts in that pack (plus any experts with priority: always). Ignore the full council members list above.
 {{- end}}
 
 ## Instructions
 
-Review the code from each expert's perspective. For each expert:
-1. State the expert's name
-2. Provide their assessment focused on their domain
-3. Note any concerns or suggestions
+The council debates for real: members speak one at a time, each reads what the
+earlier ones said, then disagrees, backs them up, or adds what they missed.
+Run it with the ` + "`council review`" + ` command instead of playing the members yourself.
 
-At the end, synthesize the key points and provide actionable recommendations.
+### 1. Decide what the council reviews
+
+- **Files named in the arguments**: review those files.
+- **Current changes, or no arguments**: review the diff (` + "`git diff HEAD`" + `).
+- **A question, plan, or decision**: write a short brief to a temporary file:
+  the question, the relevant context from this conversation, and the options
+  being considered. The council reviews the brief.
+
+### 2. Run the council
+
+Pass ` + "`--pack <name>`" + ` through if the arguments include one.
+
+` + "```bash" + `
+git diff HEAD | council review [--pack <name>]   # changes
+council review --file <path> [--pack <name>]    # a file or a brief
+` + "```" + `
+
+It makes one AI call per member, so it can take a few minutes. Use a long
+timeout (10 minutes). Progress lines go to stderr; the review goes to stdout.
+
+### 3. Present the debate
+
+- Show each member's verdict, notes, and replies in the order they spoke.
+- Keep the disagreements visible. Do not merge them into a consensus.
+- End with the open trade-offs: where members disagree and what the user
+  has to decide. The user makes the call, not the council and not you.
+
+If ` + "`council review`" + ` fails (for example, no AI backend is available), say so,
+then review from each member's perspective yourself, one at a time, each
+reacting to the ones before.
 `
 }
 

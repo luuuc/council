@@ -472,3 +472,34 @@ func TestRunnerSequentialPassesPriorReviews(t *testing.T) {
 		t.Errorf("tension should come from the disagree reply, got %q", result.Tension)
 	}
 }
+
+func TestRunnerSequentialHooks(t *testing.T) {
+	backend := &MockBackend{}
+	var events []string
+	runner := &Runner{
+		Backend: backend,
+		Options: ReviewOptions{Timeout: 10},
+		OnStart: func(e *expert.Expert, turn, total int) {
+			events = append(events, fmt.Sprintf("start %s %d/%d", e.ID, turn, total))
+		},
+		OnVerdict: func(verdicts []ExpertVerdict) {
+			events = append(events, fmt.Sprintf("verdict %s (%d so far)", verdicts[len(verdicts)-1].Expert, len(verdicts)))
+		},
+	}
+
+	inputs := []ExpertInput{
+		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
+		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+	}
+	runner.Run(context.Background(), inputs, Submission{Content: "diff"})
+
+	want := []string{
+		"start dhh 1/2",
+		"verdict dhh (1 so far)",
+		"start kent-beck 2/2",
+		"verdict kent-beck (2 so far)",
+	}
+	if fmt.Sprint(events) != fmt.Sprint(want) {
+		t.Errorf("events = %v, want %v", events, want)
+	}
+}

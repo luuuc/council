@@ -117,7 +117,7 @@ type Backend interface {
 ```
 
 Two implementations:
-- `CLIBackend` — spawns AI CLI subprocesses (`claude`, `opencode`)
+- `CLIBackend` — runs AI CLIs headless (`claude -p`, `opencode run`, `codex exec`)
 - `APIBackend` — direct HTTP calls to Anthropic, OpenAI, or Ollama
 
 The `Runner` runs experts one at a time with per-call timeouts. Each expert sees the earlier verdicts and can reply to them. The `Synthesizer` aggregates verdicts, detects agreements/tensions, and resolves hierarchy.

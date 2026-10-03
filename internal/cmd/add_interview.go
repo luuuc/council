@@ -13,6 +13,7 @@ import (
 
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
+	"github.com/luuuc/council/internal/review"
 )
 
 //go:embed prompts/interview.txt
@@ -194,31 +195,23 @@ func generateExpertFromDescription(description string) (*expert.Expert, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	args := append(cfg.AI.Args, "-p", prompt)
-	cmd := exec.CommandContext(ctx, aiCmd, args...)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
+	raw, err := review.NewCLIBackend(aiCmd, cfg.AI.Args).Run(ctx, prompt)
+	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf("AI command timed out after %d seconds", timeout)
 		}
-		return nil, fmt.Errorf("AI command failed: %w\n%s", err, stderr.String())
+		return nil, fmt.Errorf("AI command failed: %w", err)
 	}
 
-	// Parse response
-	response := stdout.String()
-
 	// Try to extract YAML if wrapped in code blocks
+	response := raw
 	if idx := findYAMLStart(response); idx >= 0 {
 		response = response[idx:]
 	}
 
 	exp, err := expert.Parse([]byte(response))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse AI response: %w\n\nRaw response:\n%s", err, stdout.String())
+		return nil, fmt.Errorf("failed to parse AI response: %w\n\nRaw response:\n%s", err, raw)
 	}
 
 	return exp, nil

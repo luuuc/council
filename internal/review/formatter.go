@@ -9,44 +9,68 @@ import (
 // FormatHuman renders a SynthesizedResult as human-readable text.
 func FormatHuman(result *SynthesizedResult, packName string, expertCount int) string {
 	var b strings.Builder
+	b.WriteString(FormatHeader(packName, expertCount))
+	for i := range result.Perspectives {
+		b.WriteString(FormatPerspective(result.Perspectives[:i+1]))
+	}
+	b.WriteString(FormatClosing(result))
+	return b.String()
+}
 
-	// Header
+// FormatHeader renders the title block of a review.
+func FormatHeader(packName string, expertCount int) string {
+	var b strings.Builder
 	if packName != "" {
 		fmt.Fprintf(&b, "Council Review — pack: %s (%d experts)\n", packName, expertCount)
 	} else {
 		fmt.Fprintf(&b, "Council Review — %d experts\n", expertCount)
 	}
 	b.WriteString(strings.Repeat("═", 50) + "\n\n")
+	return b.String()
+}
 
-	// Perspectives
-	for _, p := range result.Perspectives {
-		name := p.Expert
-		if p.Name != "" {
-			name = p.Name
-		}
-		verdict := string(p.Verdict)
-
-		// Right-align verdict
-		padding := 50 - len(name) - len(verdict)
-		if padding < 2 {
-			padding = 2
-		}
-		fmt.Fprintf(&b, "%s%s%s\n", name, strings.Repeat(" ", padding), verdict)
-
-		if p.Error != "" {
-			fmt.Fprintf(&b, "  (error: %s)\n", p.Error)
-		}
-
-		for _, note := range p.Notes {
-			fmt.Fprintf(&b, "  - %s\n", wrapNote(note, 46))
-		}
-
-		for _, r := range p.Replies {
-			fmt.Fprintf(&b, "  → %s %s:\n    %s\n", replyVerb(r.Stance), replyTarget(r.To, result.Perspectives), wrapNote(r.Note, 46))
-		}
-
-		b.WriteByte('\n')
+// FormatPerspective renders the last verdict in verdicts. Earlier verdicts
+// are used to show the names of the experts it replies to.
+func FormatPerspective(verdicts []ExpertVerdict) string {
+	if len(verdicts) == 0 {
+		return ""
 	}
+	p := verdicts[len(verdicts)-1]
+
+	var b strings.Builder
+	name := p.Expert
+	if p.Name != "" {
+		name = p.Name
+	}
+	verdict := string(p.Verdict)
+
+	// Right-align verdict
+	padding := 50 - len(name) - len(verdict)
+	if padding < 2 {
+		padding = 2
+	}
+	fmt.Fprintf(&b, "%s%s%s\n", name, strings.Repeat(" ", padding), verdict)
+
+	if p.Error != "" {
+		fmt.Fprintf(&b, "  (error: %s)\n", p.Error)
+	}
+
+	for _, note := range p.Notes {
+		fmt.Fprintf(&b, "  - %s\n", wrapNote(note, 46))
+	}
+
+	for _, r := range p.Replies {
+		fmt.Fprintf(&b, "  → %s %s:\n    %s\n", replyVerb(r.Stance), replyTarget(r.To, verdicts), wrapNote(r.Note, 46))
+	}
+
+	b.WriteByte('\n')
+	return b.String()
+}
+
+// FormatClosing renders everything after the perspectives: errors,
+// tension, agreements, and the overall verdict.
+func FormatClosing(result *SynthesizedResult) string {
+	var b strings.Builder
 
 	// Errors
 	if len(result.Errors) > 0 {

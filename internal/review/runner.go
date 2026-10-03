@@ -13,6 +13,12 @@ import (
 type Runner struct {
 	Backend Backend
 	Options ReviewOptions
+
+	// OnStart, if set, is called before each expert's turn in a sequential review.
+	OnStart func(e *expert.Expert, turn, total int)
+	// OnVerdict, if set, is called as soon as each expert's verdict is in,
+	// with all verdicts so far (the new one last).
+	OnVerdict func(verdicts []ExpertVerdict)
 }
 
 // ExpertInput pairs an expert with their blocking status from the pack.
@@ -111,8 +117,11 @@ func (r *Runner) runSequential(ctx context.Context, inputs []ExpertInput, sub Su
 	var errors []string
 	experts := make([]*expert.Expert, 0, len(inputs))
 
-	for _, inp := range inputs {
+	for i, inp := range inputs {
 		experts = append(experts, inp.Expert)
+		if r.OnStart != nil {
+			r.OnStart(inp.Expert, i+1, len(inputs))
+		}
 
 		turn := sub
 		turn.Prior = verdicts
@@ -128,6 +137,9 @@ func (r *Runner) runSequential(ctx context.Context, inputs []ExpertInput, sub Su
 		verdict.Name = inp.Expert.Name
 		verdict.Blocking = inp.Blocking
 		verdicts = append(verdicts, verdict)
+		if r.OnVerdict != nil {
+			r.OnVerdict(verdicts)
+		}
 	}
 
 	return Synthesize(verdicts, experts, errors)
