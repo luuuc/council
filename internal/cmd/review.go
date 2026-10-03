@@ -72,7 +72,7 @@ goes to every call, so members see cross-file issues.
 Examples:
   git diff main | council review --pack rails
   council review --pack code --file src/controller.rb
-  council review --expert kent-beck --file lib/utils.rb
+  council review --expert jane-doe --file lib/utils.rb
   git diff main | council review --pack rails --json
   git diff main | council review --pack go --mode collective
   council review --councils product,security,code --file plan.md

@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/luuuc/council/internal/config"
+	"github.com/luuuc/council/internal/expert"
 )
 
 // testInTempDir runs a test function in a temporary directory,
@@ -45,56 +45,6 @@ func testInTempDir(t *testing.T, fn func(t *testing.T, dir string)) {
 	fn(t, tmpDir)
 }
 
-func TestAddCmd_Success(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Run addCmd with a known persona
-		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
-		if err != nil {
-			t.Fatalf("addCmd failed: %v", err)
-		}
-
-		// Verify file was created
-		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
-		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
-			t.Errorf("expert file not created at %s", expertPath)
-		}
-
-		// Verify file content
-		data, err := os.ReadFile(expertPath)
-		if err != nil {
-			t.Fatalf("failed to read expert file: %v", err)
-		}
-
-		content := string(data)
-		if !strings.Contains(content, "Virtual Rob Pike") {
-			t.Error("expert file does not contain 'Virtual Rob Pike'")
-		}
-		if !strings.Contains(content, "id: rob-pike") {
-			t.Error("expert file does not contain 'id: rob-pike'")
-		}
-	})
-}
-
-func TestAddCmd_DuplicateExpert(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Add expert first time
-		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
-		if err != nil {
-			t.Fatalf("first addCmd failed: %v", err)
-		}
-
-		// Try to add again
-		err = addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
-		if err == nil {
-			t.Fatal("expected error for duplicate expert, got nil")
-		}
-
-		if !strings.Contains(err.Error(), "already exists") {
-			t.Errorf("error message should contain 'already exists', got: %v", err)
-		}
-	})
-}
-
 func TestAddCmd_NotFound(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// With new behavior, unknown personas trigger creation flow
@@ -110,74 +60,6 @@ func TestAddCmd_NotFound(t *testing.T) {
 		// or we get "not found" (non-interactive - stdin is piped/closed)
 		if !strings.Contains(errMsg, "focus is required") && !strings.Contains(errMsg, "not found") {
 			t.Errorf("error message should contain 'focus is required' or 'not found', got: %v", err)
-		}
-	})
-}
-
-func TestAddCmd_FuzzySuggestion(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Test with a typo that should suggest Virtual Rob Pike
-		err := addCmd.RunE(addCmd, []string{"Rob Pik"})
-
-		if err == nil {
-			// Expert was added (interactive mode with auto-confirm)
-			expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
-			if _, statErr := os.Stat(expertPath); os.IsNotExist(statErr) {
-				t.Errorf("expert should have been added at %s", expertPath)
-			}
-		} else {
-			// Non-interactive mode - should have suggestion
-			errMsg := err.Error()
-			if !strings.Contains(errMsg, "Did you mean") && !strings.Contains(errMsg, "Virtual Rob Pike") {
-				t.Errorf("error should contain suggestion, got: %v", err)
-			}
-		}
-	})
-}
-
-func TestAddCmd_FirstNameMatch(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Test first-name lookup — only works for non-"The" names
-		// (all composite personas are "The X", so only "Luc" has a unique first name)
-		err := addCmd.RunE(addCmd, []string{"Luc"})
-		if err != nil {
-			t.Fatalf("addCmd failed: %v", err)
-		}
-
-		expertPath := config.Path(config.ExpertsDir, "luc-perussault-diallo.md")
-		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
-			t.Errorf("expert file not created at %s", expertPath)
-		}
-	})
-}
-
-func TestAddCmd_CaseInsensitive(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Test case insensitive lookup
-		err := addCmd.RunE(addCmd, []string{"ROB PIKE"})
-		if err != nil {
-			t.Fatalf("addCmd failed: %v", err)
-		}
-
-		// Verify file was created with correct ID
-		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
-		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
-			t.Errorf("expert file not created at %s", expertPath)
-		}
-	})
-}
-
-func TestAddCmd_IDFormat(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Test using ID format directly
-		err := addCmd.RunE(addCmd, []string{"kent-beck"})
-		if err != nil {
-			t.Fatalf("addCmd failed: %v", err)
-		}
-
-		expertPath := config.Path(config.ExpertsDir, "kent-beck.md")
-		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
-			t.Errorf("expert file not created at %s", expertPath)
 		}
 	})
 }
@@ -202,7 +84,7 @@ func TestAddCmd_NoCouncilInit(t *testing.T) {
 	}
 
 	// Try to add without council init
-	err = addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
+	err = addCmd.RunE(addCmd, []string{"Virtual Cleo"})
 	if err == nil {
 		t.Fatal("expected error when council not initialized, got nil")
 	}
@@ -210,71 +92,6 @@ func TestAddCmd_NoCouncilInit(t *testing.T) {
 	if !strings.Contains(err.Error(), "council not initialized") {
 		t.Errorf("error should mention 'council not initialized', got: %v", err)
 	}
-}
-
-func TestAddCmd_YesFlag(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Set --yes flag
-		addYes = true
-		defer func() { addYes = false }()
-
-		// Test with a typo - should auto-accept suggestion with --yes
-		err := addCmd.RunE(addCmd, []string{"Rob Pik"})
-		if err != nil {
-			t.Fatalf("addCmd with --yes failed: %v", err)
-		}
-
-		// Verify Virtual Rob Pike was added
-		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
-		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
-			t.Errorf("expert file not created at %s", expertPath)
-		}
-	})
-}
-
-func TestAddCmd_YesFlagDuplicate(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Add expert first
-		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
-		if err != nil {
-			t.Fatalf("first addCmd failed: %v", err)
-		}
-
-		// Set --yes flag and try with typo
-		addYes = true
-		defer func() { addYes = false }()
-
-		err = addCmd.RunE(addCmd, []string{"Rob Pik"})
-		if err == nil {
-			t.Fatal("expected error for duplicate expert, got nil")
-		}
-
-		if !strings.Contains(err.Error(), "already exists") {
-			t.Errorf("error message should contain 'already exists', got: %v", err)
-		}
-	})
-}
-
-func TestListExperts(t *testing.T) {
-	testInTempDir(t, func(t *testing.T, dir string) {
-		// Add two experts
-		if err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"}); err != nil {
-			t.Fatalf("failed to add Virtual Rob Pike: %v", err)
-		}
-		if err := addCmd.RunE(addCmd, []string{"Virtual Kent Beck"}); err != nil {
-			t.Fatalf("failed to add Virtual Kent Beck: %v", err)
-		}
-
-		// Verify both files exist
-		files, err := filepath.Glob(config.Path(config.ExpertsDir, "*.md"))
-		if err != nil {
-			t.Fatalf("failed to glob expert files: %v", err)
-		}
-
-		if len(files) != 2 {
-			t.Errorf("expected 2 expert files, got %d", len(files))
-		}
-	})
 }
 
 // Note: Interactive flag tests (--interview, --from) are skipped because
@@ -347,4 +164,48 @@ func TestTrimNewline(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAddCmd_DuplicateExpert(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		stubAI(t, `---
+name: Cleo
+focus: Simple, clear code
+principles:
+  - Clear is better than clever
+red_flags:
+  - Clever code
+---`)
+		addYes = true
+		t.Cleanup(func() { addYes = false })
+
+		if err := addCmd.RunE(addCmd, []string{"Cleo"}); err != nil {
+			t.Fatalf("first add failed: %v", err)
+		}
+		err := addCmd.RunE(addCmd, []string{"Cleo"})
+		if err == nil || !strings.Contains(err.Error(), "already exists") {
+			t.Errorf("second add should fail with 'already exists', got %v", err)
+		}
+	})
+}
+
+func TestListExperts(t *testing.T) {
+	testInTempDir(t, func(t *testing.T, dir string) {
+		for _, e := range []*expert.Expert{
+			{ID: "cleo", Name: "Virtual Cleo", Focus: "Simple code"},
+			{ID: "ada", Name: "Virtual Ada", Focus: "Tests first"},
+		} {
+			if err := e.Save(); err != nil {
+				t.Fatalf("save %s: %v", e.ID, err)
+			}
+		}
+
+		list, err := expert.List()
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(list) != 2 {
+			t.Errorf("expected 2 experts, got %d", len(list))
+		}
+	})
 }

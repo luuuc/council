@@ -57,10 +57,7 @@ func SyncAll(cfg *config.Config, opts Options) error {
 		return err
 	}
 
-	if len(allExperts) == 0 {
-		return fmt.Errorf("no experts to sync - add some with 'council add' first")
-	}
-
+	// An empty council still gets its commands, so the AI can assemble it.
 	// Load all packs
 	allPacks, err := pack.ListAll()
 	if err != nil {
@@ -374,10 +371,7 @@ func SyncTarget(targetName string, cfg *config.Config, opts Options) error {
 		return err
 	}
 
-	if len(allExperts) == 0 {
-		return fmt.Errorf("no experts to sync - add some with 'council add' first")
-	}
-
+	// An empty council still gets its commands, so the AI can assemble it.
 	allPacks, err := pack.ListAll()
 	if err != nil {
 		fmt.Printf("Warning: could not load packs: %v\n", err)

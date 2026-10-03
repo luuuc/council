@@ -19,8 +19,8 @@ func TestParse(t *testing.T) {
 		{
 			name: "valid expert with all fields",
 			input: `---
-id: kent-beck
-name: Kent Beck
+id: ada
+name: Ada
 focus: Test-driven development and simple design
 philosophy: Write tests first, then code.
 principles:
@@ -31,17 +31,17 @@ red_flags:
   - Over-engineering
 ---
 
-# Kent Beck
+# Ada
 
 Expert in testing.`,
 			want: &Expert{
-				ID:         "kent-beck",
-				Name:       "Kent Beck",
+				ID:         "ada",
+				Name:       "Ada",
 				Focus:      "Test-driven development and simple design",
 				Philosophy: "Write tests first, then code.",
 				Principles: []string{"Red-green-refactor", "Simple design over complexity"},
 				RedFlags:   []string{"Tests written after code", "Over-engineering"},
-				Body:       "# Kent Beck\n\nExpert in testing.",
+				Body:       "# Ada\n\nExpert in testing.",
 			},
 			wantErr: false,
 		},
@@ -65,12 +65,12 @@ Body content.`,
 		{
 			name: "expert with influences and backstory",
 			input: `---
-id: kent-beck
-name: Virtual Kent Beck
+id: ada
+name: Virtual Ada
 focus: Test-driven development and incremental design
 influences:
-  - "Kent Beck — TDD, red-green-refactor"
-  - "Michael Feathers — Working with legacy code"
+  - "Ada — TDD, red-green-refactor"
+  - "Kim — Working with legacy code"
 backstory: |
   Former embedded systems engineer who moved to web development.
 philosophy: Untested code is a liability.
@@ -80,57 +80,57 @@ red_flags:
   - Code without tests
 ---
 
-# Virtual Kent Beck`,
+# Virtual Ada`,
 			want: &Expert{
-				ID:         "kent-beck",
-				Name:       "Virtual Kent Beck",
+				ID:         "ada",
+				Name:       "Virtual Ada",
 				Focus:      "Test-driven development and incremental design",
-				Influences: []string{"Kent Beck — TDD, red-green-refactor", "Michael Feathers — Working with legacy code"},
+				Influences: []string{"Ada — TDD, red-green-refactor", "Kim — Working with legacy code"},
 				Backstory:  "Former embedded systems engineer who moved to web development.\n",
 				Philosophy: "Untested code is a liability.",
 				Principles: []string{"Red-green-refactor"},
 				RedFlags:   []string{"Code without tests"},
-				Body:       "# Virtual Kent Beck",
+				Body:       "# Virtual Ada",
 			},
 			wantErr: false,
 		},
 		{
 			name: "expert with tensions",
 			input: `---
-id: kent-beck
-name: Kent Beck
+id: ada
+name: Ada
 focus: Test-driven development
 tensions:
-  - expert: dhh
+  - expert: ben
     topic: test depth
     position: Comprehensive unit tests for every class
     counterpoint: System tests that cover user flows, minimal unit tests
-  - expert: rob-pike
+  - expert: cleo
     topic: abstraction
     position: Extract when the pattern emerges three times
     counterpoint: A little copying is better than a little dependency
 ---
 
-# Kent Beck`,
+# Ada`,
 			want: &Expert{
-				ID:    "kent-beck",
-				Name:  "Kent Beck",
+				ID:    "ada",
+				Name:  "Ada",
 				Focus: "Test-driven development",
 				Tensions: []Tension{
 					{
-						Expert:       "dhh",
+						Expert:       "ben",
 						Topic:        "test depth",
 						Position:     "Comprehensive unit tests for every class",
 						Counterpoint: "System tests that cover user flows, minimal unit tests",
 					},
 					{
-						Expert:       "rob-pike",
+						Expert:       "cleo",
 						Topic:        "abstraction",
 						Position:     "Extract when the pattern emerges three times",
 						Counterpoint: "A little copying is better than a little dependency",
 					},
 				},
-				Body: "# Kent Beck",
+				Body: "# Ada",
 			},
 			wantErr: false,
 		},
@@ -240,7 +240,7 @@ func TestSave(t *testing.T) {
 		{
 			name: "save expert with all fields",
 			expert: &Expert{
-				ID:         "dhh",
+				ID:         "ben",
 				Name:       "Diego Valdez",
 				Focus:      "Rails and convention over configuration",
 				Philosophy: "Optimize for programmer happiness.",
@@ -253,9 +253,9 @@ func TestSave(t *testing.T) {
 			name: "save expert with influences and backstory",
 			expert: &Expert{
 				ID:         "composite",
-				Name:       "Virtual Kent Beck",
+				Name:       "Virtual Ada",
 				Focus:      "Test-driven development",
-				Influences: []string{"Kent Beck — TDD", "Michael Feathers — Legacy code"},
+				Influences: []string{"Ada — TDD", "Kim — Legacy code"},
 				Backstory:  "Former embedded systems engineer.",
 				Philosophy: "Untested code is a liability.",
 				Principles: []string{"Red-green-refactor"},
@@ -354,10 +354,10 @@ func TestToID(t *testing.T) {
 		name string
 		want string
 	}{
-		{"Kent Beck", "kent-beck"},
-		{"DHH", "dhh"},
-		{"José Valim", "jos-valim"},
-		{"Rob Pike", "rob-pike"},
+		{"Ada", "ada"},
+		{"Ben", "ben"},
+		{"Zoé Martin", "zo-martin"},
+		{"Cleo", "cleo"},
 		{"Already-Kebab", "already-kebab"},
 		{"  Spaces  Around  ", "spaces-around"},
 		{"Special!@#$%Characters", "special-characters"},
@@ -386,11 +386,11 @@ func TestParseAIResponse(t *testing.T) {
 
 ` + "```yaml" + `
 experts:
-  - id: kent-beck
-    name: Kent Beck
+  - id: ada
+    name: Ada
     focus: TDD
-  - id: dhh
-    name: DHH
+  - id: ben
+    name: Ben
     focus: Rails
 ` + "```" + `
 
@@ -577,15 +577,15 @@ func TestGenerateBody(t *testing.T) {
 
 func TestGenerateBody_WithBackstory(t *testing.T) {
 	e := &Expert{
-		ID:        "kent-beck",
-		Name:      "Virtual Kent Beck",
+		ID:        "ada",
+		Name:      "Virtual Ada",
 		Focus:     "Test-driven development",
 		Backstory: "Former embedded systems engineer who moved to web development.",
 	}
 
 	body := e.generateBody()
 
-	if !strings.Contains(body, "You are Virtual Kent Beck") {
+	if !strings.Contains(body, "You are Virtual Ada") {
 		t.Error("generateBody() should use 'You are' identity, not 'channeling'")
 	}
 	if !strings.Contains(body, "Former embedded systems engineer") {
@@ -705,8 +705,8 @@ func TestParseFrontmatter(t *testing.T) {
 	}{
 		{
 			name: "valid frontmatter",
-			input: `id: kent-beck
-name: Kent Beck
+			input: `id: ada
+name: Ada
 focus: TDD expert
 philosophy: Write tests first.
 principles:
@@ -714,8 +714,8 @@ principles:
 red_flags:
   - No tests`,
 			want: &Expert{
-				ID:         "kent-beck",
-				Name:       "Kent Beck",
+				ID:         "ada",
+				Name:       "Ada",
 				Focus:      "TDD expert",
 				Philosophy: "Write tests first.",
 				Principles: []string{"Red-green-refactor"},

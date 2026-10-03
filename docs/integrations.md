@@ -66,7 +66,7 @@ Claude researches their public work and saves "Virtual Boris Cherny" with `counc
 - Check Claude Desktop logs: `~/Library/Logs/Claude/`
 
 **"no council in this directory":**
-- Add `--dir /path/to/project` to the server args, for a project that has run `council start`
+- Add `--dir /path/to/project` to the server args, for a project that has run `council init`
 
 ## Local LLMs (Ollama, LM Studio, etc.)
 

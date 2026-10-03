@@ -9,9 +9,9 @@ import (
 
 func TestBuildPrompt(t *testing.T) {
 	e := &expert.Expert{
-		ID:   "kent-beck",
-		Name: "Virtual Kent Beck",
-		Body: "# Virtual Kent Beck - Test-driven development\n\nYou are Virtual Kent Beck.",
+		ID:   "ada",
+		Name: "Virtual Ada",
+		Body: "# Virtual Ada - Test-driven development\n\nYou are Virtual Ada.",
 	}
 
 	sub := Submission{
@@ -22,12 +22,12 @@ func TestBuildPrompt(t *testing.T) {
 	prompt := BuildPrompt(e, sub)
 
 	checks := []string{
-		"You are Virtual Kent Beck",
-		"Virtual Kent Beck - Test-driven development",
+		"You are Virtual Ada",
+		"Virtual Ada - Test-driven development",
 		"diff --git a/main.go",
 		"PR: Add math utilities",
 		`"verdict"`,
-		`"kent-beck"`,
+		`"ada"`,
 		"pass|comment|block|escalate",
 	}
 
@@ -40,9 +40,9 @@ func TestBuildPrompt(t *testing.T) {
 
 func TestBuildPromptNoContext(t *testing.T) {
 	e := &expert.Expert{
-		ID:   "kent-beck",
-		Name: "Virtual Kent Beck",
-		Body: "# Virtual Kent Beck\n\nExpert.",
+		ID:   "ada",
+		Name: "Virtual Ada",
+		Body: "# Virtual Ada\n\nExpert.",
 	}
 
 	sub := Submission{Content: "some code"}
@@ -56,8 +56,8 @@ func TestBuildPromptNoContext(t *testing.T) {
 
 func TestBuildCollectivePrompt(t *testing.T) {
 	experts := []*expert.Expert{
-		{ID: "kent-beck", Name: "Virtual Kent Beck", Focus: "Test-driven development", Body: "TDD expert."},
-		{ID: "dhh", Name: "Virtual DHH", Focus: "Convention over configuration", Body: "Rails creator."},
+		{ID: "ada", Name: "Virtual Ada", Focus: "Test-driven development", Body: "TDD expert."},
+		{ID: "ben", Name: "Virtual Ben", Focus: "Convention over configuration", Body: "Rails creator."},
 		{ID: "owasp-sentinel", Name: "OWASP Sentinel", Focus: "Application security", Body: "Security expert."},
 	}
 
@@ -70,8 +70,8 @@ func TestBuildCollectivePrompt(t *testing.T) {
 
 	checks := []string{
 		"council of expert reviewers",
-		"Virtual Kent Beck — Test-driven development",
-		"Virtual DHH — Convention over configuration",
+		"Virtual Ada — Test-driven development",
+		"Virtual Ben — Convention over configuration",
 		"OWASP Sentinel — Application security",
 		"TDD expert.",
 		"Rails creator.",
@@ -93,7 +93,7 @@ func TestBuildCollectivePrompt(t *testing.T) {
 
 func TestBuildCollectivePromptNoContext(t *testing.T) {
 	experts := []*expert.Expert{
-		{ID: "kent-beck", Name: "Virtual Kent Beck", Focus: "TDD", Body: "Expert."},
+		{ID: "ada", Name: "Virtual Ada", Focus: "TDD", Body: "Expert."},
 	}
 
 	prompt := BuildCollectivePrompt(experts, Submission{Content: "some code"})
@@ -104,7 +104,7 @@ func TestBuildCollectivePromptNoContext(t *testing.T) {
 }
 
 func TestBuildPromptWithPriorReviews(t *testing.T) {
-	e := &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}
+	e := &expert.Expert{ID: "ada", Name: "Virtual Ada"}
 
 	first := BuildPrompt(e, Submission{Content: "diff"})
 	for _, absent := range []string{"The Council So Far", `"replies"`} {
@@ -116,20 +116,20 @@ func TestBuildPromptWithPriorReviews(t *testing.T) {
 	sub := Submission{
 		Content: "diff",
 		Prior: []ExpertVerdict{{
-			Expert:  "dhh",
-			Name:    "Virtual DHH",
+			Expert:  "ben",
+			Name:    "Virtual Ben",
 			Verdict: VerdictBlock,
 			Notes:   []string{"Too many layers"},
-			Replies: []Reply{{To: "rob-pike", Stance: StanceAgree, Note: "Keep it simple"}},
+			Replies: []Reply{{To: "cleo", Stance: StanceAgree, Note: "Keep it simple"}},
 		}},
 	}
 	prompt := BuildPrompt(e, sub)
 
 	for _, check := range []string{
 		"The Council So Far",
-		"### Virtual DHH (dhh) — block",
+		"### Virtual Ben (ben) — block",
 		"- Too many layers",
-		"- [agree rob-pike] Keep it simple",
+		"- [agree cleo] Keep it simple",
 		`"replies"`,
 		"agree|disagree|adds",
 	} {

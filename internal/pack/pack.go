@@ -22,7 +22,6 @@ type Pack struct {
 	Name        string   `yaml:"name" json:"name"`
 	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
 	Members     []Member `yaml:"members" json:"members"`
-	Source      string   `yaml:"-" json:"source,omitempty"` // "builtin" or ""
 }
 
 // Validate checks that a pack has required fields.

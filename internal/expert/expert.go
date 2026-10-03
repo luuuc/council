@@ -3,51 +3,17 @@ package expert
 
 import (
 	"bytes"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"text/template"
 
 	"github.com/luuuc/council/internal/config"
 	"gopkg.in/yaml.v3"
 )
-
-//go:embed suggestions.yaml
-var suggestionsYAML []byte
-
-var (
-	suggestionBank     map[string][]Expert
-	suggestionBankOnce sync.Once
-)
-
-// LoadSuggestionBank returns all expert suggestions keyed by category.
-func LoadSuggestionBank() map[string][]Expert {
-	suggestionBankOnce.Do(func() {
-		if err := yaml.Unmarshal(suggestionsYAML, &suggestionBank); err != nil {
-			panic(fmt.Sprintf("failed to parse suggestions.yaml: %v", err))
-		}
-	})
-	return suggestionBank
-}
-
-// LookupSuggestion finds an expert by ID in the embedded suggestion bank.
-func LookupSuggestion(id string) *Expert {
-	for _, experts := range LoadSuggestionBank() {
-		for i := range experts {
-			if experts[i].ID == id {
-				copy := experts[i]
-				copy.Body = copy.generateBody()
-				return &copy
-			}
-		}
-	}
-	return nil
-}
 
 // Pre-compiled regex for ID generation
 var idRegexp = regexp.MustCompile(`[^a-z0-9]+`)
@@ -217,14 +183,8 @@ func Load(id string) (*Expert, error) {
 	return LoadFile(expertPath(id))
 }
 
-// expertPath returns the file for id, following a legacy alias only when
-// no file exists under the given id (old councils may still have them).
+// expertPath returns the file for an expert ID.
 func expertPath(id string) string {
-	path := config.Path(config.ExpertsDir, id+".md")
-	if _, err := os.Stat(path); err == nil {
-		return path
-	}
-	id, _ = LegacyAlias(id)
 	return config.Path(config.ExpertsDir, id+".md")
 }
 

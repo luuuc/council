@@ -11,11 +11,11 @@ func TestFormatHuman(t *testing.T) {
 		Verdict:  VerdictComment,
 		Blocking: false,
 		Perspectives: []ExpertVerdict{
-			{Expert: "kent-beck", Verdict: VerdictComment, Confidence: 0.85, Notes: []string{"Missing test coverage"}},
-			{Expert: "bruce-schneier", Verdict: VerdictPass, Confidence: 0.95},
+			{Expert: "ada", Verdict: VerdictComment, Confidence: 0.85, Notes: []string{"Missing test coverage"}},
+			{Expert: "dev", Verdict: VerdictPass, Confidence: 0.95},
 		},
 		Agreements: []string{"All 2 experts agree code structure is clean."},
-		Tension:    "Kent Beck vs Jason Fried on abstraction",
+		Tension:    "Ada vs Eve on abstraction",
 		Summary:    "2 experts reviewed. 1 pass, 1 comment. Ship with comments.",
 	}
 
@@ -24,9 +24,9 @@ func TestFormatHuman(t *testing.T) {
 	checks := []string{
 		"Council Review",
 		"pack: rails",
-		"kent-beck",
+		"ada",
 		"comment",
-		"bruce-schneier",
+		"dev",
 		"pass",
 		"Missing test coverage",
 		"Where they disagree",
@@ -44,7 +44,7 @@ func TestFormatHumanNoPack(t *testing.T) {
 	result := &SynthesizedResult{
 		Verdict: VerdictPass,
 		Perspectives: []ExpertVerdict{
-			{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
+			{Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
 		},
 		Summary: "1 expert reviewed. 1 pass. Ship it.",
 	}
@@ -63,15 +63,15 @@ func TestFormatHumanWithErrors(t *testing.T) {
 	result := &SynthesizedResult{
 		Verdict: VerdictPass,
 		Perspectives: []ExpertVerdict{
-			{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
+			{Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
 		},
-		Errors:  []string{"bruce-schneier: timeout"},
+		Errors:  []string{"dev: timeout"},
 		Summary: "2 experts reviewed. 1 pass, 1 failed.",
 	}
 
 	output := FormatHuman(result, "rails", 2)
 
-	if !strings.Contains(output, "Error: bruce-schneier: timeout") {
+	if !strings.Contains(output, "Error: dev: timeout") {
 		t.Errorf("expected error in output, got:\n%s", output)
 	}
 }
@@ -81,7 +81,7 @@ func TestFormatJSON(t *testing.T) {
 		Verdict:  VerdictComment,
 		Blocking: false,
 		Perspectives: []ExpertVerdict{
-			{Expert: "kent-beck", Verdict: VerdictComment, Confidence: 0.85},
+			{Expert: "ada", Verdict: VerdictComment, Confidence: 0.85},
 		},
 		Summary: "1 expert reviewed.",
 	}
@@ -106,19 +106,19 @@ func TestFormatHumanShowsNamesAndReplies(t *testing.T) {
 	result := &SynthesizedResult{
 		Verdict: VerdictComment,
 		Perspectives: []ExpertVerdict{
-			{Expert: "dhh", Name: "Virtual DHH", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
-			{Expert: "kent-beck", Name: "Virtual Kent Beck", Verdict: VerdictComment,
-				Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}}},
+			{Expert: "ben", Name: "Virtual Ben", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
+			{Expert: "ada", Name: "Virtual Ada", Verdict: VerdictComment,
+				Replies: []Reply{{To: "ben", Stance: StanceDisagree, Note: "The layers make it testable"}}},
 		},
-		Tension: "Virtual Kent Beck disagrees with Virtual DHH: The layers make it testable\nVirtual DHH disagrees with nobody",
+		Tension: "Virtual Ada disagrees with Virtual Ben: The layers make it testable\nVirtual Ben disagrees with nobody",
 	}
 
 	out := FormatHuman(result, "", 2)
 
 	for _, want := range []string{
-		"Virtual DHH",
-		"  → disagrees with Virtual DHH:\n    The layers make it testable",
-		"Where they disagree\n  - Virtual Kent Beck disagrees with Virtual DHH",
+		"Virtual Ben",
+		"  → disagrees with Virtual Ben:\n    The layers make it testable",
+		"Where they disagree\n  - Virtual Ada disagrees with Virtual Ben",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q\n\n%s", want, out)
@@ -130,14 +130,14 @@ func TestFormatHumanShowsFinalWordAndDecisions(t *testing.T) {
 	result := &SynthesizedResult{
 		Verdict: VerdictBlock,
 		Perspectives: []ExpertVerdict{
-			{Expert: "dhh", Name: "Virtual DHH", Verdict: VerdictComment, ChangedFrom: VerdictBlock,
+			{Expert: "ben", Name: "Virtual Ben", Verdict: VerdictComment, ChangedFrom: VerdictBlock,
 				ChangeReason: "The fake for tests is a real need", Notes: []string{"Too many layers"},
-				FinalWord: []Reply{{To: "boris-cherny", Stance: StanceAgree, Note: "Keep one small interface"}}},
-			{Expert: "boris-cherny", Name: "Virtual Boris Cherny", Verdict: VerdictBlock, Notes: []string{"No tests"}},
+				FinalWord: []Reply{{To: "jay", Stance: StanceAgree, Note: "Keep one small interface"}}},
+			{Expert: "jay", Name: "Virtual Jay", Verdict: VerdictBlock, Notes: []string{"No tests"}},
 		},
 		Disagreements: []Disagreement{{Topic: "Keep the Repository interface?", Sides: []Side{
-			{Experts: []string{"dhh"}, Position: "Drop it"},
-			{Experts: []string{"boris-cherny"}, Position: "Keep a small one"},
+			{Experts: []string{"ben"}, Position: "Drop it"},
+			{Experts: []string{"jay"}, Position: "Keep a small one"},
 		}}},
 		Decisions:  []string{"Do you need a test fake now, or later?"},
 		Agreements: []string{"Fix the SQL injection"},
@@ -146,12 +146,12 @@ func TestFormatHumanShowsFinalWordAndDecisions(t *testing.T) {
 	out := FormatHuman(result, "", 2)
 
 	for _, want := range []string{
-		"Virtual DHH                                  block", // review shows the original verdict
-		"Virtual DHH — final word",
+		"Virtual Ben                                  block", // review shows the original verdict
+		"Virtual Ben — final word",
 		"block → comment",
 		"Changed verdict: The fake for tests is a real need",
-		"→ agrees with Virtual Boris Cherny:",
-		"Where they disagree\n  1. Keep the Repository interface?\n     - Virtual DHH: Drop it\n     - Virtual Boris Cherny: Keep a small one",
+		"→ agrees with Virtual Jay:",
+		"Where they disagree\n  1. Keep the Repository interface?\n     - Virtual Ben: Drop it\n     - Virtual Jay: Keep a small one",
 		"What you need to decide\n  - Do you need a test fake now, or later?",
 		"Nobody disputed\n  - Fix the SQL injection",
 		"Votes: 1 block, 1 comment",

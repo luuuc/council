@@ -51,3 +51,15 @@ func openInEditor(path string) error {
 
 	return cmd.Run()
 }
+
+// isTerminal reports whether f is a real terminal. Unlike isInteractive,
+// it treats /dev/null as not a terminal, so scripted and AI-driven runs
+// never wait for input.
+func isTerminal(f *os.File) bool {
+	fi, err := f.Stat()
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	null, err := os.Stat(os.DevNull)
+	return err != nil || !os.SameFile(fi, null)
+}

@@ -1,12 +1,7 @@
 # Architecture
 
 ```
-council start / council add "Name"
-         │
-         ▼
-┌─────────────────┐
-│  detect.Scan()  │  Analyzes project files (go.mod, Gemfile, package.json)
-└────────┬────────┘
+council add (persona written by the user's AI)
          │
          ▼
 ┌─────────────────┐
@@ -32,7 +27,6 @@ council start / council add "Name"
 
 | Package | Purpose |
 |---------|---------|
-| `detect` | Identifies languages, frameworks, testing tools from project files |
 | `expert` | Expert data model: parse, save, list markdown files with YAML frontmatter |
 | `adapter` | Tool-specific formatting and paths (Claude, OpenCode, Generic) |
 | `sync` | Orchestrates writing experts to AI tool configurations |
@@ -59,8 +53,8 @@ Adding a new tool: implement `Adapter`, call `Register()` in `init()`.
 
 ```markdown
 ---
-id: kent-beck
-name: Kent Beck
+id: jane-doe
+name: Virtual Jane Doe
 focus: Test-driven development
 philosophy: |
   Write tests first.
@@ -70,14 +64,15 @@ red_flags:
   - Tests written after code
 ---
 
-# Kent Beck - Test-driven development
+# Virtual Jane Doe - Test-driven development
 
 Body content here...
 ```
 
 ## Data Flow
 
-1. **Detection**: `detect.Scan()` walks project, counts file extensions, checks config files
-2. **Storage**: Experts saved to `.council/experts/` as markdown with YAML frontmatter
-3. **Sync**: `sync.SyncAll()` loads experts, selects adapter, writes to tool directories
-4. **Commands**: Synced commands (`/council`, `/council-add`) invoke experts during AI sessions
+Council ships no personas. The user's AI proposes members for the project and builds each persona; Council validates and stores it.
+
+1. **Storage**: Experts saved to `.council/experts/` as markdown with YAML frontmatter
+2. **Sync**: `sync.SyncAll()` loads experts, selects adapter, writes to tool directories
+3. **Commands**: Synced commands (`/council`, `/council-add`) invoke experts during AI sessions

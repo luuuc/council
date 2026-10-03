@@ -7,16 +7,25 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(setupRedirectCmd)
+	rootCmd.AddCommand(setupRedirectCmd, startRedirectCmd)
 }
 
-// setupRedirectCmd is a hidden command that provides a helpful error message
-// for users who try to use the deprecated 'council setup' command.
+// setupRedirectCmd and startRedirectCmd point users of removed setup
+// commands to 'council init'.
 var setupRedirectCmd = &cobra.Command{
 	Use:    "setup",
-	Short:  "Deprecated: use 'council start' instead",
+	Short:  "Removed: use 'council init'",
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return fmt.Errorf("'council setup' has been removed\n\nUse 'council start' for zero-config setup")
+		return fmt.Errorf("'council setup' has been removed\n\nUse 'council init' to set up a council")
+	},
+}
+
+var startRedirectCmd = &cobra.Command{
+	Use:    "start",
+	Short:  "Removed: use 'council init'",
+	Hidden: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return fmt.Errorf("'council start' has been removed: Council no longer picks people for you\n\nUse 'council init', then add members with 'council add'")
 	},
 }

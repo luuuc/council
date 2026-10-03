@@ -18,41 +18,41 @@ func TestParseVerdict(t *testing.T) {
 	}{
 		{
 			name:        "valid JSON",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"comment","confidence":0.85,"notes":["Missing test"],"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"comment","confidence":0.85,"notes":["Missing test"],"blocking":false}`,
 			wantVerdict: VerdictComment,
 			wantConf:    0.85,
 			wantNotes:   1,
 		},
 		{
 			name:        "pass verdict",
-			expertID:    "bruce-schneier",
-			raw:         `{"expert":"bruce-schneier","verdict":"pass","confidence":0.95,"notes":[],"blocking":false}`,
+			expertID:    "dev",
+			raw:         `{"expert":"dev","verdict":"pass","confidence":0.95,"notes":[],"blocking":false}`,
 			wantVerdict: VerdictPass,
 			wantConf:    0.95,
 			wantNotes:   0,
 		},
 		{
 			name:        "block verdict",
-			expertID:    "bruce-schneier",
-			raw:         `{"expert":"bruce-schneier","verdict":"block","confidence":0.9,"notes":["SQL injection risk"],"blocking":true}`,
+			expertID:    "dev",
+			raw:         `{"expert":"dev","verdict":"block","confidence":0.9,"notes":["SQL injection risk"],"blocking":true}`,
 			wantVerdict: VerdictBlock,
 			wantConf:    0.9,
 			wantNotes:   1,
 		},
 		{
 			name:        "escalate verdict",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"escalate","confidence":0.5,"notes":["Needs architect input"],"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"escalate","confidence":0.5,"notes":["Needs architect input"],"blocking":false}`,
 			wantVerdict: VerdictEscalate,
 			wantConf:    0.5,
 			wantNotes:   1,
 		},
 		{
 			name:     "JSON in code fence with json tag",
-			expertID: "kent-beck",
+			expertID: "ada",
 			raw: "Here's my review:\n```json\n" +
-				`{"expert":"kent-beck","verdict":"comment","confidence":0.7,"notes":["Extract method"],"blocking":false}` +
+				`{"expert":"ada","verdict":"comment","confidence":0.7,"notes":["Extract method"],"blocking":false}` +
 				"\n```\nHope this helps!",
 			wantVerdict: VerdictComment,
 			wantConf:    0.7,
@@ -60,9 +60,9 @@ func TestParseVerdict(t *testing.T) {
 		},
 		{
 			name:     "JSON in plain code fence",
-			expertID: "kent-beck",
+			expertID: "ada",
 			raw: "```\n" +
-				`{"expert":"kent-beck","verdict":"pass","confidence":0.9,"notes":[],"blocking":false}` +
+				`{"expert":"ada","verdict":"pass","confidence":0.9,"notes":[],"blocking":false}` +
 				"\n```",
 			wantVerdict: VerdictPass,
 			wantConf:    0.9,
@@ -70,9 +70,9 @@ func TestParseVerdict(t *testing.T) {
 		},
 		{
 			name:     "JSON embedded in prose",
-			expertID: "kent-beck",
+			expertID: "ada",
 			raw: `After careful review, here is my assessment:
-{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["Add test"],"blocking":false}
+{"expert":"ada","verdict":"comment","confidence":0.8,"notes":["Add test"],"blocking":false}
 That's my take.`,
 			wantVerdict: VerdictComment,
 			wantConf:    0.8,
@@ -80,7 +80,7 @@ That's my take.`,
 		},
 		{
 			name:        "empty response",
-			expertID:    "kent-beck",
+			expertID:    "ada",
 			raw:         "",
 			wantVerdict: VerdictComment,
 			wantConf:    0,
@@ -89,7 +89,7 @@ That's my take.`,
 		},
 		{
 			name:        "whitespace only",
-			expertID:    "kent-beck",
+			expertID:    "ada",
 			raw:         "   \n  \t  ",
 			wantVerdict: VerdictComment,
 			wantConf:    0,
@@ -98,7 +98,7 @@ That's my take.`,
 		},
 		{
 			name:        "completely unstructured response",
-			expertID:    "kent-beck",
+			expertID:    "ada",
 			raw:         "I think the code looks pretty good overall. Nice job!",
 			wantVerdict: VerdictComment,
 			wantConf:    0,
@@ -107,8 +107,8 @@ That's my take.`,
 		},
 		{
 			name:        "truncated JSON",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":`,
 			wantVerdict: VerdictComment,
 			wantConf:    0,
 			wantNotes:   1,
@@ -116,8 +116,8 @@ That's my take.`,
 		},
 		{
 			name:        "invalid verdict value",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"maybe","confidence":0.5,"notes":[],"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"maybe","confidence":0.5,"notes":[],"blocking":false}`,
 			wantVerdict: VerdictComment,
 			wantConf:    0,
 			wantNotes:   1,
@@ -125,40 +125,40 @@ That's my take.`,
 		},
 		{
 			name:        "confidence clamped high",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"pass","confidence":5.0,"notes":[],"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"pass","confidence":5.0,"notes":[],"blocking":false}`,
 			wantVerdict: VerdictPass,
 			wantConf:    1.0,
 			wantNotes:   0,
 		},
 		{
 			name:        "confidence clamped low",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"pass","confidence":-1.0,"notes":[],"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"pass","confidence":-1.0,"notes":[],"blocking":false}`,
 			wantVerdict: VerdictPass,
 			wantConf:    0,
 			wantNotes:   0,
 		},
 		{
 			name:        "notes as string instead of array",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"comment","confidence":0.7,"notes":"single note","blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"comment","confidence":0.7,"notes":"single note","blocking":false}`,
 			wantVerdict: VerdictComment,
 			wantConf:    0.7,
 			wantNotes:   1,
 		},
 		{
 			name:        "missing notes field",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"pass","confidence":0.9,"blocking":false}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"pass","confidence":0.9,"blocking":false}`,
 			wantVerdict: VerdictPass,
 			wantConf:    0.9,
 			wantNotes:   0,
 		},
 		{
 			name:        "extra fields ignored",
-			expertID:    "kent-beck",
-			raw:         `{"expert":"kent-beck","verdict":"pass","confidence":0.9,"notes":[],"blocking":false,"extra":"ignored"}`,
+			expertID:    "ada",
+			raw:         `{"expert":"ada","verdict":"pass","confidence":0.9,"notes":[],"blocking":false,"extra":"ignored"}`,
 			wantVerdict: VerdictPass,
 			wantConf:    0.9,
 			wantNotes:   0,
@@ -192,7 +192,7 @@ That's my take.`,
 }
 
 func TestParseCollectiveResult(t *testing.T) {
-	expected := []string{"kent-beck", "bruce-schneier"}
+	expected := []string{"ada", "dev"}
 
 	tests := []struct {
 		name             string
@@ -210,8 +210,8 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "comment",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "comment", "confidence": 0.8, "notes": []string{"Add test"}, "blocking": false},
-					{"expert": "bruce-schneier", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
+					{"expert": "ada", "verdict": "comment", "confidence": 0.8, "notes": []string{"Add test"}, "blocking": false},
+					{"expert": "dev", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
 				},
 				"agreements": []string{"Code structure is clean"},
 				"tension":    "Kent wants tests, Bruce satisfied",
@@ -229,8 +229,8 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "pass",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
-					{"expert": "bruce-schneier", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
+					{"expert": "ada", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
+					{"expert": "dev", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
 				},
 				"agreements": []string{},
 				"tension":    "",
@@ -246,7 +246,7 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "comment",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "comment", "confidence": 0.8, "notes": []string{"Add test"}, "blocking": false},
+					{"expert": "ada", "verdict": "comment", "confidence": 0.8, "notes": []string{"Add test"}, "blocking": false},
 				},
 				"agreements": []string{},
 				"tension":    "",
@@ -262,8 +262,8 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "pass",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
-					{"expert": "bruce-schneier", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
+					{"expert": "ada", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
+					{"expert": "dev", "verdict": "pass", "confidence": 0.95, "notes": []string{}, "blocking": false},
 					{"expert": "invented-expert", "verdict": "block", "confidence": 0.5, "notes": []string{"Invented"}, "blocking": false},
 				},
 				"agreements": []string{},
@@ -280,8 +280,8 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "maybe",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "maybe", "confidence": 0.8, "notes": []string{"Unsure"}, "blocking": false},
-					{"expert": "bruce-schneier", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
+					{"expert": "ada", "verdict": "maybe", "confidence": 0.8, "notes": []string{"Unsure"}, "blocking": false},
+					{"expert": "dev", "verdict": "pass", "confidence": 0.9, "notes": []string{}, "blocking": false},
 				},
 				"agreements": []string{},
 				"tension":    "",
@@ -309,7 +309,7 @@ func TestParseCollectiveResult(t *testing.T) {
 		},
 		{
 			name:             "truncated JSON",
-			raw:              `{"verdict":"pass","perspectives":[{"expert":"kent-beck"`,
+			raw:              `{"verdict":"pass","perspectives":[{"expert":"ada"`,
 			expected:         expected,
 			wantVerdict:      VerdictComment,
 			wantPerspectives: 2,
@@ -321,8 +321,8 @@ func TestParseCollectiveResult(t *testing.T) {
 				"verdict":  "pass",
 				"blocking": false,
 				"perspectives": []map[string]any{
-					{"expert": "kent-beck", "verdict": "pass", "confidence": 5.0, "notes": []string{}, "blocking": false},
-					{"expert": "bruce-schneier", "verdict": "pass", "confidence": -1.0, "notes": []string{}, "blocking": false},
+					{"expert": "ada", "verdict": "pass", "confidence": 5.0, "notes": []string{}, "blocking": false},
+					{"expert": "dev", "verdict": "pass", "confidence": -1.0, "notes": []string{}, "blocking": false},
 				},
 				"agreements": []string{},
 				"tension":    "",
@@ -391,15 +391,15 @@ func mustJSON(v any) string {
 
 func TestParseVerdictReplies(t *testing.T) {
 	raw := `Here is my review:
-{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["Add a test"],
+{"expert":"ada","verdict":"comment","confidence":0.8,"notes":["Add a test"],
  "replies":[
-  {"to":"dhh","stance":"Disagree","note":"The layers make it testable"},
-  {"to":"rob-pike","stance":"shrug","note":"unknown stance is dropped"},
+  {"to":"ben","stance":"Disagree","note":"The layers make it testable"},
+  {"to":"cleo","stance":"shrug","note":"unknown stance is dropped"},
   {"to":"","stance":"agree","note":"missing target is dropped"},
-  {"to":"rob-pike","stance":"adds","note":""}
+  {"to":"cleo","stance":"adds","note":""}
  ],"blocking":false}`
 
-	v := ParseVerdict("kent-beck", []byte(raw))
+	v := ParseVerdict("ada", []byte(raw))
 
 	if v.Error != "" {
 		t.Fatalf("unexpected parse error: %s (notes: %v)", v.Error, v.Notes)
@@ -407,7 +407,7 @@ func TestParseVerdictReplies(t *testing.T) {
 	if len(v.Replies) != 1 {
 		t.Fatalf("expected 1 valid reply, got %d: %+v", len(v.Replies), v.Replies)
 	}
-	want := Reply{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}
+	want := Reply{To: "ben", Stance: StanceDisagree, Note: "The layers make it testable"}
 	if v.Replies[0] != want {
 		t.Errorf("reply = %+v, want %+v", v.Replies[0], want)
 	}
@@ -415,18 +415,18 @@ func TestParseVerdictReplies(t *testing.T) {
 
 func TestParseCollectiveDisagreementsAndDecisions(t *testing.T) {
 	raw := `{"verdict":"block","blocking":false,
-	"perspectives":[{"expert":"dhh","verdict":"block","confidence":0.9,"notes":["x"]},{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["y"]}],
+	"perspectives":[{"expert":"ben","verdict":"block","confidence":0.9,"notes":["x"]},{"expert":"ada","verdict":"comment","confidence":0.8,"notes":["y"]}],
 	"agreements":["Fix the injection"],
 	"disagreements":[
-	  {"topic":"Keep the interface?","sides":[{"experts":["dhh"],"position":"Drop it"},{"experts":["kent-beck","ghost"],"position":"Keep it"}]},
-	  {"topic":"One-sided","sides":[{"experts":["dhh"],"position":"only one side"}]}
+	  {"topic":"Keep the interface?","sides":[{"experts":["ben"],"position":"Drop it"},{"experts":["ada","ghost"],"position":"Keep it"}]},
+	  {"topic":"One-sided","sides":[{"experts":["ben"],"position":"only one side"}]}
 	],
 	"decisions":["Do you need a fake now?",""],
 	"summary":"Ship with comments."}`
 
-	r := ParseCollectiveResult([]byte(raw), []string{"dhh", "kent-beck"})
+	r := ParseCollectiveResult([]byte(raw), []string{"ben", "ada"})
 
-	if len(r.Disagreements) != 1 || r.Disagreements[0].Sides[1].Experts[0] != "kent-beck" || len(r.Disagreements[0].Sides[1].Experts) != 1 {
+	if len(r.Disagreements) != 1 || r.Disagreements[0].Sides[1].Experts[0] != "ada" || len(r.Disagreements[0].Sides[1].Experts) != 1 {
 		t.Errorf("expected one two-sided disagreement with unknown experts removed, got %+v", r.Disagreements)
 	}
 	if len(r.Decisions) != 1 {

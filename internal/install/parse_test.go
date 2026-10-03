@@ -8,12 +8,12 @@ import (
 
 func TestParse_ValidExpert(t *testing.T) {
 	data := []byte(`---
-id: kent-beck
-name: Virtual Kent Beck
+id: ada
+name: Virtual Ada
 focus: Testing and TDD
 ---
 
-# Virtual Kent Beck
+# Virtual Ada
 
 Expert in testing.`)
 
@@ -22,16 +22,16 @@ Expert in testing.`)
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if expert.ID != "kent-beck" {
-		t.Errorf("ID = %q, want kent-beck", expert.ID)
+	if expert.ID != "ada" {
+		t.Errorf("ID = %q, want ada", expert.ID)
 	}
-	if expert.Name != "Virtual Kent Beck" {
-		t.Errorf("Name = %q, want Virtual Kent Beck", expert.Name)
+	if expert.Name != "Virtual Ada" {
+		t.Errorf("Name = %q, want Virtual Ada", expert.Name)
 	}
 	if expert.Focus != "Testing and TDD" {
 		t.Errorf("Focus = %q, want Testing and TDD", expert.Focus)
 	}
-	if expert.Body != "# Virtual Kent Beck\n\nExpert in testing." {
+	if expert.Body != "# Virtual Ada\n\nExpert in testing." {
 		t.Errorf("Body = %q, unexpected content", expert.Body)
 	}
 }

@@ -29,9 +29,9 @@ func stubAI(t *testing.T, answer string) *string {
 	return &gotPrompt
 }
 
-const borisPersona = `---
+const jayPersona = `---
 id: boris
-name: Boris Cherny
+name: Jay
 focus: TypeScript and AI-assisted engineering
 influences:
   - "Programming TypeScript — types as design tools"
@@ -42,7 +42,7 @@ principles:
 red_flags:
   - any types leaking through APIs
 tensions:
-  - expert: rob-pike
+  - expert: cleo
     topic: type systems
     position: Rich types catch bugs early
     counterpoint: Simple types keep code readable
@@ -54,29 +54,30 @@ tensions:
 
 func TestAddCmd_ResearchesRealPerson(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
-		if err := addCmd.RunE(addCmd, []string{"Rob Pike"}); err != nil {
-			t.Fatalf("adding Rob Pike: %v", err)
+		member := &expert.Expert{ID: "cleo", Name: "Virtual Cleo", Focus: "Simple code"}
+		if err := member.Save(); err != nil {
+			t.Fatalf("saving Cleo: %v", err)
 		}
-		prompt := stubAI(t, borisPersona)
+		prompt := stubAI(t, jayPersona)
 		addYes = true
 		t.Cleanup(func() { addYes = false })
 
-		if err := addCmd.RunE(addCmd, []string{"Boris Cherny"}); err != nil {
+		if err := addCmd.RunE(addCmd, []string{"Jay"}); err != nil {
 			t.Fatalf("addCmd failed: %v", err)
 		}
 
-		if !strings.Contains(*prompt, `"Boris Cherny"`) || !strings.Contains(*prompt, "rob-pike: Virtual Rob Pike") {
+		if !strings.Contains(*prompt, `"Jay"`) || !strings.Contains(*prompt, "cleo: Virtual Cleo") {
 			t.Errorf("research prompt should name the person and list council members, got:\n%s", *prompt)
 		}
 
-		e, err := expert.Load("boris-cherny")
+		e, err := expert.Load("jay")
 		if err != nil {
-			t.Fatalf("expected boris-cherny to be saved: %v", err)
+			t.Fatalf("expected jay to be saved: %v", err)
 		}
-		if e.Name != "Virtual Boris Cherny" {
-			t.Errorf("name = %q, want %q", e.Name, "Virtual Boris Cherny")
+		if e.Name != "Virtual Jay" {
+			t.Errorf("name = %q, want %q", e.Name, "Virtual Jay")
 		}
-		if len(e.Tensions) != 1 || e.Tensions[0].Expert != "rob-pike" {
+		if len(e.Tensions) != 1 || e.Tensions[0].Expert != "cleo" {
 			t.Errorf("tensions should keep only council members, got %+v", e.Tensions)
 		}
 		if !strings.Contains(e.Body, "## Drawn From") {
@@ -102,7 +103,7 @@ func TestAddCmd_UnknownPersonFallsBackToCustom(t *testing.T) {
 }
 
 func TestFormatExpertForEditKeepsAllFields(t *testing.T) {
-	e, err := parseGeneratedExpert(borisPersona)
+	e, err := parseGeneratedExpert(jayPersona)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ principles:
 red_flags:
   - Setup that takes an afternoon
 tensions:
-  - expert: rob-pike
+  - expert: cleo
     topic: x
     position: y
     counterpoint: z

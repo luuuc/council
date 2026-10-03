@@ -8,7 +8,7 @@ Determine what type of input $ARGUMENTS is:
 
 | Type | Pattern | Examples |
 |------|---------|----------|
-| **Name** | Quoted string, or 2-3 capitalized words forming a person's name | `"Kent Beck"`, `Sandi Metz` |
+| **Name** | Quoted string, or 2-3 capitalized words forming a person's name | `"Jane Doe"`, `John Smith` |
 | **Description** | Contains "a ", "someone", "expert in", "help with" | `a testing expert`, `someone for API design` |
 | **Keyword** | Single word describing a domain | `testing`, `APIs`, `security` |
 | **Customer** | Describes the people the work is for: "customers", "users who", "people who" | `freelancers who bill hourly`, `customer: small agency owners` |
@@ -123,7 +123,7 @@ When the user selects:
 
 Once an expert is confirmed for custom creation, generate a rich profile.
 
-If the persona is based on a real person, name it with the "Virtual" prefix (e.g. `Virtual Jason Fried`, id `jason-fried`). The prefix makes clear it is a model built from their public work, not the person. Roles and custom personas ("My CTO", "Security Engineer") keep their plain name.
+If the persona is based on a real person, name it with the "Virtual" prefix (e.g. `Virtual Jane Doe`, id `jane-doe`). The prefix makes clear it is a model built from their public work, not the person. Roles and custom personas ("My CTO", "Security Engineer") keep their plain name.
 
 Research or use your knowledge of this person to generate:
 

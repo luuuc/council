@@ -10,8 +10,8 @@ import (
 func TestFormatMarkdown_SingleExpert(t *testing.T) {
 	experts := []*expert.Expert{
 		{
-			ID:         "dhh",
-			Name:       "DHH",
+			ID:         "ben",
+			Name:       "Ben",
 			Focus:      "Rails doctrine, conventions, architecture",
 			Philosophy: "Convention over configuration is not just a technical choice.",
 			Principles: []string{"RESTful routes only", "Fat models, skinny controllers"},
@@ -31,7 +31,7 @@ func TestFormatMarkdown_SingleExpert(t *testing.T) {
 	}
 
 	// Check expert section
-	if !strings.Contains(result, "## DHH") {
+	if !strings.Contains(result, "## Ben") {
 		t.Error("Missing expert header")
 	}
 
@@ -68,13 +68,13 @@ func TestFormatMarkdown_SingleExpert(t *testing.T) {
 func TestFormatMarkdown_MultipleExperts(t *testing.T) {
 	experts := []*expert.Expert{
 		{
-			ID:    "dhh",
-			Name:  "DHH",
+			ID:    "ben",
+			Name:  "Ben",
 			Focus: "Rails",
 		},
 		{
 			ID:    "kent",
-			Name:  "Kent Beck",
+			Name:  "Ada",
 			Focus: "Testing",
 		},
 	}
@@ -82,11 +82,11 @@ func TestFormatMarkdown_MultipleExperts(t *testing.T) {
 	result := FormatMarkdown(experts)
 
 	// Check both experts present
-	if !strings.Contains(result, "## DHH") {
+	if !strings.Contains(result, "## Ben") {
 		t.Error("Missing first expert")
 	}
 
-	if !strings.Contains(result, "## Kent Beck") {
+	if !strings.Contains(result, "## Ada") {
 		t.Error("Missing second expert")
 	}
 
@@ -96,11 +96,11 @@ func TestFormatMarkdown_MultipleExperts(t *testing.T) {
 	}
 
 	// Check separator is between experts, not at end
-	dhhIdx := strings.Index(result, "## DHH")
-	kentIdx := strings.Index(result, "## Kent Beck")
+	benIdx := strings.Index(result, "## Ben")
+	kentIdx := strings.Index(result, "## Ada")
 	sepIdx := strings.Index(result, "---")
 
-	if sepIdx < dhhIdx || sepIdx > kentIdx {
+	if sepIdx < benIdx || sepIdx > kentIdx {
 		t.Error("Separator should be between experts")
 	}
 }

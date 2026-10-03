@@ -67,13 +67,9 @@ Examples:
 
 		fmt.Printf("Available packs (%d):\n\n", len(packs))
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintf(w, "  NAME\tMEMBERS\tSOURCE\tDESCRIPTION\n")
+		_, _ = fmt.Fprintf(w, "  NAME\tMEMBERS\tDESCRIPTION\n")
 		for _, p := range packs {
-			source := "custom"
-			if p.Source == "builtin" {
-				source = "builtin"
-			}
-			_, _ = fmt.Fprintf(w, "  %s\t%d\t%s\t%s\n", p.Name, len(p.Members), source, p.Description)
+			_, _ = fmt.Fprintf(w, "  %s\t%d\t%s\n", p.Name, len(p.Members), p.Description)
 		}
 		_ = w.Flush()
 
@@ -96,9 +92,6 @@ var packsShowCmd = &cobra.Command{
 		fmt.Printf("Pack: %s\n", p.Name)
 		if p.Description != "" {
 			fmt.Printf("Description: %s\n", p.Description)
-		}
-		if p.Source == "builtin" {
-			fmt.Printf("Source: builtin\n")
 		}
 		fmt.Println()
 
@@ -125,9 +118,6 @@ var packsShowCmd = &cobra.Command{
 			e, err := expert.Load(m.ID)
 			if err != nil && !os.IsNotExist(err) {
 				fmt.Fprintf(os.Stderr, "Warning: could not load expert '%s': %v\n", m.ID, err)
-			}
-			if e == nil {
-				e = LookupPersona(m.ID)
 			}
 			if e != nil {
 				loaded[m.ID] = e
@@ -223,10 +213,6 @@ var packsAddCmd = &cobra.Command{
 			return err
 		}
 
-		if p.Source == "builtin" {
-			return fmt.Errorf("cannot modify built-in pack '%s' — create a custom override with: council packs create %s", name, name)
-		}
-
 		if err := p.AddMember(expertID, packsAddBlocking); err != nil {
 			return err
 		}
@@ -254,10 +240,6 @@ var packsRemoveCmd = &cobra.Command{
 		p, err := pack.Get(name)
 		if err != nil {
 			return err
-		}
-
-		if p.Source == "builtin" {
-			return fmt.Errorf("cannot modify built-in pack '%s' — create a custom override with: council packs create %s", name, name)
 		}
 
 		if err := p.RemoveMember(expertID); err != nil {

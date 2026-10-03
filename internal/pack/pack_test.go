@@ -18,16 +18,16 @@ func TestParse(t *testing.T) {
 			input: `name: rails
 description: Rails review council
 members:
-  - id: dhh
+  - id: ben
     blocking: true
-  - id: kent-beck
+  - id: ada
 `,
 			want: Pack{
 				Name:        "rails",
 				Description: "Rails review council",
 				Members: []Member{
-					{ID: "dhh", Blocking: true},
-					{ID: "kent-beck", Blocking: false},
+					{ID: "ben", Blocking: true},
+					{ID: "ada", Blocking: false},
 				},
 			},
 		},
@@ -94,7 +94,7 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "valid",
-			pack: Pack{Name: "rails", Members: []Member{{ID: "dhh"}}},
+			pack: Pack{Name: "rails", Members: []Member{{ID: "ben"}}},
 		},
 		{
 			name:    "empty name",

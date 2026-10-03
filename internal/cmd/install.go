@@ -41,7 +41,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {
-			return fmt.Errorf("council not initialized: run 'council start' first")
+			return fmt.Errorf("council not initialized: run 'council init' first")
 		}
 
 		return runInstall(args[0])

@@ -14,23 +14,23 @@ func TestRepoNameFromURL(t *testing.T) {
 	}{
 		{
 			name:     "https github url",
-			url:      "https://github.com/dhh/my-council.git",
-			expected: "dhh-my-council",
+			url:      "https://github.com/ben/my-council.git",
+			expected: "ben-my-council",
 		},
 		{
 			name:     "https github url without .git",
-			url:      "https://github.com/dhh/my-council",
-			expected: "dhh-my-council",
+			url:      "https://github.com/ben/my-council",
+			expected: "ben-my-council",
 		},
 		{
 			name:     "ssh github url",
-			url:      "git@github.com:dhh/my-council.git",
-			expected: "dhh-my-council",
+			url:      "git@github.com:ben/my-council.git",
+			expected: "ben-my-council",
 		},
 		{
 			name:     "ssh github url without .git",
-			url:      "git@github.com:dhh/my-council",
-			expected: "dhh-my-council",
+			url:      "git@github.com:ben/my-council",
+			expected: "ben-my-council",
 		},
 		{
 			name:     "https gitlab url",
@@ -39,8 +39,8 @@ func TestRepoNameFromURL(t *testing.T) {
 		},
 		{
 			name:     "trailing slash",
-			url:      "https://github.com/dhh/my-council/",
-			expected: "dhh-my-council",
+			url:      "https://github.com/ben/my-council/",
+			expected: "ben-my-council",
 		},
 		{
 			name:     "invalid url - no user",

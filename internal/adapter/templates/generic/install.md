@@ -9,10 +9,11 @@ Set up the council for your project.
 council init
 ```
 
-2. Add experts to your council:
+2. Add members to your council: people you choose (researched from their public work), roles, and customers:
 ```bash
-council add "Kent Beck"
-council add "Sandi Metz"
+council add "Jane Doe"
+council add --role "SRE"
+council add --customer "who your users are"
 ```
 
 3. Sync to generate AGENTS.md:

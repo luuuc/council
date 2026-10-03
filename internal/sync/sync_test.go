@@ -2,6 +2,7 @@ package sync
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,13 +16,13 @@ import (
 func TestGenerateCouncilCommand(t *testing.T) {
 	experts := []*expert.Expert{
 		{
-			ID:    "kent-beck",
-			Name:  "Virtual Kent Beck",
+			ID:    "ada",
+			Name:  "Virtual Ada",
 			Focus: "Test-driven development",
 		},
 		{
-			ID:    "dhh",
-			Name:  "Virtual DHH",
+			ID:    "ben",
+			Name:  "Virtual Ben",
 			Focus: "Rails and productivity",
 		},
 	}
@@ -36,10 +37,10 @@ func TestGenerateCouncilCommand(t *testing.T) {
 	if !strings.Contains(result, "$ARGUMENTS") {
 		t.Error("generateCouncilCommand() missing $ARGUMENTS placeholder")
 	}
-	if !strings.Contains(result, "Virtual Kent Beck") {
+	if !strings.Contains(result, "Virtual Ada") {
 		t.Error("generateCouncilCommand() missing first expert name")
 	}
-	if !strings.Contains(result, "Virtual DHH") {
+	if !strings.Contains(result, "Virtual Ben") {
 		t.Error("generateCouncilCommand() missing second expert name")
 	}
 	if !strings.Contains(result, "Test-driven development") {
@@ -228,10 +229,14 @@ func TestSyncAllNoExperts(t *testing.T) {
 	_ = os.MkdirAll(config.Path(config.ExpertsDir), 0755)
 
 	cfg := config.Default()
+	cfg.Tool = "claude"
 
-	err = SyncAll(cfg, Options{DryRun: false})
-	if err == nil {
-		t.Error("SyncAll() should error when no experts exist")
+	// An empty council still gets its slash commands, so the AI can assemble it.
+	if err := SyncAll(cfg, Options{DryRun: false}); err != nil {
+		t.Fatalf("SyncAll() on an empty council: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(".claude", "commands", "council.md")); err != nil {
+		t.Errorf("expected /council to be installed for an empty council: %v", err)
 	}
 }
 
@@ -402,8 +407,8 @@ func TestSyncToAdapterOpenCode(t *testing.T) {
 
 func TestOpenCodeFormatAgent(t *testing.T) {
 	e := &expert.Expert{
-		ID:         "kent-beck",
-		Name:       "Virtual Kent Beck",
+		ID:         "ada",
+		Name:       "Virtual Ada",
 		Focus:      "TDD and clean code",
 		Philosophy: "Test-driven development leads to better design.",
 		Principles: []string{"Red-green-refactor", "Simple design"},
@@ -425,10 +430,10 @@ func TestOpenCodeFormatAgent(t *testing.T) {
 	}
 
 	// Verify body content
-	if !strings.Contains(result, "# Virtual Kent Beck") {
+	if !strings.Contains(result, "# Virtual Ada") {
 		t.Error("FormatAgent() should have expert name as heading")
 	}
-	if !strings.Contains(result, "You are Virtual Kent Beck") {
+	if !strings.Contains(result, "You are Virtual Ada") {
 		t.Error("FormatAgent() should have 'You are' identity intro")
 	}
 	if !strings.Contains(result, "## Philosophy") {
@@ -568,11 +573,11 @@ func TestGenerateCouncilCommand_WithPacks(t *testing.T) {
 	}
 	packs := []*pack.Pack{
 		{Name: "go", Description: "Go review council", Members: []pack.Member{
-			{ID: "rob-pike"},
-			{ID: "dave-cheney"},
+			{ID: "cleo"},
+			{ID: "ivy"},
 		}},
 		{Name: "rails", Description: "Rails review council", Members: []pack.Member{
-			{ID: "dhh", Blocking: true},
+			{ID: "ben", Blocking: true},
 		}},
 	}
 

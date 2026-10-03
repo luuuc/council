@@ -4,7 +4,9 @@
 
 AI tools are eager to please. They validate your ideas and move fast. No one asks the hard questions, and your own judgment fades.
 
-A Council fixes this. It is a team of AI reviewers modeled on real people, real roles, and real perspectives. Personas based on real people carry the **Virtual** prefix: Virtual DHH, Virtual Boris Cherny, Virtual Jason Fried. Mix them with roles like a security engineer or an SRE, and with the customers you build for.
+A Council fixes this. It is a team of AI reviewers modeled on real people, real roles, and real perspectives. You choose who sits on it; your AI builds each persona from public material. Personas based on real people carry the **Virtual** prefix ("Virtual Jane Doe"): a model of their public positions, not the person, and not affiliated with or endorsed by them. Mix them with roles like a security engineer or an SRE, and with the customers you build for.
+
+Council ships no people. It ships the engine, the persona format, and the instructions your AI follows.
 
 Members are picked to disagree. Each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
 
@@ -24,14 +26,13 @@ After setup, use `/council <topic>` to convene your experts.
 
 Your council is yours. Add whoever helps you do better work:
 
-- **Virtual experts**: personas built from real people's public talks, writing, and decisions
+- **Virtual experts**: people you choose, modeled on their public talks, writing, and decisions
 - **Roles**: a security engineer, an SRE, a product-minded CTO
 - **Your customers**: the user types you are actually building for
 - **Your team**: your CTO, your tech lead, your mentor
 
 ```bash
-council add "Kent Beck"             # Adds Virtual Kent Beck from the library
-council add "Boris Cherny"           # Not in the library: researches Virtual Boris Cherny
+council add "Jane Doe"               # Researches Virtual Jane Doe from public work
 council add --role "SRE"             # A role, with that role's incentives
 council add --customer "freelancers who bill clients by the hour"
                                      # A customer: reacts as a user, not a reviewer
@@ -44,7 +45,7 @@ council add "My Tech Lead"           # Create custom persona
 ```
 Your Council                         Your AI Tool
 ┌─────────────────┐                  ┌─────────────────┐
-│ Virtual DHH     │                  │ /council        │
+│ Virtual J. Doe  │                  │ /council        │
 │ Security Eng.   │───── sync ──────▶│ /council-add    │
 │ Your CTO        │                  │ /council-remove │
 │ Your Customer   │                  │                 │
@@ -66,23 +67,17 @@ go install github.com/luuuc/council/cmd/council@latest
 Then:
 
 ```bash
-council start    # Detects your stack, suggests experts plus people who will disagree with them, lets you pick
-```
-
-Or step by step:
-
-```bash
-council init     # Creates .council/ directory
-council add "Kent Beck"   # Add experts one by one
-council sync     # Syncs to your AI tool
+council init               # Creates .council/ and installs the slash commands
+council add "Jane Doe"     # Add members one by one
+council sync               # Syncs changes to your AI tool
 ```
 
 ## Commands
 
 | Command | What it does |
 |---------|--------------|
-| `council start` | Setup: detect stack, pick your council, sync (`--yes` or no terminal: no questions) |
-| `council add "Name"` | Add from the library, research a real person, or create custom |
+| `council init` | Create `.council/` and install the slash commands for your AI tool |
+| `council add "Name"` | Research a real person from public work, or create a custom persona |
 | `council add --role "SRE"` | Add a role (SRE, security engineer, product-minded CTO) |
 | `council add --customer "..."` | Add a customer persona from a description of your users |
 | `council add --interview` | AI-assisted persona creation |
@@ -90,7 +85,6 @@ council sync     # Syncs to your AI tool
 | `council list` | See your council members |
 | `council remove <id>` | Remove an expert |
 | `council sync` | Sync to your AI tool |
-| `council personas` | Browse the curated library |
 | `council export` | Export as portable markdown |
 
 ## Review
@@ -133,16 +127,16 @@ ai:
 
 ## Packs
 
-Packs are reusable groupings of experts for targeted reviews:
+Packs group your members into named councils (`product`, `security`) for targeted reviews:
 
 ```bash
-council packs list                         # See all packs
-council packs show go                      # See members
-council packs create my-pack               # Create custom pack
-council packs add my-pack kent-beck        # Add expert to pack
+council packs list                         # See your packs
+council packs show product                 # See members
+council packs create product               # Create a pack
+council packs add product jane-doe         # Add a member to it
 ```
 
-Built-in packs: `code` (any language), `product`, `growth`, `security`, `architecture`, `go`, `rails`, `writing`. Each mixes members with different incentives so they don't agree by default. Custom packs override built-ins with the same name.
+Mix members with different incentives so they don't agree by default. Council ships no packs: they hold your members.
 
 ## MCP Server
 
@@ -193,7 +187,7 @@ jobs:
           pack: code
 ```
 
-**How it works:** The Action fetches the PR diff, runs Council with the specified pack, and posts a PR Review with inline comments + a Check Run status badge.
+**How it works:** The Action fetches the PR diff, runs Council with the specified pack from the `.council/` committed in your repository, and posts a PR Review with inline comments + a Check Run status badge.
 
 **LLM selection (automatic):**
 

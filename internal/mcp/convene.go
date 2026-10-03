@@ -180,7 +180,7 @@ func (s *Server) handleAddPersona(args map[string]any) toolCallResult {
 		return errorResult("missing required field: persona")
 	}
 	if !config.Exists() {
-		return errorResult("no council in this directory: start the server with `council mcp --dir <project>` for a project that has run `council start`")
+		return errorResult("no council in this directory: start the server with `council mcp --dir <project>` for a project that has run `council init`")
 	}
 
 	text := strings.TrimSpace(raw)

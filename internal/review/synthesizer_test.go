@@ -9,17 +9,17 @@ import (
 
 func TestSynthesize(t *testing.T) {
 	securityExpert := &expert.Expert{
-		ID:    "bruce-schneier",
-		Name:  "Bruce Schneier",
+		ID:    "dev",
+		Name:  "Dev",
 		Focus: "Application security",
 	}
 	qualityExpert := &expert.Expert{
-		ID:    "kent-beck",
-		Name:  "Kent Beck",
+		ID:    "ada",
+		Name:  "Ada",
 		Focus: "Test-driven development",
 		Tensions: []expert.Tension{
 			{
-				Expert:       "jason-fried",
+				Expert:       "eve",
 				Topic:        "abstraction",
 				Position:     "Extract when the pattern emerges three times",
 				Counterpoint: "Don't build for formats nobody asked for",
@@ -27,8 +27,8 @@ func TestSynthesize(t *testing.T) {
 		},
 	}
 	scopeExpert := &expert.Expert{
-		ID:    "jason-fried",
-		Name:  "Jason Fried",
+		ID:    "eve",
+		Name:  "Eve",
 		Focus: "Product simplicity and scope",
 	}
 
@@ -44,8 +44,8 @@ func TestSynthesize(t *testing.T) {
 		{
 			name: "all pass",
 			verdicts: []ExpertVerdict{
-				{Expert: "bruce-schneier", Verdict: VerdictPass, Confidence: 0.9},
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.85},
+				{Expert: "dev", Verdict: VerdictPass, Confidence: 0.9},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.85},
 			},
 			experts:      []*expert.Expert{securityExpert, qualityExpert},
 			wantVerdict:  VerdictPass,
@@ -54,8 +54,8 @@ func TestSynthesize(t *testing.T) {
 		{
 			name: "one block overrides passes",
 			verdicts: []ExpertVerdict{
-				{Expert: "bruce-schneier", Verdict: VerdictBlock, Confidence: 0.9, Blocking: true},
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.85},
+				{Expert: "dev", Verdict: VerdictBlock, Confidence: 0.9, Blocking: true},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.85},
 			},
 			experts:      []*expert.Expert{securityExpert, qualityExpert},
 			wantVerdict:  VerdictBlock,
@@ -64,8 +64,8 @@ func TestSynthesize(t *testing.T) {
 		{
 			name: "block without blocking flag is not blocking",
 			verdicts: []ExpertVerdict{
-				{Expert: "bruce-schneier", Verdict: VerdictBlock, Confidence: 0.9, Blocking: false},
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.85},
+				{Expert: "dev", Verdict: VerdictBlock, Confidence: 0.9, Blocking: false},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.85},
 			},
 			experts:      []*expert.Expert{securityExpert, qualityExpert},
 			wantVerdict:  VerdictBlock,
@@ -74,8 +74,8 @@ func TestSynthesize(t *testing.T) {
 		{
 			name: "mixed with tension pair",
 			verdicts: []ExpertVerdict{
-				{Expert: "kent-beck", Verdict: VerdictComment, Confidence: 0.8},
-				{Expert: "jason-fried", Verdict: VerdictPass, Confidence: 0.85},
+				{Expert: "ada", Verdict: VerdictComment, Confidence: 0.8},
+				{Expert: "eve", Verdict: VerdictPass, Confidence: 0.85},
 			},
 			experts:     []*expert.Expert{qualityExpert, scopeExpert},
 			wantVerdict: VerdictComment,
@@ -84,8 +84,8 @@ func TestSynthesize(t *testing.T) {
 		{
 			name: "escalate is highest severity",
 			verdicts: []ExpertVerdict{
-				{Expert: "bruce-schneier", Verdict: VerdictEscalate, Confidence: 0.5},
-				{Expert: "kent-beck", Verdict: VerdictBlock, Confidence: 0.9},
+				{Expert: "dev", Verdict: VerdictEscalate, Confidence: 0.5},
+				{Expert: "ada", Verdict: VerdictBlock, Confidence: 0.9},
 			},
 			experts:     []*expert.Expert{securityExpert, qualityExpert},
 			wantVerdict: VerdictEscalate,
@@ -94,16 +94,16 @@ func TestSynthesize(t *testing.T) {
 			name:        "no verdicts with errors",
 			verdicts:    nil,
 			experts:     nil,
-			errors:      []string{"kent-beck: timeout"},
+			errors:      []string{"ada: timeout"},
 			wantVerdict: VerdictPass, // default
 		},
 		{
 			name: "failed expert excluded from verdict",
 			verdicts: []ExpertVerdict{
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
 			},
 			experts:     []*expert.Expert{qualityExpert},
-			errors:      []string{"bruce-schneier: timeout"},
+			errors:      []string{"dev: timeout"},
 			wantVerdict: VerdictPass,
 		},
 	}

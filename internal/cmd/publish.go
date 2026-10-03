@@ -12,11 +12,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var publishAll bool
 
 func init() {
 	rootCmd.AddCommand(publishCmd)
-	publishCmd.Flags().BoolVar(&publishAll, "all", false, "Include all personas (not just custom)")
 }
 
 var publishCmd = &cobra.Command{
@@ -38,14 +36,14 @@ After publishing:
   2. Share install URL: council install user/repo/council-personas/my-cto`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {
-			return fmt.Errorf("council not initialized: run 'council start' first")
+			return fmt.Errorf("council not initialized: run 'council init' first")
 		}
 
-		return runPublish(publishAll)
+		return runPublish()
 	},
 }
 
-func runPublish(includeAll bool) error {
+func runPublish() error {
 	experts, err := expert.List()
 	if err != nil {
 		return fmt.Errorf("failed to load experts: %w", err)
@@ -55,17 +53,7 @@ func runPublish(includeAll bool) error {
 		return fmt.Errorf("no experts to publish - add some with 'council add' first")
 	}
 
-	// Filter to custom personas unless --all
-	var toPublish []*expert.Expert
-	if includeAll {
-		toPublish = experts
-	} else {
-		toPublish = filterCustomExperts(experts)
-	}
-
-	if len(toPublish) == 0 {
-		return fmt.Errorf("no custom personas to publish\n\nYour council only contains curated library personas.\nUse 'council publish --all' to include them, or\ncreate custom personas with 'council add \"Name\"'")
-	}
+	toPublish := experts
 
 	// Create output directory
 	outputDir := "council-personas"
@@ -99,30 +87,6 @@ func runPublish(includeAll bool) error {
 	fmt.Println("  git push")
 
 	return nil
-}
-
-// filterCustomExperts returns experts that are not from the curated library.
-// A custom expert is one whose ID is not found in the suggestion bank.
-func filterCustomExperts(experts []*expert.Expert) []*expert.Expert {
-	var custom []*expert.Expert
-	for _, e := range experts {
-		if !isFromCuratedLibrary(e.ID) {
-			custom = append(custom, e)
-		}
-	}
-	return custom
-}
-
-// isFromCuratedLibrary checks if an expert ID exists in the suggestion bank.
-func isFromCuratedLibrary(id string) bool {
-	for _, experts := range loadSuggestionBank() {
-		for _, e := range experts {
-			if e.ID == id {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // copyFile copies a file from src to dst.

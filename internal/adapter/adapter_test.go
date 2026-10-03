@@ -187,29 +187,29 @@ func TestClaude_FormatAgent_IncludesNameDescriptionTools(t *testing.T) {
 
 	// Create expert file
 	expertContent := `---
-id: kent-beck
-name: Kent Beck
+id: ada
+name: Ada
 focus: Testing and TDD
 ---
 
-# Kent Beck - Testing and TDD
+# Ada - Testing and TDD
 
 Expert content here.`
 
-	if err := os.WriteFile(filepath.Join(expertsDir, "kent-beck.md"), []byte(expertContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(expertsDir, "ada.md"), []byte(expertContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	e := &expert.Expert{
-		ID:    "kent-beck",
-		Name:  "Kent Beck",
+		ID:    "ada",
+		Name:  "Ada",
 		Focus: "Testing and TDD",
 	}
 
 	result := claude.FormatAgent(e)
 
 	// Claude adapter reads and returns the original file content
-	if !strings.Contains(result, "name: Kent Beck") {
+	if !strings.Contains(result, "name: Ada") {
 		t.Error("FormatAgent() missing name in frontmatter")
 	}
 	if !strings.Contains(result, "focus: Testing and TDD") {
@@ -312,8 +312,8 @@ func TestOpenCode_FormatAgent_IncludesDescriptionModeTools(t *testing.T) {
 	opencode, _ := Get("opencode")
 
 	e := &expert.Expert{
-		ID:         "kent-beck",
-		Name:       "Kent Beck",
+		ID:         "ada",
+		Name:       "Ada",
 		Focus:      "Testing and TDD",
 		Philosophy: "Tests are the first customer of your code.",
 		Principles: []string{"Test first", "Red-green-refactor"},
@@ -329,7 +329,7 @@ func TestOpenCode_FormatAgent_IncludesDescriptionModeTools(t *testing.T) {
 	if !strings.Contains(result, "mode: subagent") {
 		t.Error("FormatAgent() missing mode in frontmatter")
 	}
-	if !strings.Contains(result, "# Kent Beck") {
+	if !strings.Contains(result, "# Ada") {
 		t.Error("FormatAgent() missing name heading")
 	}
 	if !strings.Contains(result, "## Philosophy") {
@@ -421,8 +421,8 @@ func TestGeneric_FormatAgent_SimpleMarkdown(t *testing.T) {
 	generic, _ := Get("generic")
 
 	e := &expert.Expert{
-		ID:         "kent-beck",
-		Name:       "Kent Beck",
+		ID:         "ada",
+		Name:       "Ada",
 		Focus:      "Testing and TDD",
 		Philosophy: "Tests are the first customer.",
 		Principles: []string{"Test first"},
@@ -431,10 +431,10 @@ func TestGeneric_FormatAgent_SimpleMarkdown(t *testing.T) {
 	result := generic.FormatAgent(e)
 
 	// Generic format is simple markdown sections
-	if !strings.Contains(result, "### Kent Beck") {
+	if !strings.Contains(result, "### Ada") {
 		t.Error("FormatAgent() missing name heading")
 	}
-	if !strings.Contains(result, "- **ID**: kent-beck") {
+	if !strings.Contains(result, "- **ID**: ada") {
 		t.Error("FormatAgent() missing ID")
 	}
 	if !strings.Contains(result, "- **Focus**: Testing and TDD") {
@@ -458,8 +458,8 @@ func TestGeneric_GenerateAgentsMd(t *testing.T) {
 	generic := &Generic{}
 
 	experts := []*expert.Expert{
-		{ID: "kent-beck", Name: "Kent Beck", Focus: "Testing"},
-		{ID: "sandi-metz", Name: "Sandi Metz", Focus: "OOP"},
+		{ID: "ada", Name: "Ada", Focus: "Testing"},
+		{ID: "finn", Name: "Finn", Focus: "OOP"},
 	}
 
 	result := generic.GenerateAgentsMd(experts)
@@ -470,11 +470,11 @@ func TestGeneric_GenerateAgentsMd(t *testing.T) {
 	if !strings.Contains(result, "## Council Members") {
 		t.Error("GenerateAgentsMd() missing Council Members section")
 	}
-	if !strings.Contains(result, "### Kent Beck") {
-		t.Error("GenerateAgentsMd() missing Kent Beck")
+	if !strings.Contains(result, "### Ada") {
+		t.Error("GenerateAgentsMd() missing Ada")
 	}
-	if !strings.Contains(result, "### Sandi Metz") {
-		t.Error("GenerateAgentsMd() missing Sandi Metz")
+	if !strings.Contains(result, "### Finn") {
+		t.Error("GenerateAgentsMd() missing Finn")
 	}
 }
 
@@ -499,9 +499,9 @@ func TestAgentFilename(t *testing.T) {
 		id       string
 		expected string
 	}{
-		{"project expert", "", "kent-beck", "kent-beck.md"},
+		{"project expert", "", "ada", "ada.md"},
 		{"custom expert", "custom", "my-expert", "custom-my-expert.md"},
-		{"installed expert", "installed:rails-council", "dhh", "installed-dhh.md"},
+		{"installed expert", "installed:rails-council", "ben", "installed-ben.md"},
 	}
 
 	for _, tt := range tests {

@@ -28,8 +28,8 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 		t.Fatalf("no session ID in:\n%s", text)
 	}
 	id := m[1]
-	if !strings.Contains(text, "Turn 1 of up to 12: Virtual Rob Pike.") || !strings.Contains(text, "func main() {}") {
-		t.Fatalf("first turn should be Rob Pike's prompt with the submission:\n%s", text)
+	if !strings.Contains(text, "Turn 1 of up to 4: Virtual Cleo.") || !strings.Contains(text, "func main() {}") {
+		t.Fatalf("first turn should be Cleo's prompt with the submission:\n%s", text)
 	}
 	if strings.Contains(text, "The Council So Far") {
 		t.Error("the first speaker should not see earlier reviews")
@@ -37,20 +37,20 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 
 	// A malformed review is rejected without advancing the turn.
 	bad := s.handleTurn(map[string]any{"session": id, "review": "looks fine to me"})
-	if !bad.IsError || !strings.Contains(bad.Content[0].Text, "Virtual Rob Pike") {
-		t.Fatalf("expected a retry request for Rob Pike, got: %+v", bad)
+	if !bad.IsError || !strings.Contains(bad.Content[0].Text, "Virtual Cleo") {
+		t.Fatalf("expected a retry request for Cleo, got: %+v", bad)
 	}
 
 	res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"block","confidence":0.9,"notes":["Interface has one implementation"],"blocking":false}`})
 	text = res.Content[0].Text
-	if res.IsError || !strings.Contains(text, "Turn 2 of up to 12: Virtual Kent Beck.") {
-		t.Fatalf("expected Kent Beck's turn, got:\n%s", text)
+	if res.IsError || !strings.Contains(text, "Turn 2 of up to 4: Virtual Ada.") {
+		t.Fatalf("expected Ada's turn, got:\n%s", text)
 	}
-	if !strings.Contains(text, "### Virtual Rob Pike (rob-pike) — block") || !strings.Contains(text, `"replies"`) {
-		t.Errorf("second turn should include Rob Pike's review and ask for replies:\n%s", text)
+	if !strings.Contains(text, "### Virtual Cleo (cleo) — block") || !strings.Contains(text, `"replies"`) {
+		t.Errorf("second turn should include Cleo's review and ask for replies:\n%s", text)
 	}
 
-	res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"comment","confidence":0.8,"notes":["Add a test"],"replies":[{"to":"rob-pike","stance":"disagree","note":"The interface makes it testable"}],"blocking":false}`})
+	res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"comment","confidence":0.8,"notes":["Add a test"],"replies":[{"to":"cleo","stance":"disagree","note":"The interface makes it testable"}],"blocking":false}`})
 
 	// Answer every remaining turn until the council finishes.
 	sawFinalWord, sawModerator := false, false
@@ -61,15 +61,15 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 		}
 		answer := `{"verdict":"pass","confidence":0.9,"notes":["Fine"],"blocking":false}`
 		switch {
-		case strings.Contains(text, "Virtual Rob Pike (final word)."):
+		case strings.Contains(text, "Virtual Cleo (final word)."):
 			sawFinalWord = true
 			if !strings.Contains(text, "## What Came After You") || !strings.Contains(text, "The interface makes it testable") {
-				t.Errorf("Rob Pike's final word should show what came after him:\n%s", text)
+				t.Errorf("Cleo's final word should show what came after him:\n%s", text)
 			}
-			answer = `{"verdict":"comment","change_reason":"A test fake is a fair need","replies":[{"to":"kent-beck","stance":"agree","note":"Fair, keep it small"}]}`
+			answer = `{"verdict":"comment","change_reason":"A test fake is a fair need","replies":[{"to":"ada","stance":"agree","note":"Fair, keep it small"}]}`
 		case strings.Contains(text, "Moderator (disagreements and decisions)."):
 			sawModerator = true
-			answer = `{"agreements":["Add a test"],"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["rob-pike"],"position":"Drop it"},{"experts":["kent-beck"],"position":"Keep it for tests"}]}],"decisions":["Do you need a fake now?"]}`
+			answer = `{"agreements":["Add a test"],"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["cleo"],"position":"Drop it"},{"experts":["ada"],"position":"Keep it for tests"}]}],"decisions":["Do you need a fake now?"]}`
 		}
 		res = s.handleTurn(map[string]any{"session": id, "review": answer})
 	}
@@ -80,7 +80,7 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 	}
 	for _, want := range []string{
 		"The council has finished",
-		"Virtual Rob Pike — final word",
+		"Virtual Cleo — final word",
 		"block → comment",
 		"Where they disagree",
 		"Keep the interface?",
@@ -103,12 +103,12 @@ func TestAddPersonaSavesVirtualPersona(t *testing.T) {
 	defer cleanup()
 
 	s := NewServer(strings.NewReader(""), io.Discard, "test")
-	res := s.handleAddPersona(map[string]any{"persona": `name: Boris Cherny
+	res := s.handleAddPersona(map[string]any{"persona": `name: Jay
 focus: TypeScript and agentic coding
 principles:
   - Give the agent a way to verify its work
 tensions:
-  - expert: rob-pike
+  - expert: cleo
     topic: AI-written code
     position: Agents write most code now
     counterpoint: The craft matters
@@ -120,14 +120,14 @@ tensions:
 		t.Fatalf("add persona failed: %s", res.Content[0].Text)
 	}
 
-	e, err := expert.Load("boris-cherny")
+	e, err := expert.Load("jay")
 	if err != nil {
 		t.Fatalf("persona not saved: %v", err)
 	}
-	if e.Name != "Virtual Boris Cherny" {
-		t.Errorf("name = %q, want Virtual Boris Cherny", e.Name)
+	if e.Name != "Virtual Jay" {
+		t.Errorf("name = %q, want Virtual Jay", e.Name)
 	}
-	if len(e.Tensions) != 1 || e.Tensions[0].Expert != "rob-pike" {
+	if len(e.Tensions) != 1 || e.Tensions[0].Expert != "cleo" {
 		t.Errorf("tensions should keep only council members, got %+v", e.Tensions)
 	}
 }
@@ -223,7 +223,7 @@ func TestConveneCouncils(t *testing.T) {
 	}
 	text := res.Content[0].Text
 	id := sessionIDRe.FindStringSubmatch(text)[1]
-	if !strings.Contains(text, "2 councils will each debate in turn (writing, security)") || !strings.Contains(text, ": writing council: Virtual Luc Perussault-Diallo.") {
+	if !strings.Contains(text, "2 councils will each debate in turn (writing, security)") || !strings.Contains(text, ": writing council: Virtual Ada.") {
 		t.Fatalf("expected the writing council's first turn:\n%s", text)
 	}
 

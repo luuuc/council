@@ -2,7 +2,7 @@ package expert
 
 import "strings"
 
-// VirtualPrefix names personas modeled on real people (e.g. "Virtual Kent Beck").
+// VirtualPrefix names personas modeled on real people (e.g. "Virtual Jane Doe").
 const VirtualPrefix = "Virtual "
 
 // NormalizeVirtual enforces the naming rule for a persona built from a real

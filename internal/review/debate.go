@@ -30,7 +30,7 @@ type Turn struct {
 	rawPrompt string // prompt for council-level turns (spokesperson, cross moderator)
 }
 
-// Label names the turn for progress output, e.g. "Virtual DHH (final word)".
+// Label names the turn for progress output, e.g. "Virtual Jane Doe (final word)".
 // Turns inside one of several councils start with the council's name.
 func (t Turn) Label() string {
 	var label string

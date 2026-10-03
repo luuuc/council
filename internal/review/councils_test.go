@@ -12,8 +12,8 @@ import (
 func TestRunCouncils(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
-			"marty-cagan":    {Verdict: VerdictComment, Notes: []string{"Validate demand first"}},
-			"bruce-schneier": {Verdict: VerdictBlock, Notes: []string{"Require 2FA"}},
+			"gia":    {Verdict: VerdictComment, Notes: []string{"Validate demand first"}},
+			"dev": {Verdict: VerdictBlock, Notes: []string{"Require 2FA"}},
 			// Spokespersons and the moderator answer through RawPrompt (Notes[0]).
 			"product-council":  {Notes: []string{`{"position":"Don't add signup friction before we know the drop-off cause.","challenges":[{"to":"security","stance":"disagree","note":"Mandatory 2FA at signup costs conversions"},{"to":"product","stance":"agree","note":"self-reference is dropped"}]}`}},
 			"security-council": {Notes: []string{`{"position":"Accounts with bank details need a second factor.","challenges":[{"to":"product","stance":"disagree","note":"A takeover costs more than a signup"},{"to":"nobody","stance":"agree","note":"unknown council is dropped"}]}`}},
@@ -23,8 +23,8 @@ func TestRunCouncils(t *testing.T) {
 	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10}}
 
 	councils := []Council{
-		{Name: "product", Inputs: []ExpertInput{{Expert: &expert.Expert{ID: "marty-cagan", Name: "Virtual Marty Cagan"}}}},
-		{Name: "security", Inputs: []ExpertInput{{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Virtual Bruce Schneier"}}}},
+		{Name: "product", Inputs: []ExpertInput{{Expert: &expert.Expert{ID: "gia", Name: "Virtual Gia"}}}},
+		{Name: "security", Inputs: []ExpertInput{{Expert: &expert.Expert{ID: "dev", Name: "Virtual Dev"}}}},
 	}
 
 	var events []string
@@ -40,7 +40,7 @@ func TestRunCouncils(t *testing.T) {
 		t.Errorf("events = %v\nwant %s", events, want)
 	}
 
-	if len(r.Councils) != 2 || r.Councils[0].Result.Perspectives[0].Expert != "marty-cagan" {
+	if len(r.Councils) != 2 || r.Councils[0].Result.Perspectives[0].Expert != "gia" {
 		t.Fatalf("each council should have its own review, got %+v", r.Councils)
 	}
 	if len(r.Statements) != 2 {

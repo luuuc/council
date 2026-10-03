@@ -96,8 +96,8 @@ func TestRunnerCollectiveHappyPath(t *testing.T) {
 		CollectiveResult: &SynthesizedResult{
 			Verdict: VerdictComment,
 			Perspectives: []ExpertVerdict{
-				{Expert: "kent-beck", Verdict: VerdictComment, Confidence: 0.8, Notes: []string{"Add test"}},
-				{Expert: "bruce-schneier", Verdict: VerdictPass, Confidence: 0.95},
+				{Expert: "ada", Verdict: VerdictComment, Confidence: 0.8, Notes: []string{"Add test"}},
+				{Expert: "dev", Verdict: VerdictPass, Confidence: 0.95},
 			},
 			Agreements: []string{"Code structure is clean"},
 			Tension:    "Kent wants more tests, Bruce is satisfied with security",
@@ -111,8 +111,8 @@ func TestRunnerCollectiveHappyPath(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}, Blocking: false},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Bruce Schneier", Focus: "Security"}, Blocking: true},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}, Blocking: false},
+		{Expert: &expert.Expert{ID: "dev", Name: "Dev", Focus: "Security"}, Blocking: true},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -139,8 +139,8 @@ func TestRunnerCollectiveBlockingFromPackConfig(t *testing.T) {
 		CollectiveResult: &SynthesizedResult{
 			Verdict: VerdictBlock,
 			Perspectives: []ExpertVerdict{
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9, Blocking: true},
-				{Expert: "bruce-schneier", Verdict: VerdictBlock, Confidence: 0.9, Blocking: false},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.9, Blocking: true},
+				{Expert: "dev", Verdict: VerdictBlock, Confidence: 0.9, Blocking: false},
 			},
 			Summary: "Block.",
 		},
@@ -152,21 +152,21 @@ func TestRunnerCollectiveBlockingFromPackConfig(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}, Blocking: false},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Bruce Schneier", Focus: "Security"}, Blocking: true},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}, Blocking: false},
+		{Expert: &expert.Expert{ID: "dev", Name: "Dev", Focus: "Security"}, Blocking: true},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
 
-	// kent-beck: LLM said blocking=true but pack says false
+	// ada: LLM said blocking=true but pack says false
 	if result.Perspectives[0].Blocking {
-		t.Error("kent-beck blocking should be overridden to false from pack config")
+		t.Error("ada blocking should be overridden to false from pack config")
 	}
-	// bruce-schneier: LLM said blocking=false but pack says true
+	// dev: LLM said blocking=false but pack says true
 	if !result.Perspectives[1].Blocking {
-		t.Error("bruce-schneier blocking should be overridden to true from pack config")
+		t.Error("dev blocking should be overridden to true from pack config")
 	}
-	// With bruce-schneier blocking + VerdictBlock, result should be blocking
+	// With dev blocking + VerdictBlock, result should be blocking
 	if !result.Blocking {
 		t.Error("expected overall result to be blocking")
 	}
@@ -177,8 +177,8 @@ func TestRunnerCollectiveHierarchyOverride(t *testing.T) {
 		CollectiveResult: &SynthesizedResult{
 			Verdict: VerdictPass, // LLM incorrectly says pass
 			Perspectives: []ExpertVerdict{
-				{Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
-				{Expert: "bruce-schneier", Verdict: VerdictBlock, Confidence: 0.9},
+				{Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
+				{Expert: "dev", Verdict: VerdictBlock, Confidence: 0.9},
 			},
 			Summary: "Ship it.",
 		},
@@ -190,8 +190,8 @@ func TestRunnerCollectiveHierarchyOverride(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}, Blocking: false},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Bruce Schneier", Focus: "Security"}, Blocking: true},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}, Blocking: false},
+		{Expert: &expert.Expert{ID: "dev", Name: "Dev", Focus: "Security"}, Blocking: true},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -204,7 +204,7 @@ func TestRunnerCollectiveHierarchyOverride(t *testing.T) {
 func TestRunnerSingleExpertUsesSequentialPath(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
-			"kent-beck": {Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
+			"ada": {Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
 		},
 	}
 
@@ -214,7 +214,7 @@ func TestRunnerSingleExpertUsesSequentialPath(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -275,8 +275,8 @@ func TestRunnerCollectiveContextCancellation(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Bruce Schneier", Focus: "Security"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "dev", Name: "Dev", Focus: "Security"}},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -294,8 +294,8 @@ func TestRunnerCollectiveErrorFallsBackToSequential(t *testing.T) {
 	backend := &MockBackend{
 		CollectiveErr: fmt.Errorf("API rate limited"),
 		Results: map[string]ExpertVerdict{
-			"kent-beck":      {Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
-			"bruce-schneier": {Expert: "bruce-schneier", Verdict: VerdictComment, Confidence: 0.8, Notes: []string{"Check auth"}},
+			"ada":      {Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
+			"dev": {Expert: "dev", Verdict: VerdictComment, Confidence: 0.8, Notes: []string{"Check auth"}},
 		},
 	}
 
@@ -305,8 +305,8 @@ func TestRunnerCollectiveErrorFallsBackToSequential(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Bruce Schneier", Focus: "Security"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "dev", Name: "Dev", Focus: "Security"}},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -331,10 +331,10 @@ func TestRunnerCollectiveErrorFallsBackToSequential(t *testing.T) {
 func TestRunnerSequentialPartialFailure(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
-			"kent-beck": {Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
+			"ada": {Expert: "ada", Verdict: VerdictPass, Confidence: 0.9},
 		},
 		Errors: map[string]error{
-			"bruce-schneier": fmt.Errorf("timeout"),
+			"dev": fmt.Errorf("timeout"),
 		},
 	}
 
@@ -344,7 +344,7 @@ func TestRunnerSequentialPartialFailure(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -357,7 +357,7 @@ func TestRunnerSequentialPartialFailure(t *testing.T) {
 func TestRunnerSequentialAllFail(t *testing.T) {
 	backend := &MockBackend{
 		Errors: map[string]error{
-			"kent-beck": fmt.Errorf("timeout"),
+			"ada": fmt.Errorf("timeout"),
 		},
 	}
 
@@ -367,7 +367,7 @@ func TestRunnerSequentialAllFail(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -391,7 +391,7 @@ func TestRunnerSequentialContextCancellation(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Ada", Focus: "TDD"}},
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -409,8 +409,8 @@ func TestRunnerDefaultsToSequential(t *testing.T) {
 	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10}}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck", Focus: "TDD"}},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Virtual Bruce Schneier", Focus: "Security"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Virtual Ada", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "dev", Name: "Virtual Dev", Focus: "Security"}},
 	}
 
 	runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
@@ -426,28 +426,28 @@ func TestRunnerDefaultsToSequential(t *testing.T) {
 func TestRunnerSequentialPassesPriorReviews(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
-			"dhh":       {Expert: "dhh", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
-			"kent-beck": {Expert: "kent-beck", Verdict: VerdictComment, Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}}},
+			"ben":       {Expert: "ben", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
+			"ada": {Expert: "ada", Verdict: VerdictComment, Replies: []Reply{{To: "ben", Stance: StanceDisagree, Note: "The layers make it testable"}}},
 		},
-		Errors: map[string]error{"rob-pike": fmt.Errorf("timeout")},
+		Errors: map[string]error{"cleo": fmt.Errorf("timeout")},
 	}
 	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10}}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
-		{Expert: &expert.Expert{ID: "rob-pike", Name: "Virtual Rob Pike"}},
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
-		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Virtual Bruce Schneier"}},
+		{Expert: &expert.Expert{ID: "ben", Name: "Virtual Ben"}},
+		{Expert: &expert.Expert{ID: "cleo", Name: "Virtual Cleo"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Virtual Ada"}},
+		{Expert: &expert.Expert{ID: "dev", Name: "Virtual Dev"}},
 	}
 
 	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
 
 	// Order is preserved and each expert sees only successful earlier reviews.
 	wantPrior := map[string][]string{
-		"dhh":            nil,
-		"rob-pike":       {"dhh"},
-		"kent-beck":      {"dhh"},
-		"bruce-schneier": {"dhh", "kent-beck"},
+		"ben":            nil,
+		"cleo":       {"ben"},
+		"ada":      {"ben"},
+		"dev": {"ben", "ada"},
 	}
 	if len(backend.seen) != len(inputs) {
 		t.Fatalf("expected %d calls, got %d", len(inputs), len(backend.seen))
@@ -466,13 +466,13 @@ func TestRunnerSequentialPassesPriorReviews(t *testing.T) {
 		}
 	}
 
-	if backend.seen[2].sub.Prior[0].Name != "Virtual DHH" {
+	if backend.seen[2].sub.Prior[0].Name != "Virtual Ben" {
 		t.Errorf("prior review should carry the expert name, got %q", backend.seen[2].sub.Prior[0].Name)
 	}
 	if len(result.Errors) != 1 {
 		t.Errorf("expected 1 error, got %v", result.Errors)
 	}
-	if !strings.Contains(result.Tension, "Virtual Kent Beck disagrees with Virtual DHH") {
+	if !strings.Contains(result.Tension, "Virtual Ada disagrees with Virtual Ben") {
 		t.Errorf("tension should come from the disagree reply, got %q", result.Tension)
 	}
 }
@@ -492,16 +492,16 @@ func TestRunnerSequentialHooks(t *testing.T) {
 	}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+		{Expert: &expert.Expert{ID: "ben", Name: "Virtual Ben"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Virtual Ada"}},
 	}
 	runner.Run(context.Background(), inputs, Submission{Content: "diff"})
 
 	want := []string{
-		"start dhh 1/2",
-		"verdict dhh (1 so far)",
-		"start kent-beck 2/2",
-		"verdict kent-beck (2 so far)",
+		"start ben 1/2",
+		"verdict ben (1 so far)",
+		"start ada 2/2",
+		"verdict ada (2 so far)",
 	}
 	if fmt.Sprint(events) != fmt.Sprint(want) {
 		t.Errorf("events = %v, want %v", events, want)
@@ -511,19 +511,19 @@ func TestRunnerSequentialHooks(t *testing.T) {
 func TestRunnerFinalWordAndModerator(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
-			"dhh":       {Verdict: VerdictBlock, Notes: []string{"Drop the interface"}},
-			"kent-beck": {Verdict: VerdictComment, Notes: []string{"Keep it for tests"}, Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "Fakes need it"}}},
-			"rob-pike":  {Verdict: VerdictBlock, Notes: []string{"Callers define interfaces"}},
+			"ben":       {Verdict: VerdictBlock, Notes: []string{"Drop the interface"}},
+			"ada": {Verdict: VerdictComment, Notes: []string{"Keep it for tests"}, Replies: []Reply{{To: "ben", Stance: StanceDisagree, Note: "Fakes need it"}}},
+			"cleo":  {Verdict: VerdictBlock, Notes: []string{"Callers define interfaces"}},
 			// The moderator is called with RawPrompt; its raw answer comes back in Notes[0].
-			"moderator": {Notes: []string{`{"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["dhh","rob-pike"],"position":"Drop it"},{"experts":["kent-beck"],"position":"Keep it"}]}],"decisions":["Do you need a fake now?"]}`}},
+			"moderator": {Notes: []string{`{"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["ben","cleo"],"position":"Drop it"},{"experts":["ada"],"position":"Keep it"}]}],"decisions":["Do you need a fake now?"]}`}},
 		},
 	}
 	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10, FinalWord: true, Moderate: true}}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
-		{Expert: &expert.Expert{ID: "rob-pike", Name: "Virtual Rob Pike"}},
+		{Expert: &expert.Expert{ID: "ben", Name: "Virtual Ben"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Virtual Ada"}},
+		{Expert: &expert.Expert{ID: "cleo", Name: "Virtual Cleo"}},
 	}
 	result := runner.Run(context.Background(), inputs, Submission{Content: "diff"})
 
@@ -538,17 +538,17 @@ func TestRunnerFinalWordAndModerator(t *testing.T) {
 		}
 		calls = append(calls, c.expert+":"+kind)
 	}
-	want := "[dhh:review kent-beck:review rob-pike:review dhh:final kent-beck:final moderator:moderator]"
+	want := "[ben:review ada:review cleo:review ben:final ada:final moderator:moderator]"
 	if fmt.Sprint(calls) != want {
 		t.Errorf("calls = %v, want %s", calls, want)
 	}
 
-	// DHH's final word sees only the members who spoke after him.
-	dhhFinal := backend.seen[3].sub
-	if dhhFinal.Own == nil || dhhFinal.Own.Verdict != VerdictBlock || len(dhhFinal.Prior) != 2 {
-		t.Errorf("DHH's final word should carry his review and the 2 later reviews, got own=%+v prior=%d", dhhFinal.Own, len(dhhFinal.Prior))
+	// Ben's final word sees only the members who spoke after him.
+	benFinal := backend.seen[3].sub
+	if benFinal.Own == nil || benFinal.Own.Verdict != VerdictBlock || len(benFinal.Prior) != 2 {
+		t.Errorf("Ben's final word should carry his review and the 2 later reviews, got own=%+v prior=%d", benFinal.Own, len(benFinal.Prior))
 	}
-	if !strings.Contains(BuildPrompt(inputs[0].Expert, dhhFinal), "## What Came After You") {
+	if !strings.Contains(BuildPrompt(inputs[0].Expert, benFinal), "## What Came After You") {
 		t.Error("final-word prompt should show what came after the member")
 	}
 
@@ -565,17 +565,17 @@ func TestRunnerFinalWordChangesVerdict(t *testing.T) {
 	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10, FinalWord: true}}
 
 	inputs := []ExpertInput{
-		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
-		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+		{Expert: &expert.Expert{ID: "ben", Name: "Virtual Ben"}},
+		{Expert: &expert.Expert{ID: "ada", Name: "Virtual Ada"}},
 	}
 	result := runner.Run(context.Background(), inputs, Submission{Content: "diff"})
 
-	dhh := result.Perspectives[0]
-	if dhh.Verdict != VerdictComment || dhh.ChangedFrom != VerdictBlock || dhh.ChangeReason != "Convinced" {
-		t.Errorf("DHH should change block → comment with a reason, got %+v", dhh)
+	ben := result.Perspectives[0]
+	if ben.Verdict != VerdictComment || ben.ChangedFrom != VerdictBlock || ben.ChangeReason != "Convinced" {
+		t.Errorf("Ben should change block → comment with a reason, got %+v", ben)
 	}
-	if len(dhh.FinalWord) != 1 || dhh.FinalWord[0].To != "kent-beck" {
-		t.Errorf("DHH's final word should answer Kent Beck, got %+v", dhh.FinalWord)
+	if len(ben.FinalWord) != 1 || ben.FinalWord[0].To != "ada" {
+		t.Errorf("Ben's final word should answer Ada, got %+v", ben.FinalWord)
 	}
 }
 
@@ -585,7 +585,7 @@ type changingBackend struct{}
 func (changingBackend) Review(_ context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
 	if sub.Own != nil {
 		return ExpertVerdict{Verdict: VerdictComment, ChangeReason: "Convinced",
-			Replies: []Reply{{To: "kent-beck", Stance: StanceAgree, Note: "Fair point"}}}, nil
+			Replies: []Reply{{To: "ada", Stance: StanceAgree, Note: "Fair point"}}}, nil
 	}
 	return ExpertVerdict{Verdict: VerdictBlock, Notes: []string{e.ID + " note"}}, nil
 }

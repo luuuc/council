@@ -23,15 +23,11 @@ func Resolve(p *Pack, available []*expert.Expert) ([]ResolvedMember, []string) {
 	var resolved []ResolvedMember
 	var warnings []string
 
-	// Match pack members to available experts.
-	// Falls back to the embedded suggestion bank when not found on disk.
+	// Match pack members to the project's experts.
 	for _, m := range p.Members {
 		e, ok := byID[m.ID]
 		if !ok {
-			e = expert.LookupSuggestion(m.ID)
-		}
-		if e == nil {
-			warnings = append(warnings, "expert '"+m.ID+"' not found")
+			warnings = append(warnings, "expert '"+m.ID+"' is not in .council/experts/")
 			continue
 		}
 		resolved = append(resolved, ResolvedMember{Expert: e, Blocking: m.Blocking})

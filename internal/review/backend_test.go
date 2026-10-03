@@ -76,7 +76,7 @@ func (n namedBackend) ReviewCollective(context.Context, []*expert.Expert, Submis
 func TestMixBackendAssignsMembersRoundRobin(t *testing.T) {
 	m := NewMixBackend(namedBackend{"claude"}, namedBackend{"codex"}, namedBackend{"opencode"})
 
-	order := []string{"dhh", "rob-pike", "boris-cherny", "kent-beck", "dhh", "moderator", "product-council"}
+	order := []string{"ben", "cleo", "jay", "ada", "ben", "moderator", "product-council"}
 	var got []string
 	for _, id := range order {
 		got = append(got, m.LabelFor(id))
@@ -86,9 +86,9 @@ func TestMixBackendAssignsMembersRoundRobin(t *testing.T) {
 		t.Errorf("assignments = %v, want %s", got, want)
 	}
 
-	v, _ := m.Review(context.Background(), &expert.Expert{ID: "rob-pike"}, Submission{})
+	v, _ := m.Review(context.Background(), &expert.Expert{ID: "cleo"}, Submission{})
 	if v.Notes[0] != "codex" {
-		t.Errorf("rob-pike should keep speaking through codex, got %s", v.Notes[0])
+		t.Errorf("cleo should keep speaking through codex, got %s", v.Notes[0])
 	}
 }
 

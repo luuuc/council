@@ -15,6 +15,7 @@ import (
 
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
+	"github.com/luuuc/council/internal/pack"
 	"github.com/luuuc/council/internal/review"
 )
 
@@ -228,12 +229,12 @@ func TestToolsList(t *testing.T) {
 func TestToolsCallReview(t *testing.T) {
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada": {
+				Expert: "ada", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"bruce-schneier": {
-				Expert: "bruce-schneier", Verdict: review.VerdictPass,
+			"dev": {
+				Expert: "dev", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"No security concerns"},
 			},
 		},
@@ -449,7 +450,7 @@ func TestToolsCallExplainMissingFields(t *testing.T) {
 		},
 		{
 			name: "missing note",
-			args: map[string]any{"expert": "kent-beck"},
+			args: map[string]any{"expert": "ada"},
 			want: "missing required field: note",
 		},
 	}
@@ -643,6 +644,22 @@ func setupTestCouncil(t *testing.T) func() {
 		}
 	}
 
+	// Packs: Council ships none, so the test council defines its own.
+	for name, members := range map[string][]string{
+		"go":       {"cleo", "ada"},
+		"product":  {"ada"},
+		"security": {"cleo"},
+		"writing":  {"ada", "cleo"},
+	} {
+		p := &pack.Pack{Name: name}
+		for _, id := range members {
+			p.Members = append(p.Members, pack.Member{ID: id})
+		}
+		if err := pack.Save(p); err != nil {
+			t.Fatalf("save pack %s: %v", name, err)
+		}
+	}
+
 	return func() {
 		_ = os.Chdir(origDir)
 	}
@@ -651,16 +668,16 @@ func setupTestCouncil(t *testing.T) func() {
 func testExperts() []*expert.Expert {
 	return []*expert.Expert{
 		{
-			ID:    "kent-beck",
-			Name:  "Virtual Kent Beck",
+			ID:    "ada",
+			Name:  "Virtual Ada",
 			Focus: "TDD",
-			Body:  "# Virtual Kent Beck - TDD\n\nYou are Virtual Kent Beck.",
+			Body:  "# Virtual Ada - TDD\n\nYou are Virtual Ada.",
 		},
 		{
-			ID:    "rob-pike",
-			Name:  "Virtual Rob Pike",
+			ID:    "cleo",
+			Name:  "Virtual Cleo",
 			Focus: "Go clarity",
-			Body:  "# Virtual Rob Pike - Go clarity\n\nYou are Virtual Rob Pike.",
+			Body:  "# Virtual Cleo - Go clarity\n\nYou are Virtual Cleo.",
 		},
 	}
 }
@@ -671,18 +688,18 @@ func TestToolsCallReviewHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada": {
+				Expert: "ada", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"rob-pike": {
-				Expert: "rob-pike", Verdict: review.VerdictPass,
+			"cleo": {
+				Expert: "cleo", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"Clean and idiomatic"},
 			},
 		},
 	}
 
-	// Use the "go" builtin pack — it includes kent-beck and rob-pike
+	// Use the "go" builtin pack — it includes ada and cleo
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_review",
 		Arguments: map[string]any{
@@ -740,8 +757,8 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"kent-beck": {
-				Expert: "kent-beck", Verdict: review.VerdictComment,
+			"ada": {
+				Expert: "ada", Verdict: review.VerdictComment,
 				Confidence: 0.9,
 				Notes:      []string{"This pattern violates the Single Responsibility Principle. The function handles both parsing and validation, which should be separated for testability."},
 			},
@@ -751,7 +768,7 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_explain",
 		Arguments: map[string]any{
-			"expert": "kent-beck",
+			"expert": "ada",
 			"note":   "No test for the empty-state CSV.",
 		},
 	}) + "\n"
@@ -856,16 +873,16 @@ func TestToolsCallListHappyPath(t *testing.T) {
 		t.Error("expected at least one expert in list")
 	}
 
-	// Verify rob-pike is in the list (real-person expert in the go builtin pack)
+	// Verify cleo is in the list (real-person expert in the go builtin pack)
 	found := false
 	for _, e := range listOutput.Experts {
-		if e.ID == "rob-pike" {
+		if e.ID == "cleo" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected rob-pike in go pack list")
+		t.Error("expected cleo in go pack list")
 	}
 }
 

@@ -8,15 +8,15 @@ import (
 
 func ExampleParse() {
 	data := []byte(`---
-id: kent-beck
-name: Kent Beck
+id: ada
+name: Ada
 focus: Test-driven development
 principles:
   - Red-green-refactor
   - Simple design
 ---
 
-# Kent Beck
+# Ada
 
 Expert in testing and simple design.`)
 
@@ -31,20 +31,20 @@ Expert in testing and simple design.`)
 	fmt.Printf("Focus: %s\n", e.Focus)
 	fmt.Printf("Principles: %d\n", len(e.Principles))
 	// Output:
-	// ID: kent-beck
-	// Name: Kent Beck
+	// ID: ada
+	// Name: Ada
 	// Focus: Test-driven development
 	// Principles: 2
 }
 
 func ExampleToID() {
-	fmt.Println(expert.ToID("Kent Beck"))
-	fmt.Println(expert.ToID("DHH"))
-	fmt.Println(expert.ToID("José Valim"))
+	fmt.Println(expert.ToID("Ada"))
+	fmt.Println(expert.ToID("Ben"))
+	fmt.Println(expert.ToID("Zoé Martin"))
 	// Output:
-	// kent-beck
-	// dhh
-	// jos-valim
+	// ada
+	// ben
+	// zo-martin
 }
 
 func ExampleExpert_ApplyDefaults() {

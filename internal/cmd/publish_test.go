@@ -10,49 +10,6 @@ import (
 	"github.com/luuuc/council/internal/expert"
 )
 
-func TestFilterCustomExperts(t *testing.T) {
-	experts := []*expert.Expert{
-		{ID: "custom-expert", Name: "Custom Expert"},
-		{ID: "kent-beck", Name: "Virtual Kent Beck"},   // In curated library
-		{ID: "another-custom", Name: "My CTO"},
-		{ID: "dieter-rams", Name: "Virtual Dieter Rams"}, // In curated library
-	}
-
-	filtered := filterCustomExperts(experts)
-
-	if len(filtered) != 2 {
-		t.Errorf("expected 2 custom experts, got %d", len(filtered))
-	}
-
-	// Verify curated experts are filtered out
-	for _, e := range filtered {
-		if e.ID == "kent-beck" || e.ID == "dieter-rams" {
-			t.Errorf("curated expert %s should have been filtered out", e.ID)
-		}
-	}
-}
-
-func TestIsFromCuratedLibrary(t *testing.T) {
-	tests := []struct {
-		id       string
-		expected bool
-	}{
-		{"kent-beck", true},
-		{"dieter-rams", true},
-		{"custom-persona", false},
-		{"my-cto", false},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.id, func(t *testing.T) {
-			result := isFromCuratedLibrary(tc.id)
-			if result != tc.expected {
-				t.Errorf("isFromCuratedLibrary(%q) = %v, want %v", tc.id, result, tc.expected)
-			}
-		})
-	}
-}
-
 func TestGeneratePublishReadme(t *testing.T) {
 	experts := []*expert.Expert{
 		{ID: "my-cto", Name: "My CTO", Focus: "Backend architecture"},
@@ -114,7 +71,7 @@ func TestRunPublish(t *testing.T) {
 		// Clean up output dir
 		_ = os.RemoveAll("council-personas")
 
-		err := runPublish(false)
+		err := runPublish()
 		if err != nil {
 			t.Fatalf("runPublish() error = %v", err)
 		}
@@ -132,37 +89,6 @@ func TestRunPublish(t *testing.T) {
 		// Verify expert file exists
 		if _, err := os.Stat("council-personas/my-custom-expert.md"); os.IsNotExist(err) {
 			t.Error("expected expert file to be created")
-		}
-	})
-
-	t.Run("publish all", func(t *testing.T) {
-		// Clean up output dir
-		_ = os.RemoveAll("council-personas")
-
-		// Add a curated expert
-		curatedExpert := LookupPersona("kent-beck")
-		if curatedExpert != nil {
-			if err := curatedExpert.Save(); err != nil {
-				t.Fatalf("failed to save curated expert: %v", err)
-			}
-		}
-
-		err := runPublish(true)
-		if err != nil {
-			t.Fatalf("runPublish(true) error = %v", err)
-		}
-
-		// Should have both custom and curated
-		files, _ := os.ReadDir("council-personas")
-		count := 0
-		for _, f := range files {
-			if strings.HasSuffix(f.Name(), ".md") && f.Name() != "README.md" {
-				count++
-			}
-		}
-
-		if count < 2 {
-			t.Errorf("expected at least 2 expert files with --all, got %d", count)
 		}
 	})
 }
@@ -185,7 +111,7 @@ func TestRunPublishEmpty(t *testing.T) {
 		t.Fatalf("failed to save config: %v", err)
 	}
 
-	err := runPublish(false)
+	err := runPublish()
 	if err == nil {
 		t.Error("expected error when no experts to publish")
 	}

@@ -160,18 +160,18 @@ If the name matches a curated expert from the library, adds it directly.
 If no match is found, guides you through creating a custom expert.
 
 Modes:
-  council add "Kent Beck"         # Found in library - adds Virtual Kent Beck
+  council add "Jane Doe"          # Researches Virtual Jane Doe from public work
   council add "Boris Cherny"      # Not in library - researches Virtual Boris Cherny
   council add "My CTO"            # Unknown person - creates custom persona
   council add --interview         # AI-assisted persona creation
-  council add --from kent-beck    # Fork existing persona as starting point
+  council add --from jane-doe     # Fork an existing member as a starting point
   council add --role "SRE"        # A role: what it guards and pushes back on
   council add --customer "solo founders who invoice clients monthly"
                                   # A customer: reacts as a user, not a reviewer`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {
-			return fmt.Errorf("council not initialized: run 'council start' first")
+			return fmt.Errorf("council not initialized: run 'council init' first")
 		}
 
 		// Customer and role personas are generated from a description
@@ -206,48 +206,12 @@ Modes:
 
 		// Standard add mode - requires a name argument
 		if len(args) == 0 {
-			return fmt.Errorf("requires a persona name argument\n\nUsage:\n  council add \"Name\"         Add from library or create custom\n  council add --interview    AI-assisted creation\n  council add --from ID      Fork existing persona")
+			return fmt.Errorf("requires a persona name argument\n\nUsage:\n  council add \"Name\"         Research a real person or create a custom persona\n  council add --interview    AI-assisted creation\n  council add --from ID      Fork an existing member")
 		}
 
 		name := args[0]
 
-		// Try curated lookup first
-		if persona := LookupPersona(name); persona != nil {
-			if expert.Exists(persona.ID) {
-				return fmt.Errorf("expert '%s' already exists", persona.ID)
-			}
-			if err := persona.Save(); err != nil {
-				return err
-			}
-			fmt.Printf("Added %s (%s)\n", persona.Name, persona.ID)
-			fmt.Printf("File: %s\n", persona.Path())
-			runAutoSync(addNoSync, nil)
-			return nil
-		}
-
-		// Not found - try suggestion
-		if suggestion, distance := SuggestSimilar(name); suggestion != nil {
-			// Auto-accept with --yes flag, or prompt for confirmation in interactive mode
-			shouldAdd := addYes
-			if !shouldAdd && isInteractive() && distance <= 2 {
-				shouldAdd = Confirm(fmt.Sprintf("Did you mean %q?", suggestion.Name))
-			}
-
-			if shouldAdd {
-				if expert.Exists(suggestion.ID) {
-					return fmt.Errorf("expert '%s' already exists", suggestion.ID)
-				}
-				if err := suggestion.Save(); err != nil {
-					return err
-				}
-				fmt.Printf("Added %s (%s)\n", suggestion.Name, suggestion.ID)
-				fmt.Printf("File: %s\n", suggestion.Path())
-				runAutoSync(addNoSync, nil)
-				return nil
-			}
-		}
-
-		// No match found - research the person, then fall back to a custom persona
+		// Research the person, then fall back to a custom persona
 		if !isInteractive() && !addYes {
 			return fmt.Errorf("persona %q not found in curated library\n\n"+
 				"To research them as a real person and add them without prompts:\n  council add %q --yes\n\n"+
@@ -418,11 +382,7 @@ func runAddFork(fromID string) error {
 
 	source, err = expert.Load(fromID)
 	if err != nil {
-		// Try to find in curated library
-		source = LookupPersona(fromID)
-		if source == nil {
-			return fmt.Errorf("expert '%s' not found in project council or curated library\n\nBrowse available personas with: council personas", fromID)
-		}
+		return fmt.Errorf("expert '%s' not found in .council/experts/ (see: council list)", fromID)
 	}
 
 	reader := bufio.NewReader(os.Stdin)

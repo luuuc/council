@@ -23,14 +23,14 @@ var rootCmd = &cobra.Command{
 	Use:   "council",
 	Short: "A room of Virtual experts who review your work and argue",
 	Long: `council builds a team of AI reviewers modeled on real people, real roles,
-and real perspectives - Virtual DHH, a security engineer, your customers.
+and real perspectives - people you choose, a security engineer, your customers.
 
 Members are picked to disagree. They see each other's arguments, push back,
 and expose trade-offs. You make the decision.
 
 Quick start:
-  council start          Zero-config setup (creates council, adds experts, syncs)
-  council add "Name"     Add expert from library or create custom
+  council init           Create .council/ and install the slash commands
+  council add "Name"     Add a person (researched from public work) or a custom persona
   council sync           Sync council to AI tool configs`,
 }
 
@@ -74,8 +74,8 @@ var initCmd = &cobra.Command{
 
 Tool detection:
   - If only one AI tool is detected (e.g., .claude/ exists), it's used automatically
-  - If multiple tools are detected, you'll be prompted to choose
-  - If no tool is detected, use --tool to specify one
+  - If several are detected, you're asked in a terminal; otherwise the first is used
+  - If none is detected, the generic AGENTS.md format is used
 
 Examples:
   council init              Auto-detect tool
@@ -163,10 +163,10 @@ func initCouncil(clean bool, toolFlag string) error {
 	}
 
 	fmt.Printf("Initialized .council/ directory for %s\n", displayName)
+	runAutoSync(false, cfg)
 	fmt.Println("")
-	fmt.Println("Next steps:")
-	fmt.Println("  council add \"Name\"     Add experts from library or create custom")
-	fmt.Println("  council sync           Sync to AI tool configs")
+	fmt.Println("Next: add members with council add \"Name\" (a real person, researched from public work),")
+	fmt.Println("council add --role \"SRE\", or council add --customer \"who your users are\".")
 
 	return nil
 }
@@ -191,8 +191,9 @@ func detectOrSelectTool(toolFlag string) (string, error) {
 
 	switch len(detected) {
 	case 0:
-		// No tool detected - require explicit flag
-		return "", fmt.Errorf("no AI tool detected\n\nSpecify a tool with:\n  council init --tool=claude\n  council init --tool=opencode\n  council init --tool=generic")
+		// No tool detected - AGENTS.md works with any AI tool
+		fmt.Println("No AI tool detected, using generic (AGENTS.md). Use --tool to pick one.")
+		return "generic", nil
 
 	case 1:
 		// Single tool detected - use it automatically
@@ -201,8 +202,13 @@ func detectOrSelectTool(toolFlag string) (string, error) {
 		return tool.Name(), nil
 
 	default:
-		// Multiple tools detected - prompt user
-		return promptForTool(detected)
+		// Multiple tools detected - ask in a terminal, otherwise (an AI tool
+		// running init) use the first and say so
+		if isTerminal(os.Stdin) && isTerminal(os.Stdout) {
+			return promptForTool(detected)
+		}
+		fmt.Printf("Detected several AI tools, using %s. Use --tool to pick another.\n", detected[0].DisplayName())
+		return detected[0].Name(), nil
 	}
 }
 

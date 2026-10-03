@@ -44,8 +44,8 @@ Tell the user which experts exist, then use **AskUserQuestion**:
 | "Start fresh" | Remove everything and set up from scratch |
 | "All set" | Keep everything as is |
 
-- If **Add more**: Skip to "Shape the Council" (Step 4)
-- If **Start fresh**: Run `council init --clean`, then run `council start`
+- If **Add more**: Skip to "Assemble the Council" (Step 4)
+- If **Start fresh**: Run `council init --clean`, then continue to Step 4
 - If **All set**: Skip to "Done"
 
 ### If .council/ exists but council list fails:
@@ -66,40 +66,23 @@ Continue to Step 3.
 
 ## Step 3: Set Up Your Council
 
-Run the zero-config setup:
-
 ```bash
-council start
+council init
 ```
 
-This single command:
-1. Creates the `.council/` directory
-2. Detects your AI tool (Claude Code, OpenCode, or generic)
-3. Detects your project stack (languages, frameworks, testing tools)
-4. Adds experts matched to your stack (real people, named "Virtual X")
-5. Syncs everything to your AI tool
+This creates the `.council/` directory, detects your AI tool (Claude Code, OpenCode, or generic), and installs the `/council` commands. The council starts empty: Council doesn't pick people, you and the user do.
 
-Output looks like:
-```
-✓ Detected: Claude Code
-✓ Detected: Go
-✓ Added 6 experts: Virtual Rob Pike, Virtual Kent Beck, Virtual Bruce Schneier, Virtual Gene Kim, Virtual Dieter Rams, Virtual Luc Perussault-Diallo
+## Step 4: Assemble the Council
 
-Your council is ready. Try: /council <topic>
-```
+A good council mixes people with different incentives, and includes the people the work is for.
 
-## Step 4: Shape the Council
-
-A good council mixes people with different incentives, and includes the people the work is for. Tell the user who was added, then use **AskUserQuestion** (multi-select):
-
-| Label | Description |
-|-------|-------------|
-| "Add a customer" | Someone the work is for, who reacts as a user |
-| "Add a role" | e.g. SRE, security engineer, product-minded CTO |
-| "Add or remove people" | Real people from the library or researched |
-| "Looks good" | Keep the council as it is |
-
-Always pass `--yes`: your shell can't answer interactive prompts.
+1. **Read the project**: code, README, docs, goals, who the users are. It doesn't have to be code.
+2. **Propose 4 to 6 members**, each with one line on why they're useful:
+   - people with documented public positions relevant to this project, chosen to disagree with each other
+   - a role whose incentives are missing (e.g. SRE, security engineer, product-minded CTO)
+   - for anything users touch, a customer
+3. **Let the user choose** with **AskUserQuestion** (multi-select). They can swap anyone, or name people themselves.
+4. **Add each chosen member** (always pass `--yes`: your shell can't answer interactive prompts):
 
 ### Add a customer
 
@@ -115,17 +98,11 @@ Ask which role, then:
 council add --role "<role, e.g. SRE>" --yes
 ```
 
-### Add or remove people
+### Add a person
 
-Browse the library:
+Anyone with documented public work. Council researches them and names them "Virtual {Name}":
 ```bash
-council personas --json
-```
-
-Add someone from the library, or anyone with documented public work (Council researches them and names them "Virtual {Name}"):
-```bash
-council add "Kent Beck" --yes
-council add "Boris Cherny" --yes
+council add "Jane Doe" --yes
 ```
 
 Or use the `/council-add` skill to search by description:
@@ -158,7 +135,7 @@ council list
 
 Remove by ID:
 ```bash
-council remove kent-beck
+council remove jane-doe
 ```
 
 ### Syncing Changes

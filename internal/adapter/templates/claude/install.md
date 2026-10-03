@@ -11,17 +11,17 @@ council list
 
 2. If not set up, run:
 ```bash
-council start
+council init
 ```
 
-This single command creates your council, detects your project stack, adds matched experts, and syncs to your AI tool.
+This creates `.council/` and installs the `/council` commands. The council starts empty: propose members for this project (people with documented public positions who will disagree, a role, a customer), let the user choose, then add them.
 
 ## Customization
 
 After setup, you can modify your council:
 
-- `council add "Expert Name"` - add a curated expert
-- `council add "Custom Name"` - create a custom expert (if not in library)
+- `council add "Jane Doe" --yes` - add a person, researched from their public work
+- `council add --role "SRE" --yes` / `council add --customer "..." --yes` - add a role or a customer
 - `/council-add` - interactive expert search
 - `council remove <id>` - remove an expert
 - `council sync` - sync changes to your AI tool

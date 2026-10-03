@@ -204,7 +204,7 @@ func generateExpert(prompt string) (*expert.Expert, error) {
 func runAIPrompt(prompt string) (string, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return "", fmt.Errorf("failed to load config: %w\nHint: run 'council start' first", err)
+		return "", fmt.Errorf("failed to load config: %w\nHint: run 'council init' first", err)
 	}
 
 	// Detect or use configured AI command
