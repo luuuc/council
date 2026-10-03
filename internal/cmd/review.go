@@ -359,37 +359,18 @@ func resolveCouncils(list string) ([]review.Council, error) {
 // them answer each other. Human output streams as it goes.
 func runCouncilsReview(cmd *cobra.Command, runner *review.Runner, councils []review.Council, sub review.Submission) error {
 	human := !reviewJSON
-	streamed := 0
-	if human {
-		runner.OnVerdict = func(t review.Turn, verdicts []review.ExpertVerdict) {
-			if t.Kind == review.TurnFinalWord {
-				fmt.Print(review.FormatFinalWord(t.Expert.ID, verdicts))
-			} else {
-				fmt.Print(review.FormatPerspective(verdicts))
-			}
-			streamed++
-		}
-	}
 
 	debateStarted := false
 	hooks := review.CouncilHooks{
 		OnCouncilStart: func(name string, members int) {
-			fmt.Fprintf(os.Stderr, "The %s council (%d members)...\n", name, members)
-			if human {
-				fmt.Print(review.FormatCouncilHeader(name, members))
-			}
-			streamed = 0
+			fmt.Fprintf(os.Stderr, "The %s council (%d members) starts...\n", name, members)
 		},
+		// Councils run in parallel; each prints in order once it's done.
 		OnCouncilDone: func(name string, result *review.SynthesizedResult) {
-			if !human {
-				return
+			if human {
+				fmt.Print(review.FormatCouncilHeader(name, len(result.Perspectives)))
+				fmt.Print(review.FormatBody(result))
 			}
-			if streamed == 0 {
-				for i := range result.Perspectives {
-					fmt.Print(review.FormatPerspective(result.Perspectives[:i+1]))
-				}
-			}
-			fmt.Print(review.FormatOutcome(result))
 		},
 		OnCrossStart: func(label string) {
 			fmt.Fprintf(os.Stderr, "%s...\n", label)

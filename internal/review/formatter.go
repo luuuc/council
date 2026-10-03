@@ -8,8 +8,13 @@ import (
 
 // FormatHuman renders a SynthesizedResult as human-readable text.
 func FormatHuman(result *SynthesizedResult, packName string, expertCount int) string {
+	return FormatHeader(packName, expertCount) + FormatBody(result)
+}
+
+// FormatBody renders a review without its header: each member's review,
+// the final words, and the outcome.
+func FormatBody(result *SynthesizedResult) string {
 	var b strings.Builder
-	b.WriteString(FormatHeader(packName, expertCount))
 	for i := range result.Perspectives {
 		b.WriteString(FormatPerspective(result.Perspectives[:i+1]))
 	}
@@ -211,7 +216,7 @@ func FormatHumanCouncils(r *CouncilsResult) string {
 	var b strings.Builder
 	for _, c := range r.Councils {
 		b.WriteString(FormatCouncilHeader(c.Name, len(c.Result.Perspectives)))
-		b.WriteString(FormatHuman(c.Result, c.Name, len(c.Result.Perspectives)))
+		b.WriteString(FormatBody(c.Result))
 	}
 	if len(r.Statements) > 0 {
 		b.WriteString(FormatCouncilsDebateHeader())

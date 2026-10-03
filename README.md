@@ -127,7 +127,7 @@ ai:
       model: kimi-code-plan-global/k3
 ```
 
-**Councils of Councils.** `council review --councils product,security,code --file plan.md` runs several packs on the same submission. Each council debates on its own, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
+**Councils of Councils.** `council review --councils product,security,code --file plan.md` runs several packs on the same submission. The councils debate at the same time, each on its own, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
 
 `/council` in Claude Code and OpenCode runs the same review: point it at files, your current changes, or a question, and it presents the debate and what you need to decide.
 

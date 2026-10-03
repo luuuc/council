@@ -8,7 +8,7 @@ build:
 	go build $(LDFLAGS) -o bin/council ./cmd/council
 
 test:
-	go test -v ./...
+	go test -race -v ./...
 
 clean:
 	rm -rf bin/

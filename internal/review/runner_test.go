@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,6 +21,7 @@ type MockBackend struct {
 	Delay            time.Duration
 	calls            atomic.Int32
 	collectiveCalls  atomic.Int32
+	mu               sync.Mutex
 	seen             []reviewCall // Review calls in order (sequential runs only)
 }
 
@@ -30,7 +32,9 @@ type reviewCall struct {
 
 func (m *MockBackend) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
 	m.calls.Add(1)
+	m.mu.Lock()
 	m.seen = append(m.seen, reviewCall{expert: e.ID, sub: sub})
+	m.mu.Unlock()
 
 	if m.Delay > 0 {
 		select {

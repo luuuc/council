@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/luuuc/council/internal/expert"
 )
@@ -18,6 +19,7 @@ import (
 // spokespersons, and collective reviews use the first backend.
 type MixBackend struct {
 	Backends []Backend
+	mu       sync.Mutex // councils run in parallel
 	assigned map[string]int
 	next     int
 }
@@ -32,6 +34,8 @@ func (m *MixBackend) For(id string) Backend {
 	if id == Moderator.ID || strings.HasSuffix(id, "-council") {
 		return m.Backends[0]
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	i, ok := m.assigned[id]
 	if !ok {
 		i = m.next % len(m.Backends)

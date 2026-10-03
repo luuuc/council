@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,12 +24,15 @@ type mockBackend struct {
 	errors         map[string]error
 	delay          time.Duration
 	calls          atomic.Int32
+	mu             sync.Mutex
 	lastSubmission review.Submission // captures the most recent Submission for assertions
 }
 
 func (m *mockBackend) Review(ctx context.Context, e *expert.Expert, sub review.Submission) (review.ExpertVerdict, error) {
 	m.calls.Add(1)
+	m.mu.Lock()
 	m.lastSubmission = sub
+	m.mu.Unlock()
 
 	if m.delay > 0 {
 		select {

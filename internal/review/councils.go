@@ -50,21 +50,42 @@ type CouncilHooks struct {
 	OnCrossStart   func(label string) // before each spokesperson and the final moderator
 }
 
-// RunCouncils runs each council's debate in turn, then each council's
-// spokesperson answers the other councils' conclusions, then a moderator
-// lists where the councils disagree and what the human must decide.
-// The Runner's OnStart/OnVerdict hooks fire inside each council's debate.
+// RunCouncils runs every council's debate at the same time (they are
+// independent), then each council's spokesperson answers the other
+// councils' conclusions, then a moderator lists where the councils
+// disagree and what the human must decide.
+//
+// The Runner's OnStart hook fires for every turn, with Turn.Council set;
+// OnVerdict doesn't fire, since councils finish out of order. OnCouncilDone
+// fires in the given council order as each council finishes.
 func (r *Runner) RunCouncils(ctx context.Context, councils []Council, sub Submission, hooks CouncilHooks) *CouncilsResult {
 	out := &CouncilsResult{}
 
-	for _, c := range councils {
+	results := make([]*SynthesizedResult, len(councils))
+	done := make([]chan struct{}, len(councils))
+	for i, c := range councils {
 		if hooks.OnCouncilStart != nil {
 			hooks.OnCouncilStart(c.Name, len(c.Inputs))
 		}
-		res := r.Run(ctx, c.Inputs, sub)
-		out.Councils = append(out.Councils, CouncilOutcome{Name: c.Name, Result: res})
+		done[i] = make(chan struct{})
+		cr := *r
+		cr.OnVerdict = nil
+		if r.OnStart != nil {
+			cr.OnStart = func(t Turn) {
+				t.Council = c.Name
+				r.OnStart(t)
+			}
+		}
+		go func(i int, c Council) {
+			defer close(done[i])
+			results[i] = cr.Run(ctx, c.Inputs, sub)
+		}(i, c)
+	}
+	for i, c := range councils {
+		<-done[i]
+		out.Councils = append(out.Councils, CouncilOutcome{Name: c.Name, Result: results[i]})
 		if hooks.OnCouncilDone != nil {
-			hooks.OnCouncilDone(c.Name, res)
+			hooks.OnCouncilDone(c.Name, results[i])
 		}
 	}
 	if len(out.Councils) < 2 {
