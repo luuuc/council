@@ -22,6 +22,7 @@ var (
 	reviewProvider string
 	reviewModel    string
 	reviewMode     string
+	reviewQuick    bool
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	reviewCmd.Flags().StringVar(&reviewBackend, "backend", "", "Backend: cli or api")
 	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "API provider: anthropic, openai, ollama, github")
 	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "LLM model override")
+	reviewCmd.Flags().BoolVar(&reviewQuick, "quick", false, "Sequential mode: skip the final word and the moderator (about half the AI calls)")
 	reviewCmd.Flags().StringVar(&reviewMode, "mode", string(review.ModeSequential), "Review mode: sequential (one call per expert, each reacts to the others) or collective (one call, cheaper)")
 }
 
@@ -43,7 +45,12 @@ var reviewCmd = &cobra.Command{
 	Short: "Run a council review where experts react to each other",
 	Long: `Run a council review. Experts speak one at a time, in pack order.
 Each one sees the earlier reviews and can disagree, back them up, or add
-what they missed. The disagreements are part of the output.
+what they missed. Then the earlier members get a final word on what came
+after them, and may change their verdict. A neutral moderator closes with
+where the members disagree and what you need to decide. Council doesn't
+decide for you.
+
+--quick skips the final word and the moderator (about half the AI calls).
 
 --mode collective runs one call that plays every expert at once. It is
 cheaper (one call instead of one per expert) but the debate is simulated.
@@ -104,14 +111,16 @@ func runReview(cmd *cobra.Command) error {
 	runner := &review.Runner{
 		Backend: backend,
 		Options: review.ReviewOptions{
-			Mode:    mode,
-			Timeout: cfg.AI.Timeout,
+			Mode:      mode,
+			Timeout:   cfg.AI.Timeout,
+			FinalWord: !reviewQuick,
+			Moderate:  !reviewQuick,
 		},
 	}
 
 	// Progress goes to stderr so JSON output on stdout stays clean.
-	runner.OnStart = func(e *expert.Expert, turn, total int) {
-		fmt.Fprintf(os.Stderr, "[%d/%d] %s is reviewing...\n", turn, total, e.Name)
+	runner.OnStart = func(t review.Turn) {
+		fmt.Fprintf(os.Stderr, "[%d/%d] %s...\n", t.Number, t.Total, t.Label())
 	}
 
 	// Human output streams each expert as soon as they finish.
@@ -119,8 +128,12 @@ func runReview(cmd *cobra.Command) error {
 	streamed := 0
 	if human {
 		fmt.Print(review.FormatHeader(packName, len(inputs)))
-		runner.OnVerdict = func(verdicts []review.ExpertVerdict) {
-			fmt.Print(review.FormatPerspective(verdicts))
+		runner.OnVerdict = func(t review.Turn, verdicts []review.ExpertVerdict) {
+			if t.Kind == review.TurnFinalWord {
+				fmt.Print(review.FormatFinalWord(t.Expert.ID, verdicts))
+			} else {
+				fmt.Print(review.FormatPerspective(verdicts))
+			}
 			streamed++
 		}
 	}
@@ -157,7 +170,7 @@ func runReview(cmd *cobra.Command) error {
 				fmt.Print(review.FormatPerspective(result.Perspectives[:i+1]))
 			}
 		}
-		fmt.Print(review.FormatClosing(result))
+		fmt.Print(review.FormatOutcome(result))
 	}
 
 	return nil

@@ -43,10 +43,10 @@ func TestFormatGitHubReviewAllPass(t *testing.T) {
 	if output.Review.Event != GitHubApprove {
 		t.Errorf("event = %s, want APPROVE", output.Review.Event)
 	}
-	if !strings.Contains(output.Review.Body, "**Verdict: pass**") {
+	if !strings.Contains(output.Review.Body, "**Votes:** 2 pass.") {
 		t.Error("body should contain verdict")
 	}
-	if !strings.Contains(output.Review.Body, "2 passed") {
+	if !strings.Contains(output.Review.Body, "2 pass") {
 		t.Error("body should mention pass count")
 	}
 	if !strings.Contains(output.Review.Body, "Well-structured implementation") {
@@ -76,10 +76,10 @@ func TestFormatGitHubReviewAnyBlock(t *testing.T) {
 	if output.Review.Event != GitHubRequestChanges {
 		t.Errorf("event = %s, want REQUEST_CHANGES", output.Review.Event)
 	}
-	if !strings.Contains(output.Review.Body, "1 blocked") {
+	if !strings.Contains(output.Review.Body, "1 block") {
 		t.Error("body should mention block count")
 	}
-	if !strings.Contains(output.Review.Body, "### Tension") {
+	if !strings.Contains(output.Review.Body, "### Where they disagree") {
 		t.Error("body should contain tension section")
 	}
 	if output.CheckRun.Conclusion != "action_required" {
@@ -101,7 +101,7 @@ func TestFormatGitHubReviewMixedComment(t *testing.T) {
 	if output.Review.Event != GitHubComment {
 		t.Errorf("event = %s, want COMMENT", output.Review.Event)
 	}
-	if !strings.Contains(output.Review.Body, "1 commented") {
+	if !strings.Contains(output.Review.Body, "1 comment") {
 		t.Error("body should mention comment count")
 	}
 }

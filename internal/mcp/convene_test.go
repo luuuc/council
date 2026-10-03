@@ -28,7 +28,7 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 		t.Fatalf("no session ID in:\n%s", text)
 	}
 	id := m[1]
-	if !strings.Contains(text, "Turn 1 of 6: Virtual Rob Pike") || !strings.Contains(text, "func main() {}") {
+	if !strings.Contains(text, "Turn 1 of up to 12: Virtual Rob Pike.") || !strings.Contains(text, "func main() {}") {
 		t.Fatalf("first turn should be Rob Pike's prompt with the submission:\n%s", text)
 	}
 	if strings.Contains(text, "The Council So Far") {
@@ -41,29 +41,52 @@ func TestConveneRunsTurnsInOrder(t *testing.T) {
 		t.Fatalf("expected a retry request for Rob Pike, got: %+v", bad)
 	}
 
-	res = s.handleTurn(map[string]any{"session": id, "review": `{"expert":"rob-pike","verdict":"block","confidence":0.9,"notes":["Interface has one implementation"],"blocking":false}`})
+	res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"block","confidence":0.9,"notes":["Interface has one implementation"],"blocking":false}`})
 	text = res.Content[0].Text
-	if res.IsError || !strings.Contains(text, "Turn 2 of 6: Virtual Kent Beck") {
+	if res.IsError || !strings.Contains(text, "Turn 2 of up to 12: Virtual Kent Beck.") {
 		t.Fatalf("expected Kent Beck's turn, got:\n%s", text)
 	}
 	if !strings.Contains(text, "### Virtual Rob Pike (rob-pike) — block") || !strings.Contains(text, `"replies"`) {
 		t.Errorf("second turn should include Rob Pike's review and ask for replies:\n%s", text)
 	}
 
-	res = s.handleTurn(map[string]any{"session": id, "review": `{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["Add a test"],"replies":[{"to":"rob-pike","stance":"disagree","note":"The interface makes it testable"}],"blocking":false}`})
+	res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"comment","confidence":0.8,"notes":["Add a test"],"replies":[{"to":"rob-pike","stance":"disagree","note":"The interface makes it testable"}],"blocking":false}`})
 
-	// The remaining four members of the go pack pass.
-	for i := 3; i <= 6; i++ {
-		if res.IsError || !strings.Contains(res.Content[0].Text, "Turn ") {
-			t.Fatalf("expected turn %d, got:\n%s", i, res.Content[0].Text)
+	// Answer every remaining turn until the council finishes.
+	sawFinalWord, sawModerator := false, false
+	for i := 0; i < 20 && !strings.Contains(res.Content[0].Text, "The council has finished"); i++ {
+		text = res.Content[0].Text
+		if res.IsError {
+			t.Fatalf("turn failed: %s", text)
 		}
-		res = s.handleTurn(map[string]any{"session": id, "review": `{"verdict":"pass","confidence":0.9,"notes":["Fine"],"blocking":false}`})
+		answer := `{"verdict":"pass","confidence":0.9,"notes":["Fine"],"blocking":false}`
+		switch {
+		case strings.Contains(text, "Virtual Rob Pike (final word)."):
+			sawFinalWord = true
+			if !strings.Contains(text, "## What Came After You") || !strings.Contains(text, "The interface makes it testable") {
+				t.Errorf("Rob Pike's final word should show what came after him:\n%s", text)
+			}
+			answer = `{"verdict":"comment","change_reason":"A test fake is a fair need","replies":[{"to":"kent-beck","stance":"agree","note":"Fair, keep it small"}]}`
+		case strings.Contains(text, "Moderator (disagreements and decisions)."):
+			sawModerator = true
+			answer = `{"agreements":["Add a test"],"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["rob-pike"],"position":"Drop it"},{"experts":["kent-beck"],"position":"Keep it for tests"}]}],"decisions":["Do you need a fake now?"]}`
+		}
+		res = s.handleTurn(map[string]any{"session": id, "review": answer})
 	}
+
 	text = res.Content[0].Text
-	if res.IsError {
-		t.Fatalf("final turn failed: %s", text)
+	if !sawFinalWord || !sawModerator {
+		t.Fatalf("expected a final word and a moderator turn (final word: %v, moderator: %v)", sawFinalWord, sawModerator)
 	}
-	for _, want := range []string{"The council has finished", "Virtual Kent Beck disagrees with Virtual Rob Pike", "Verdict:"} {
+	for _, want := range []string{
+		"The council has finished",
+		"Virtual Rob Pike — final word",
+		"block → comment",
+		"Where they disagree",
+		"Keep the interface?",
+		"What you need to decide",
+		"Do you need a fake now?",
+	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("final result missing %q:\n%s", want, text)
 		}

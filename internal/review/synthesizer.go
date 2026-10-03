@@ -200,39 +200,16 @@ func formatTension(ownerName string, t expert.Tension, experts map[string]*exper
 		ownerName, otherName, t.Topic, t.Position, t.Counterpoint)
 }
 
-// buildSummary generates a human-readable summary line.
-func buildSummary(verdicts []ExpertVerdict, errors []string, overall Verdict, blocking bool) string {
-	counts := make(map[Verdict]int)
-	for _, v := range verdicts {
-		if v.Error == "" {
-			counts[v.Verdict]++
-		}
-	}
-
-	var parts []string
-	for _, verdict := range []Verdict{VerdictPass, VerdictComment, VerdictBlock, VerdictEscalate} {
-		if n := counts[verdict]; n > 0 {
-			parts = append(parts, fmt.Sprintf("%d %s", n, verdict))
-		}
-	}
+// buildSummary counts the votes. It doesn't recommend an outcome: the
+// author decides from the disagreements and decisions.
+func buildSummary(verdicts []ExpertVerdict, errors []string, _ Verdict, blocking bool) string {
+	summary := fmt.Sprintf("%d experts reviewed: %s", len(verdicts)+len(errors), voteCount(verdicts))
 	if len(errors) > 0 {
-		parts = append(parts, fmt.Sprintf("%d failed", len(errors)))
+		summary += fmt.Sprintf(", %d failed", len(errors))
 	}
-
-	summary := fmt.Sprintf("%d experts reviewed. %s.", len(verdicts)+len(errors), strings.Join(parts, ", "))
-
-	switch {
-	case blocking:
-		summary += " Blocked."
-	case overall == VerdictPass:
-		summary += " Ship it."
-	case overall == VerdictComment:
-		summary += " Ship with comments."
-	case overall == VerdictBlock:
-		summary += " Fix before shipping."
-	case overall == VerdictEscalate:
-		summary += " Needs escalation."
+	summary += "."
+	if blocking {
+		summary += " Blocked: a blocking member voted block or escalate."
 	}
-
 	return summary
 }

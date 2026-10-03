@@ -316,7 +316,7 @@ func toolDefinitions() []toolDefinition {
 	return []toolDefinition{
 		{
 			Name:        "council_review",
-			Description: "Submit code for council review. Experts review one at a time and each sees the earlier reviews, so they can disagree, agree, or add to them. Returns a structured verdict with each expert's notes and replies, agreements, tensions, and a recommendation.",
+			Description: "Submit code for council review. Experts review one at a time and each sees the earlier reviews, so they can disagree, agree, or add to them. Earlier experts then get a final word, and a neutral moderator lists where they disagree and what the author must decide. Returns each expert's verdict, notes, and replies, plus disagreements, decisions, and agreements. No recommendation: the author decides.",
 			InputSchema: toolSchema{
 				Type: "object",
 				Properties: map[string]schemaProperty{

@@ -13,7 +13,12 @@ func FormatHuman(result *SynthesizedResult, packName string, expertCount int) st
 	for i := range result.Perspectives {
 		b.WriteString(FormatPerspective(result.Perspectives[:i+1]))
 	}
-	b.WriteString(FormatClosing(result))
+	for i, p := range result.Perspectives {
+		if len(p.FinalWord) > 0 || p.ChangedFrom != "" {
+			b.WriteString(FormatFinalWord(p.Expert, result.Perspectives[i:]))
+		}
+	}
+	b.WriteString(FormatOutcome(result))
 	return b.String()
 }
 
@@ -29,8 +34,10 @@ func FormatHeader(packName string, expertCount int) string {
 	return b.String()
 }
 
-// FormatPerspective renders the last verdict in verdicts. Earlier verdicts
-// are used to show the names of the experts it replies to.
+// FormatPerspective renders a member's review: the last verdict in
+// verdicts. Earlier verdicts are used for the names of the members it
+// replies to. The verdict shown is the one from their review, before any
+// change in their final word.
 func FormatPerspective(verdicts []ExpertVerdict) string {
 	if len(verdicts) == 0 {
 		return ""
@@ -38,77 +45,170 @@ func FormatPerspective(verdicts []ExpertVerdict) string {
 	p := verdicts[len(verdicts)-1]
 
 	var b strings.Builder
-	name := p.Expert
-	if p.Name != "" {
-		name = p.Name
+	verdict := p.Verdict
+	if p.ChangedFrom != "" {
+		verdict = p.ChangedFrom
 	}
-	verdict := string(p.Verdict)
-
-	// Right-align verdict
-	padding := 50 - len(name) - len(verdict)
-	if padding < 2 {
-		padding = 2
-	}
-	fmt.Fprintf(&b, "%s%s%s\n", name, strings.Repeat(" ", padding), verdict)
+	writeTitle(&b, displayNameOf(p), string(verdict))
 
 	if p.Error != "" {
 		fmt.Fprintf(&b, "  (error: %s)\n", p.Error)
 	}
-
 	for _, note := range p.Notes {
 		fmt.Fprintf(&b, "  - %s\n", wrapNote(note, 46))
 	}
-
-	for _, r := range p.Replies {
-		fmt.Fprintf(&b, "  → %s %s:\n    %s\n", replyVerb(r.Stance), replyTarget(r.To, verdicts), wrapNote(r.Note, 46))
-	}
+	writeReplies(&b, p.Replies, verdicts)
 
 	b.WriteByte('\n')
 	return b.String()
 }
 
-// FormatClosing renders everything after the perspectives: errors,
-// tension, agreements, and the overall verdict.
-func FormatClosing(result *SynthesizedResult) string {
-	var b strings.Builder
+// FormatFinalWord renders the final word of the member with the given ID.
+// verdicts must include that member and everyone they answer.
+func FormatFinalWord(id string, verdicts []ExpertVerdict) string {
+	var p *ExpertVerdict
+	for i := range verdicts {
+		if verdicts[i].Expert == id {
+			p = &verdicts[i]
+		}
+	}
+	if p == nil || (len(p.FinalWord) == 0 && p.ChangedFrom == "") {
+		return ""
+	}
 
-	// Errors
+	var b strings.Builder
+	status := "keeps " + string(p.Verdict)
+	if p.ChangedFrom != "" {
+		status = fmt.Sprintf("%s → %s", p.ChangedFrom, p.Verdict)
+	}
+	writeTitle(&b, displayNameOf(*p)+" — final word", status)
+	if p.ChangedFrom != "" && p.ChangeReason != "" {
+		fmt.Fprintf(&b, "  Changed verdict: %s\n", wrapNote(p.ChangeReason, 46))
+	}
+	writeReplies(&b, p.FinalWord, verdicts)
+
+	b.WriteByte('\n')
+	return b.String()
+}
+
+// FormatOutcome renders the end of a review: where the members disagree,
+// what the author has to decide, what nobody disputed, and the vote count.
+// Council doesn't recommend an outcome.
+func FormatOutcome(result *SynthesizedResult) string {
+	var b strings.Builder
+	rule := strings.Repeat("─", 50) + "\n"
+
 	if len(result.Errors) > 0 {
-		b.WriteString(strings.Repeat("─", 50) + "\n")
+		b.WriteString(rule)
 		for _, e := range result.Errors {
 			fmt.Fprintf(&b, "Error: %s\n", e)
 		}
 		b.WriteByte('\n')
 	}
 
-	// Tension
-	if result.Tension != "" {
-		b.WriteString(strings.Repeat("─", 50) + "\n")
-		lines := strings.Split(result.Tension, "\n")
-		if len(lines) == 1 {
-			fmt.Fprintf(&b, "Tension: %s\n\n", result.Tension)
-		} else {
-			b.WriteString("Tension:\n")
-			for _, l := range lines {
-				fmt.Fprintf(&b, "  - %s\n", l)
-			}
-			b.WriteByte('\n')
-		}
+	names := map[string]string{}
+	for _, p := range result.Perspectives {
+		names[p.Expert] = displayNameOf(p)
 	}
 
-	// Agreements
-	if len(result.Agreements) > 0 {
-		for _, a := range result.Agreements {
-			fmt.Fprintf(&b, "Agreement: %s\n", a)
+	switch {
+	case len(result.Disagreements) > 0:
+		b.WriteString(rule)
+		b.WriteString("Where they disagree\n")
+		for i, d := range result.Disagreements {
+			fmt.Fprintf(&b, "  %d. %s\n", i+1, wrapIndent(d.Topic, 46, "     "))
+			for _, s := range d.Sides {
+				var who []string
+				for _, id := range s.Experts {
+					who = append(who, nameOr(names, id))
+				}
+				fmt.Fprintf(&b, "     - %s\n", wrapIndent(strings.Join(who, ", ")+": "+s.Position, 44, "       "))
+			}
+		}
+		b.WriteByte('\n')
+	case result.Tension != "":
+		b.WriteString(rule)
+		b.WriteString("Where they disagree\n")
+		for _, l := range strings.Split(result.Tension, "\n") {
+			fmt.Fprintf(&b, "  - %s\n", wrapNote(l, 46))
 		}
 		b.WriteByte('\n')
 	}
 
-	// Verdict line
-	verdictLabel := verdictDisplayLabel(result.Verdict, result.Blocking)
-	fmt.Fprintf(&b, "Verdict: %s\n", verdictLabel)
+	if len(result.Decisions) > 0 {
+		b.WriteString("What you need to decide\n")
+		for _, d := range result.Decisions {
+			fmt.Fprintf(&b, "  - %s\n", wrapNote(d, 46))
+		}
+		b.WriteByte('\n')
+	}
 
+	if len(result.Agreements) > 0 {
+		b.WriteString("Nobody disputed\n")
+		for _, a := range result.Agreements {
+			fmt.Fprintf(&b, "  - %s\n", wrapNote(a, 46))
+		}
+		b.WriteByte('\n')
+	}
+
+	fmt.Fprintf(&b, "Votes: %s\n", voteCount(result.Perspectives))
+	if result.Blocking {
+		b.WriteString("Blocked: a blocking member voted block or escalate.\n")
+	}
 	return b.String()
+}
+
+// FormatJSON marshals a SynthesizedResult as indented JSON.
+func FormatJSON(result *SynthesizedResult) ([]byte, error) {
+	return json.MarshalIndent(result, "", "  ")
+}
+
+// voteCount renders "2 block, 1 comment" in severity order.
+func voteCount(perspectives []ExpertVerdict) string {
+	counts := map[Verdict]int{}
+	for _, p := range perspectives {
+		if p.Error == "" {
+			counts[p.Verdict]++
+		}
+	}
+	var parts []string
+	for _, v := range []Verdict{VerdictEscalate, VerdictBlock, VerdictComment, VerdictPass} {
+		if n := counts[v]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, v))
+		}
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ", ")
+}
+
+func writeTitle(b *strings.Builder, name, right string) {
+	padding := 50 - len(name) - len(right)
+	if padding < 2 {
+		padding = 2
+	}
+	fmt.Fprintf(b, "%s%s%s\n", name, strings.Repeat(" ", padding), right)
+}
+
+func writeReplies(b *strings.Builder, replies []Reply, verdicts []ExpertVerdict) {
+	for _, r := range replies {
+		fmt.Fprintf(b, "  → %s %s:\n    %s\n", replyVerb(r.Stance), replyTarget(r.To, verdicts), wrapNote(r.Note, 46))
+	}
+}
+
+func displayNameOf(p ExpertVerdict) string {
+	if p.Name != "" {
+		return p.Name
+	}
+	return p.Expert
+}
+
+func nameOr(names map[string]string, id string) string {
+	if n, ok := names[id]; ok {
+		return n
+	}
+	return id
 }
 
 // replyVerb renders a stance as the verb shown in human output.
@@ -133,32 +233,14 @@ func replyTarget(id string, perspectives []ExpertVerdict) string {
 	return id
 }
 
-// FormatJSON marshals a SynthesizedResult as indented JSON.
-func FormatJSON(result *SynthesizedResult) ([]byte, error) {
-	return json.MarshalIndent(result, "", "  ")
-}
-
-// verdictDisplayLabel returns a human-friendly label for the overall verdict.
-func verdictDisplayLabel(v Verdict, blocking bool) string {
-	if blocking {
-		return "blocked"
-	}
-	switch v {
-	case VerdictPass:
-		return "ship it"
-	case VerdictComment:
-		return "ship with comments"
-	case VerdictBlock:
-		return "fix before shipping"
-	case VerdictEscalate:
-		return "needs escalation"
-	default:
-		return string(v)
-	}
-}
-
-// wrapNote wraps a note at the given width for indented display.
+// wrapNote wraps long notes for terminal display, indenting continuation
+// lines under a "  - " bullet.
 func wrapNote(note string, width int) string {
+	return wrapIndent(note, width, "    ")
+}
+
+// wrapIndent wraps text at width, starting continuation lines with indent.
+func wrapIndent(note string, width int, indent string) string {
 	if len(note) <= width {
 		return note
 	}
@@ -177,5 +259,5 @@ func wrapNote(note string, width int) string {
 		lines = append(lines, note[:cut])
 		note = strings.TrimSpace(note[cut:])
 	}
-	return strings.Join(lines, "\n    ")
+	return strings.Join(lines, "\n"+indent)
 }

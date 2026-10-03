@@ -52,12 +52,13 @@ func ParseVerdict(expertID string, raw []byte) ExpertVerdict {
 // tryUnmarshal attempts to parse JSON into an ExpertVerdict, validates, and normalizes.
 func tryUnmarshal(expertID string, data []byte) (ExpertVerdict, bool) {
 	var raw struct {
-		Expert     string      `json:"expert"`
-		Verdict    Verdict     `json:"verdict"`
-		Confidence float64     `json:"confidence"`
-		Notes      interface{} `json:"notes"`
-		Replies    []Reply     `json:"replies"`
-		Blocking   bool        `json:"blocking"`
+		Expert       string      `json:"expert"`
+		Verdict      Verdict     `json:"verdict"`
+		Confidence   float64     `json:"confidence"`
+		Notes        interface{} `json:"notes"`
+		Replies      []Reply     `json:"replies"`
+		Blocking     bool        `json:"blocking"`
+		ChangeReason string      `json:"change_reason"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -81,12 +82,13 @@ func tryUnmarshal(expertID string, data []byte) (ExpertVerdict, bool) {
 	notes := normalizeNotes(raw.Notes)
 
 	return ExpertVerdict{
-		Expert:     expertID,
-		Verdict:    raw.Verdict,
-		Confidence: raw.Confidence,
-		Notes:      notes,
-		Replies:    normalizeReplies(raw.Replies),
-		Blocking:   raw.Blocking,
+		Expert:       expertID,
+		Verdict:      raw.Verdict,
+		Confidence:   raw.Confidence,
+		Notes:        notes,
+		Replies:      normalizeReplies(raw.Replies),
+		Blocking:     raw.Blocking,
+		ChangeReason: strings.TrimSpace(raw.ChangeReason),
 	}, true
 }
 
@@ -224,9 +226,11 @@ func tryUnmarshalCollective(text string, expectedExperts []string) (*Synthesized
 			Notes      interface{} `json:"notes"`
 			Blocking   bool        `json:"blocking"`
 		} `json:"perspectives"`
-		Agreements []string `json:"agreements"`
-		Tension    string   `json:"tension"`
-		Summary    string   `json:"summary"`
+		Agreements    []string       `json:"agreements"`
+		Disagreements []Disagreement `json:"disagreements"`
+		Decisions     []string       `json:"decisions"`
+		Tension       string         `json:"tension"`
+		Summary       string         `json:"summary"`
 	}
 
 	if err := json.Unmarshal([]byte(text), &raw); err != nil {
@@ -293,13 +297,16 @@ func tryUnmarshalCollective(text string, expectedExperts []string) (*Synthesized
 		overall = VerdictComment
 	}
 
+	// The summary is a neutral vote count; a model's recommendation is dropped.
 	return &SynthesizedResult{
-		Verdict:      overall,
-		Blocking:     raw.Blocking,
-		Perspectives: perspectives,
-		Agreements:   raw.Agreements,
-		Tension:      raw.Tension,
-		Summary:      raw.Summary,
+		Verdict:       overall,
+		Blocking:      raw.Blocking,
+		Perspectives:  perspectives,
+		Agreements:    raw.Agreements,
+		Disagreements: cleanDisagreements(raw.Disagreements, expected),
+		Decisions:     nonEmpty(raw.Decisions),
+		Tension:       raw.Tension,
+		Summary:       buildSummary(perspectives, nil, overall, raw.Blocking),
 	}, true
 }
 

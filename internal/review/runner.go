@@ -2,7 +2,6 @@ package review
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -14,11 +13,11 @@ type Runner struct {
 	Backend Backend
 	Options ReviewOptions
 
-	// OnStart, if set, is called before each expert's turn in a sequential review.
-	OnStart func(e *expert.Expert, turn, total int)
-	// OnVerdict, if set, is called as soon as each expert's verdict is in,
-	// with all verdicts so far (the new one last).
-	OnVerdict func(verdicts []ExpertVerdict)
+	// OnStart, if set, is called before each turn of a sequential review.
+	OnStart func(t Turn)
+	// OnVerdict, if set, is called after each member turn (a review or a
+	// final word) with all verdicts so far, in speaking order.
+	OnVerdict func(t Turn, verdicts []ExpertVerdict)
 }
 
 // ExpertInput pairs an expert with their blocking status from the pack.
@@ -109,38 +108,47 @@ func (r *Runner) runCollective(ctx context.Context, inputs []ExpertInput, sub Su
 	return result
 }
 
-// runSequential runs one review per expert, in order. Each expert receives
-// the earlier verdicts in its prompt so it can react to them. A failed expert
-// is recorded as an error and the review continues with the next one.
+// runSequential runs the debate turn by turn: each member reviews in order
+// seeing the earlier reviews, then (if enabled) earlier members get a final
+// word, then a moderator lists disagreements and decisions. A failed turn is
+// recorded as an error and the debate continues.
 func (r *Runner) runSequential(ctx context.Context, inputs []ExpertInput, sub Submission) *SynthesizedResult {
-	var verdicts []ExpertVerdict
-	var errors []string
-	experts := make([]*expert.Expert, 0, len(inputs))
+	d := NewDebate(inputs, sub, r.Options.FinalWord, r.Options.Moderate)
 
-	for i, inp := range inputs {
-		experts = append(experts, inp.Expert)
+	for turn, ok := d.Next(); ok; turn, ok = d.Next() {
 		if r.OnStart != nil {
-			r.OnStart(inp.Expert, i+1, len(inputs))
+			r.OnStart(turn)
 		}
 
-		turn := sub
-		turn.Prior = verdicts
-
 		callCtx, cancel := context.WithTimeout(ctx, r.timeout())
-		verdict, err := r.Backend.Review(callCtx, inp.Expert, turn)
-		cancel()
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("%s: %s", inp.Expert.ID, err))
+		if turn.Kind == TurnModerator {
+			v, err := r.Backend.Review(callCtx, Moderator, Submission{RawPrompt: turn.Prompt()})
+			cancel()
+			if err != nil {
+				d.Fail(err)
+				continue
+			}
+			raw := ""
+			if len(v.Notes) > 0 {
+				raw = v.Notes[0]
+			}
+			if !d.RecordModeration(raw) {
+				log.Println("moderator response could not be read; showing disagreements from replies instead")
+			}
 			continue
 		}
 
-		verdict.Name = inp.Expert.Name
-		verdict.Blocking = inp.Blocking
-		verdicts = append(verdicts, verdict)
+		verdict, err := r.Backend.Review(callCtx, turn.Expert, turn.Sub)
+		cancel()
+		if err != nil {
+			d.Fail(err)
+			continue
+		}
+		d.RecordVerdict(verdict)
 		if r.OnVerdict != nil {
-			r.OnVerdict(verdicts)
+			r.OnVerdict(turn, d.Verdicts())
 		}
 	}
 
-	return Synthesize(verdicts, experts, errors)
+	return d.Result()
 }

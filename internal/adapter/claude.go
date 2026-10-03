@@ -124,10 +124,11 @@ timeout (10 minutes). Progress lines go to stderr; the review goes to stdout.
 
 ### 3. Present the debate
 
-- Show each member's verdict, notes, and replies in the order they spoke.
+- Show each member's verdict, notes, and replies in the order they spoke,
+  then the final words (who changed their mind, and why).
 - Keep the disagreements visible. Do not merge them into a consensus.
-- End with the open trade-offs: where members disagree and what the user
-  has to decide. The user makes the call, not the council and not you.
+- End with the review's "Where they disagree" and "What you need to decide".
+  The user makes the call, not the council and not you.
 
 If ` + "`council review`" + ` fails (for example, no AI backend is available), say so,
 then review from each member's perspective yourself, one at a time, each

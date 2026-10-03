@@ -29,8 +29,8 @@ func TestFormatHuman(t *testing.T) {
 		"bruce-schneier",
 		"pass",
 		"Missing test coverage",
-		"Tension:",
-		"ship with comments",
+		"Where they disagree",
+		"Votes: 1 comment, 1 pass",
 	}
 
 	for _, check := range checks {
@@ -118,10 +118,49 @@ func TestFormatHumanShowsNamesAndReplies(t *testing.T) {
 	for _, want := range []string{
 		"Virtual DHH",
 		"  → disagrees with Virtual DHH:\n    The layers make it testable",
-		"Tension:\n  - Virtual Kent Beck disagrees with Virtual DHH",
+		"Where they disagree\n  - Virtual Kent Beck disagrees with Virtual DHH",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q\n\n%s", want, out)
 		}
+	}
+}
+
+func TestFormatHumanShowsFinalWordAndDecisions(t *testing.T) {
+	result := &SynthesizedResult{
+		Verdict: VerdictBlock,
+		Perspectives: []ExpertVerdict{
+			{Expert: "dhh", Name: "Virtual DHH", Verdict: VerdictComment, ChangedFrom: VerdictBlock,
+				ChangeReason: "The fake for tests is a real need", Notes: []string{"Too many layers"},
+				FinalWord: []Reply{{To: "boris-cherny", Stance: StanceAgree, Note: "Keep one small interface"}}},
+			{Expert: "boris-cherny", Name: "Virtual Boris Cherny", Verdict: VerdictBlock, Notes: []string{"No tests"}},
+		},
+		Disagreements: []Disagreement{{Topic: "Keep the Repository interface?", Sides: []Side{
+			{Experts: []string{"dhh"}, Position: "Drop it"},
+			{Experts: []string{"boris-cherny"}, Position: "Keep a small one"},
+		}}},
+		Decisions:  []string{"Do you need a test fake now, or later?"},
+		Agreements: []string{"Fix the SQL injection"},
+	}
+
+	out := FormatHuman(result, "", 2)
+
+	for _, want := range []string{
+		"Virtual DHH                                  block", // review shows the original verdict
+		"Virtual DHH — final word",
+		"block → comment",
+		"Changed verdict: The fake for tests is a real need",
+		"→ agrees with Virtual Boris Cherny:",
+		"Where they disagree\n  1. Keep the Repository interface?\n     - Virtual DHH: Drop it\n     - Virtual Boris Cherny: Keep a small one",
+		"What you need to decide\n  - Do you need a test fake now, or later?",
+		"Nobody disputed\n  - Fix the SQL injection",
+		"Votes: 1 block, 1 comment",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Ship") || strings.Contains(out, "fix before shipping") {
+		t.Errorf("output should not recommend an outcome:\n%s", out)
 	}
 }

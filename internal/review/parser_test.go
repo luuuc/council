@@ -2,18 +2,19 @@ package review
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
 func TestParseVerdict(t *testing.T) {
 	tests := []struct {
-		name       string
-		expertID   string
-		raw        string
+		name        string
+		expertID    string
+		raw         string
 		wantVerdict Verdict
-		wantConf   float64
-		wantNotes  int
-		wantError  bool // expect fallback with Error set
+		wantConf    float64
+		wantNotes   int
+		wantError   bool // expect fallback with Error set
 	}{
 		{
 			name:        "valid JSON",
@@ -409,5 +410,29 @@ func TestParseVerdictReplies(t *testing.T) {
 	want := Reply{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}
 	if v.Replies[0] != want {
 		t.Errorf("reply = %+v, want %+v", v.Replies[0], want)
+	}
+}
+
+func TestParseCollectiveDisagreementsAndDecisions(t *testing.T) {
+	raw := `{"verdict":"block","blocking":false,
+	"perspectives":[{"expert":"dhh","verdict":"block","confidence":0.9,"notes":["x"]},{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["y"]}],
+	"agreements":["Fix the injection"],
+	"disagreements":[
+	  {"topic":"Keep the interface?","sides":[{"experts":["dhh"],"position":"Drop it"},{"experts":["kent-beck","ghost"],"position":"Keep it"}]},
+	  {"topic":"One-sided","sides":[{"experts":["dhh"],"position":"only one side"}]}
+	],
+	"decisions":["Do you need a fake now?",""],
+	"summary":"Ship with comments."}`
+
+	r := ParseCollectiveResult([]byte(raw), []string{"dhh", "kent-beck"})
+
+	if len(r.Disagreements) != 1 || r.Disagreements[0].Sides[1].Experts[0] != "kent-beck" || len(r.Disagreements[0].Sides[1].Experts) != 1 {
+		t.Errorf("expected one two-sided disagreement with unknown experts removed, got %+v", r.Disagreements)
+	}
+	if len(r.Decisions) != 1 {
+		t.Errorf("expected 1 decision, got %v", r.Decisions)
+	}
+	if strings.Contains(r.Summary, "Ship") {
+		t.Errorf("summary should be a vote count, not the model's recommendation: %q", r.Summary)
 	}
 }

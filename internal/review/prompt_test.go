@@ -80,7 +80,7 @@ func TestBuildCollectivePrompt(t *testing.T) {
 		"PR: Add math utilities",
 		`"perspectives"`,
 		`"agreements"`,
-		`"tension"`,
+		`"disagreements"`,
 		"react to each other",
 	}
 

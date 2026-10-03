@@ -479,10 +479,10 @@ func TestRunnerSequentialHooks(t *testing.T) {
 	runner := &Runner{
 		Backend: backend,
 		Options: ReviewOptions{Timeout: 10},
-		OnStart: func(e *expert.Expert, turn, total int) {
-			events = append(events, fmt.Sprintf("start %s %d/%d", e.ID, turn, total))
+		OnStart: func(t Turn) {
+			events = append(events, fmt.Sprintf("start %s %d/%d", t.Expert.ID, t.Number, t.Total))
 		},
-		OnVerdict: func(verdicts []ExpertVerdict) {
+		OnVerdict: func(t Turn, verdicts []ExpertVerdict) {
 			events = append(events, fmt.Sprintf("verdict %s (%d so far)", verdicts[len(verdicts)-1].Expert, len(verdicts)))
 		},
 	}
@@ -502,4 +502,90 @@ func TestRunnerSequentialHooks(t *testing.T) {
 	if fmt.Sprint(events) != fmt.Sprint(want) {
 		t.Errorf("events = %v, want %v", events, want)
 	}
+}
+
+func TestRunnerFinalWordAndModerator(t *testing.T) {
+	backend := &MockBackend{
+		Results: map[string]ExpertVerdict{
+			"dhh":       {Verdict: VerdictBlock, Notes: []string{"Drop the interface"}},
+			"kent-beck": {Verdict: VerdictComment, Notes: []string{"Keep it for tests"}, Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "Fakes need it"}}},
+			"rob-pike":  {Verdict: VerdictBlock, Notes: []string{"Callers define interfaces"}},
+			// The moderator is called with RawPrompt; its raw answer comes back in Notes[0].
+			"moderator": {Notes: []string{`{"disagreements":[{"topic":"Keep the interface?","sides":[{"experts":["dhh","rob-pike"],"position":"Drop it"},{"experts":["kent-beck"],"position":"Keep it"}]}],"decisions":["Do you need a fake now?"]}`}},
+		},
+	}
+	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10, FinalWord: true, Moderate: true}}
+
+	inputs := []ExpertInput{
+		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
+		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+		{Expert: &expert.Expert{ID: "rob-pike", Name: "Virtual Rob Pike"}},
+	}
+	result := runner.Run(context.Background(), inputs, Submission{Content: "diff"})
+
+	// 3 reviews + 2 final words (the last speaker has nobody after them) + 1 moderator.
+	var calls []string
+	for _, c := range backend.seen {
+		kind := "review"
+		if c.sub.Own != nil {
+			kind = "final"
+		} else if c.sub.RawPrompt != "" {
+			kind = "moderator"
+		}
+		calls = append(calls, c.expert+":"+kind)
+	}
+	want := "[dhh:review kent-beck:review rob-pike:review dhh:final kent-beck:final moderator:moderator]"
+	if fmt.Sprint(calls) != want {
+		t.Errorf("calls = %v, want %s", calls, want)
+	}
+
+	// DHH's final word sees only the members who spoke after him.
+	dhhFinal := backend.seen[3].sub
+	if dhhFinal.Own == nil || dhhFinal.Own.Verdict != VerdictBlock || len(dhhFinal.Prior) != 2 {
+		t.Errorf("DHH's final word should carry his review and the 2 later reviews, got own=%+v prior=%d", dhhFinal.Own, len(dhhFinal.Prior))
+	}
+	if !strings.Contains(BuildPrompt(inputs[0].Expert, dhhFinal), "## What Came After You") {
+		t.Error("final-word prompt should show what came after the member")
+	}
+
+	if len(result.Disagreements) != 1 || len(result.Decisions) != 1 {
+		t.Errorf("expected the moderator's disagreement and decision, got %+v / %+v", result.Disagreements, result.Decisions)
+	}
+	if strings.Contains(result.Summary, "Ship") {
+		t.Errorf("summary should not recommend an outcome: %q", result.Summary)
+	}
+}
+
+func TestRunnerFinalWordChangesVerdict(t *testing.T) {
+	backend := &changingBackend{}
+	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10, FinalWord: true}}
+
+	inputs := []ExpertInput{
+		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
+		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+	}
+	result := runner.Run(context.Background(), inputs, Submission{Content: "diff"})
+
+	dhh := result.Perspectives[0]
+	if dhh.Verdict != VerdictComment || dhh.ChangedFrom != VerdictBlock || dhh.ChangeReason != "Convinced" {
+		t.Errorf("DHH should change block → comment with a reason, got %+v", dhh)
+	}
+	if len(dhh.FinalWord) != 1 || dhh.FinalWord[0].To != "kent-beck" {
+		t.Errorf("DHH's final word should answer Kent Beck, got %+v", dhh.FinalWord)
+	}
+}
+
+// changingBackend blocks on first reviews and softens to comment in final words.
+type changingBackend struct{}
+
+func (changingBackend) Review(_ context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
+	if sub.Own != nil {
+		return ExpertVerdict{Verdict: VerdictComment, ChangeReason: "Convinced",
+			Replies: []Reply{{To: "kent-beck", Stance: StanceAgree, Note: "Fair point"}}}, nil
+	}
+	return ExpertVerdict{Verdict: VerdictBlock, Notes: []string{e.ID + " note"}}, nil
+}
+
+func (changingBackend) ReviewCollective(context.Context, []*expert.Expert, Submission) (*SynthesizedResult, error) {
+	return nil, fmt.Errorf("not used")
 }

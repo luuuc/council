@@ -12,14 +12,12 @@ import (
 )
 
 // session is a council run where the MCP client's own model takes each
-// member's turn. Council keeps the order, builds each member's prompt with
-// the earlier reviews, and synthesizes the result. This works in clients
-// with no headless mode and no API key, such as Claude Desktop.
+// turn. Council keeps the order, builds each prompt with the earlier
+// reviews, and synthesizes the result. This works in clients with no
+// headless mode and no API key, such as Claude Desktop.
 type session struct {
-	inputs   []review.ExpertInput
-	sub      review.Submission
-	verdicts []review.ExpertVerdict
-	turn     int // index of the member whose review is expected next
+	debate *review.Debate
+	turn   review.Turn // the turn whose answer is expected next
 }
 
 // handleConvene implements the council_convene MCP tool.
@@ -46,7 +44,9 @@ func (s *Server) handleConvene(args map[string]any) toolCallResult {
 	if s.sessions == nil {
 		s.sessions = map[string]*session{}
 	}
-	sess := &session{inputs: inputs, sub: review.Submission{Content: content, Context: background}}
+	debate := review.NewDebate(inputs, review.Submission{Content: content, Context: background}, true, true)
+	turn, _ := debate.Next()
+	sess := &session{debate: debate, turn: turn}
 	s.sessions[id] = sess
 
 	names := make([]string, len(inputs))
@@ -55,9 +55,10 @@ func (s *Server) handleConvene(args map[string]any) toolCallResult {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Council session %s: %d members will speak in this order: %s.\n\n",
+	fmt.Fprintf(&b, "Council session %s: %d members will speak in this order: %s. "+
+		"Then earlier members get a final word, and a moderator lists disagreements and decisions.\n\n",
 		id, len(inputs), strings.Join(names, ", "))
-	b.WriteString(turnPrompt(id, sess))
+	b.WriteString(turnPrompt(id, sess.turn))
 	return textResult(b.String())
 }
 
@@ -77,52 +78,62 @@ func (s *Server) handleTurn(args map[string]any) toolCallResult {
 		return errorResult(fmt.Sprintf("unknown or finished session %q: start a new one with council_convene", id))
 	}
 
-	inp := sess.inputs[sess.turn]
-	verdict := review.ParseVerdict(inp.Expert.ID, []byte(raw))
-	if verdict.Error != "" {
-		return errorResult(fmt.Sprintf("could not read %s's review: it must be a single JSON object in the format the prompt asks for. "+
-			"Call council_turn again with session %q and the corrected JSON.", inp.Expert.Name, id))
+	retry := fmt.Sprintf("could not read the answer for %s: it must be a single JSON object in the format the prompt asks for. "+
+		"Call council_turn again with session %q and the corrected JSON.", sess.turn.Label(), id)
+	if sess.turn.Kind == review.TurnModerator {
+		if !sess.debate.RecordModeration(raw) {
+			// The turn is consumed; finish without the moderator's summary
+			// rather than looping on a summary the model can't produce.
+			return s.finish(id, sess)
+		}
+	} else {
+		verdict := review.ParseVerdict(sess.turn.Expert.ID, []byte(raw))
+		if verdict.Error != "" {
+			return errorResult(retry)
+		}
+		sess.debate.RecordVerdict(verdict)
 	}
-	verdict.Name = inp.Expert.Name
-	verdict.Blocking = inp.Blocking
-	sess.verdicts = append(sess.verdicts, verdict)
-	sess.turn++
 
-	if sess.turn < len(sess.inputs) {
-		return textResult(turnPrompt(id, sess))
+	next, more := sess.debate.Next()
+	if !more {
+		return s.finish(id, sess)
 	}
+	sess.turn = next
+	return textResult(turnPrompt(id, next))
+}
 
+// finish ends a session and returns the debate for the client to present.
+func (s *Server) finish(id string, sess *session) toolCallResult {
 	delete(s.sessions, id)
-	experts := make([]*expert.Expert, len(sess.inputs))
-	for i, in := range sess.inputs {
-		experts[i] = in.Expert
-	}
-	result := review.Synthesize(sess.verdicts, experts, nil)
+	result := sess.debate.Result()
 
 	var b strings.Builder
 	b.WriteString("The council has finished. Present the debate to the user:\n" +
-		"- Each member's verdict, notes, and replies, in the order they spoke.\n" +
-		"- Keep the disagreements visible. Do not merge them into a consensus.\n" +
-		"- End with the open trade-offs: where members disagree and what the user has to decide.\n\n")
-	b.WriteString(review.FormatHuman(result, "", len(experts)))
+		"- Each member's verdict, notes, and replies, in the order they spoke, then the final words.\n" +
+		"- Keep the disagreements visible. Do not merge them into a consensus or recommend an outcome.\n" +
+		"- End with where they disagree and what the user has to decide. The user makes the call.\n\n")
+	b.WriteString(review.FormatHuman(result, "", len(result.Perspectives)))
 	return textResult(b.String())
 }
 
 // turnPrompt tells the client's model whose turn it is and gives it that
-// member's review prompt, including the earlier reviews.
-func turnPrompt(id string, sess *session) string {
-	inp := sess.inputs[sess.turn]
-	turn := sess.sub
-	turn.Prior = sess.verdicts
-
+// turn's prompt.
+func turnPrompt(id string, t review.Turn) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Turn %d of %d: %s.\n\n", sess.turn+1, len(sess.inputs), inp.Expert.Name)
-	fmt.Fprintf(&b, "Write this member's review by following the prompt below as %s. "+
-		"Speak only for them: hold their positions even where they clash with earlier members, "+
-		"and do not soften the review toward a consensus. "+
-		"Then call council_turn with session %q and review set to the JSON object only.\n\n", inp.Expert.Name, id)
-	b.WriteString("----- prompt for " + inp.Expert.Name + " -----\n\n")
-	b.WriteString(review.BuildPrompt(inp.Expert, turn))
+	fmt.Fprintf(&b, "Turn %d of up to %d: %s.\n\n", t.Number, t.Total, t.Label())
+	switch t.Kind {
+	case review.TurnModerator:
+		b.WriteString("Write the moderator's summary by following the prompt below. Stay neutral: no opinion, no vote, no recommendation. ")
+	case review.TurnFinalWord:
+		fmt.Fprintf(&b, "Write %s's final word by following the prompt below. Hold their positions; concede only where the later members really convinced them. ", t.Expert.Name)
+	default:
+		fmt.Fprintf(&b, "Write this member's review by following the prompt below as %s. "+
+			"Speak only for them: hold their positions even where they clash with earlier members, "+
+			"and do not soften the review toward a consensus. ", t.Expert.Name)
+	}
+	fmt.Fprintf(&b, "Then call council_turn with session %q and review set to the JSON object only.\n\n", id)
+	b.WriteString("----- prompt: " + t.Label() + " -----\n\n")
+	b.WriteString(t.Prompt())
 	return b.String()
 }
 

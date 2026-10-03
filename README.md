@@ -97,9 +97,9 @@ git diff main | council review --pack go
 council review --pack rails --file app/models/user.rb --json
 ```
 
-Each expert returns a verdict (pass / comment / block / escalate), notes, and replies to the experts before them. The output shows who disagreed with whom, so you see the trade-offs and make the call.
+Each expert returns a verdict (pass / comment / block / escalate), notes, and replies to the experts before them. Then the earlier experts get a final word on what came after them, and may change their verdict. A neutral moderator closes with **where they disagree** and **what you need to decide**. Council doesn't recommend an outcome: you make the call.
 
-Sequential review makes one LLM call per expert. `--mode collective` makes a single call that plays every expert at once: cheaper, but the debate is simulated.
+A review makes about two LLM calls per expert (review, final word) plus one for the moderator. `--quick` skips the final word and the moderator. `--mode collective` makes a single call that plays every expert at once: cheapest, but the debate is simulated.
 
 Each expert's review prints as soon as it's done, so you watch the debate unfold.
 

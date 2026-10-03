@@ -12,14 +12,33 @@ var promptTemplate = template.Must(template.New("review-prompt").Parse(`You are 
 ## Your Persona
 
 {{.Expert.Body}}
-{{if .Submission.Prior}}
+{{- with .Submission.Own}}
+
+## Your Review
+
+You already reviewed this submission:
+
+### {{.Verdict}}
+{{range .Notes}}
+- {{.}}{{end}}{{range .Replies}}
+- [{{.Stance}} {{.To}}] {{.Note}}{{end}}
+{{- end}}
+{{- if .Submission.Prior}}
+{{if .Submission.Own}}
+## What Came After You
+
+These members spoke after you. This is your final word: answer their points
+that concern you. Push back where they are wrong, concede where they convinced
+you, and change your verdict only if they did. Do not repeat your review.
+{{else}}
 ## The Council So Far
 
 You speak after these members. Read their reviews. Do not repeat what they said.
 Stay true to your own views: push back where you disagree, back them up where
 you agree for your own reasons, and add what they missed. Do not agree just to
 be agreeable — the disagreements are the most useful part of the review.
-{{range .Submission.Prior}}
+{{end}}
+{{- range .Submission.Prior}}
 ### {{if .Name}}{{.Name}}{{else}}{{.Expert}}{{end}} ({{.Expert}}) — {{.Verdict}}
 {{range .Notes}}
 - {{.}}{{end}}{{range .Replies}}
@@ -38,7 +57,14 @@ be agreeable — the disagreements are the most useful part of the review.
 ## Response Format
 
 You MUST respond with ONLY a JSON object matching this exact schema. No markdown, no code fences, no explanation before or after.
+{{if .Submission.Own}}
+{"expert":"{{.Expert.ID}}","verdict":"<pass|comment|block|escalate>","change_reason":"<why you changed your verdict, or empty>","replies":[{"to":"<expert-id>","stance":"<agree|disagree|adds>","note":"<your answer to their point>"}],"blocking":false}
 
+Field definitions:
+- verdict: your verdict now — the same as before unless the others changed your mind
+- change_reason: if your verdict changed, what convinced you; otherwise ""
+- replies: your answers to the members who spoke after you, by their expert id — "disagree" (they are wrong), "agree" (they convinced you or you back them), "adds" (you build on their point). Use an empty list if nothing they said concerns you.
+{{else}}
 {"expert":"{{.Expert.ID}}","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation 1>","<observation 2>"],{{if .Submission.Prior}}"replies":[{"to":"<expert-id>","stance":"<agree|disagree|adds>","note":"<your reaction to their point>"}],{{end}}"blocking":false}
 
 Field definitions:
@@ -49,7 +75,7 @@ Field definitions:
 {{- if .Submission.Prior}}
 - replies: your reactions to earlier members, by their expert id — "disagree" (you think they are wrong), "agree" (you back them, with your own reason), "adds" (you build on their point). Use an empty list if you have nothing to say to them.
 {{- end}}
-
+{{end}}
 Respond with ONLY the JSON object. Nothing else.`))
 
 type promptData struct {
@@ -91,14 +117,14 @@ Review the submission from each expert's perspective. Experts should react to ea
 
 Respond with ONLY a JSON object matching this exact schema. No markdown, no code fences, no explanation before or after.
 
-{"verdict":"<pass|comment|block|escalate>","blocking":false,"perspectives":[{"expert":"<expert-id>","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation>"],"blocking":false}],"agreements":["<things all experts agree on>"],"tension":"<where experts disagree and why>","summary":"<one-line recommendation>"}
+{"verdict":"<pass|comment|block|escalate>","blocking":false,"perspectives":[{"expert":"<expert-id>","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation>"],"blocking":false}],"agreements":["<things all experts agree on>"],"disagreements":[{"topic":"<the open question>","sides":[{"experts":["<expert-id>"],"position":"<what they hold>"}]}],"decisions":["<a question the author must answer, naming the trade-off>"]}
 
 Field definitions:
 - verdict: overall recommendation — "pass" (no issues), "comment" (suggestions), "block" (must fix), "escalate" (beyond expertise)
 - perspectives: one entry per expert with their individual assessment
 - agreements: observations that all experts share
-- tension: where experts disagree — articulate both sides
-- summary: one-line recommendation for the author
+- disagreements: where experts take different positions, with the expert ids on each side
+- decisions: questions the author must answer — not recommendations. The author decides, not the council.
 
 Each perspective must be substantive — skip an expert rather than produce a generic observation. Respond with ONLY the JSON object. Nothing else.`))
 

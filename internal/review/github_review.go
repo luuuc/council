@@ -138,48 +138,51 @@ func formatReviewBody(result *SynthesizedResult, packName string, expertCount in
 
 	b.WriteString("## Council Review\n\n")
 
-	passCount := 0
-	commentCount := 0
-	blockCount := 0
+	fmt.Fprintf(&b, "**Votes:** %s.", voteCount(result.Perspectives))
+	if result.Blocking {
+		b.WriteString(" Blocked: a blocking member voted block or escalate.")
+	}
+	b.WriteString("\n\n")
+
+	names := map[string]string{}
 	for _, p := range result.Perspectives {
-		switch p.Verdict {
-		case VerdictPass:
-			passCount++
-		case VerdictComment:
-			commentCount++
-		case VerdictBlock, VerdictEscalate:
-			blockCount++
+		names[p.Expert] = perspectiveName(p)
+	}
+
+	switch {
+	case len(result.Disagreements) > 0:
+		b.WriteString("### Where they disagree\n")
+		for _, d := range result.Disagreements {
+			fmt.Fprintf(&b, "- **%s**\n", d.Topic)
+			for _, side := range d.Sides {
+				var who []string
+				for _, id := range side.Experts {
+					who = append(who, nameOr(names, id))
+				}
+				fmt.Fprintf(&b, "  - %s: %s\n", strings.Join(who, ", "), side.Position)
+			}
 		}
-	}
-
-	fmt.Fprintf(&b, "**Verdict: %s**", result.Verdict)
-	parts := []string{}
-	if passCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d passed", passCount))
-	}
-	if commentCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d commented", commentCount))
-	}
-	if blockCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d blocked", blockCount))
-	}
-	if len(parts) > 0 {
-		fmt.Fprintf(&b, " — %s", strings.Join(parts, ", "))
-	}
-	b.WriteString(".\n\n")
-
-	if len(result.Agreements) > 0 {
-		b.WriteString("### Agreements\n")
-		for _, a := range result.Agreements {
-			fmt.Fprintf(&b, "- %s\n", a)
+		b.WriteByte('\n')
+	case result.Tension != "":
+		b.WriteString("### Where they disagree\n")
+		for _, l := range strings.Split(result.Tension, "\n") {
+			fmt.Fprintf(&b, "- %s\n", l)
 		}
 		b.WriteByte('\n')
 	}
 
-	if result.Tension != "" {
-		b.WriteString("### Tension\n")
-		for _, l := range strings.Split(result.Tension, "\n") {
-			fmt.Fprintf(&b, "- %s\n", l)
+	if len(result.Decisions) > 0 {
+		b.WriteString("### What you need to decide\n")
+		for _, d := range result.Decisions {
+			fmt.Fprintf(&b, "- %s\n", d)
+		}
+		b.WriteByte('\n')
+	}
+
+	if len(result.Agreements) > 0 {
+		b.WriteString("### Nobody disputed\n")
+		for _, a := range result.Agreements {
+			fmt.Fprintf(&b, "- %s\n", a)
 		}
 		b.WriteByte('\n')
 	}

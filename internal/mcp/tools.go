@@ -41,7 +41,9 @@ func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCall
 	runner := &review.Runner{
 		Backend: backend,
 		Options: review.ReviewOptions{
-			Timeout: s.config.AI.Timeout,
+			Timeout:   s.config.AI.Timeout,
+			FinalWord: true,
+			Moderate:  true,
 		},
 	}
 
