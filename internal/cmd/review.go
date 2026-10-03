@@ -21,6 +21,7 @@ var (
 	reviewBackend  string
 	reviewProvider string
 	reviewModel    string
+	reviewMode     string
 )
 
 func init() {
@@ -34,16 +35,18 @@ func init() {
 	reviewCmd.Flags().StringVar(&reviewBackend, "backend", "", "Backend: cli or api")
 	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "API provider: anthropic, openai, ollama, github")
 	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "LLM model override")
+	reviewCmd.Flags().StringVar(&reviewMode, "mode", string(review.ModeSequential), "Review mode: sequential (one call per expert, each reacts to the others) or collective (one call, cheaper)")
 }
 
 var reviewCmd = &cobra.Command{
 	Use:   "review",
-	Short: "Run a collective council review",
-	Long: `Run a collective council review where all experts review together.
+	Short: "Run a council review where experts react to each other",
+	Long: `Run a council review. Experts speak one at a time, in pack order.
+Each one sees the earlier reviews and can disagree, back them up, or add
+what they missed. The disagreements are part of the output.
 
-All experts see each other's perspectives and can react to them.
-The tension between perspectives produces richer, more nuanced reviews.
-Falls back to per-expert review for small-context models.
+--mode collective runs one call that plays every expert at once. It is
+cheaper (one call instead of one per expert) but the debate is simulated.
 
 Input can be a diff from stdin or a file via --file.
 
@@ -56,6 +59,7 @@ Examples:
   council review --pack code --file src/controller.rb
   council review --expert kent-beck --file lib/utils.rb
   git diff main | council review --pack rails --json
+  git diff main | council review --pack go --mode collective
   git diff main | council review --backend api --provider github --output github-pr`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,6 +68,11 @@ Examples:
 }
 
 func runReview(cmd *cobra.Command) error {
+	mode := review.Mode(reviewMode)
+	if mode != review.ModeSequential && mode != review.ModeCollective {
+		return fmt.Errorf("invalid --mode %q: use sequential or collective", reviewMode)
+	}
+
 	// Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -95,8 +104,8 @@ func runReview(cmd *cobra.Command) error {
 	runner := &review.Runner{
 		Backend: backend,
 		Options: review.ReviewOptions{
-			Concurrency: cfg.AI.Concurrency,
-			Timeout:     cfg.AI.Timeout,
+			Mode:    mode,
+			Timeout: cfg.AI.Timeout,
 		},
 	}
 

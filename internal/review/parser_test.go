@@ -387,3 +387,27 @@ func mustJSON(v any) string {
 	}
 	return string(b)
 }
+
+func TestParseVerdictReplies(t *testing.T) {
+	raw := `Here is my review:
+{"expert":"kent-beck","verdict":"comment","confidence":0.8,"notes":["Add a test"],
+ "replies":[
+  {"to":"dhh","stance":"Disagree","note":"The layers make it testable"},
+  {"to":"rob-pike","stance":"shrug","note":"unknown stance is dropped"},
+  {"to":"","stance":"agree","note":"missing target is dropped"},
+  {"to":"rob-pike","stance":"adds","note":""}
+ ],"blocking":false}`
+
+	v := ParseVerdict("kent-beck", []byte(raw))
+
+	if v.Error != "" {
+		t.Fatalf("unexpected parse error: %s (notes: %v)", v.Error, v.Notes)
+	}
+	if len(v.Replies) != 1 {
+		t.Fatalf("expected 1 valid reply, got %d: %+v", len(v.Replies), v.Replies)
+	}
+	want := Reply{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}
+	if v.Replies[0] != want {
+		t.Errorf("reply = %+v, want %+v", v.Replies[0], want)
+	}
+}

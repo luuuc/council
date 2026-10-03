@@ -13,17 +13,24 @@ import (
 
 // MockBackend returns canned verdicts for testing.
 type MockBackend struct {
-	Results           map[string]ExpertVerdict
-	Errors            map[string]error
-	CollectiveResult  *SynthesizedResult
-	CollectiveErr     error
-	Delay             time.Duration
-	calls             atomic.Int32
-	collectiveCalls   atomic.Int32
+	Results          map[string]ExpertVerdict
+	Errors           map[string]error
+	CollectiveResult *SynthesizedResult
+	CollectiveErr    error
+	Delay            time.Duration
+	calls            atomic.Int32
+	collectiveCalls  atomic.Int32
+	seen             []reviewCall // Review calls in order (sequential runs only)
+}
+
+type reviewCall struct {
+	expert string
+	sub    Submission
 }
 
 func (m *MockBackend) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
 	m.calls.Add(1)
+	m.seen = append(m.seen, reviewCall{expert: e.ID, sub: sub})
 
 	if m.Delay > 0 {
 		select {
@@ -96,7 +103,7 @@ func TestRunnerCollectiveHappyPath(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Timeout: 10},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -137,7 +144,7 @@ func TestRunnerCollectiveBlockingFromPackConfig(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Timeout: 10},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -175,7 +182,7 @@ func TestRunnerCollectiveHierarchyOverride(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Timeout: 10},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -190,7 +197,7 @@ func TestRunnerCollectiveHierarchyOverride(t *testing.T) {
 	}
 }
 
-func TestRunnerSingleExpertUsesPerExpertPath(t *testing.T) {
+func TestRunnerSingleExpertUsesSequentialPath(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
 			"kent-beck": {Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
@@ -199,7 +206,7 @@ func TestRunnerSingleExpertUsesPerExpertPath(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -229,7 +236,7 @@ func TestRunnerFallbackOnLargePrompt(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 10},
 	}
 
 	// Create a submission large enough to exceed CollectiveThreshold
@@ -243,7 +250,7 @@ func TestRunnerFallbackOnLargePrompt(t *testing.T) {
 	result := runner.Run(context.Background(), inputs, Submission{Content: largeContent})
 
 	if backend.calls.Load() != 2 {
-		t.Errorf("expected 2 per-expert Review calls for fallback, got %d", backend.calls.Load())
+		t.Errorf("expected 2 sequential Review calls for fallback, got %d", backend.calls.Load())
 	}
 	if backend.collectiveCalls.Load() != 0 {
 		t.Errorf("expected 0 ReviewCollective calls for fallback, got %d", backend.collectiveCalls.Load())
@@ -260,7 +267,7 @@ func TestRunnerCollectiveContextCancellation(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Timeout: 1},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 1},
 	}
 
 	inputs := []ExpertInput{
@@ -273,13 +280,13 @@ func TestRunnerCollectiveContextCancellation(t *testing.T) {
 
 	result := runner.Run(ctx, inputs, Submission{Content: "test diff"})
 
-	// Collective fails due to timeout, falls back to per-expert which also times out
+	// Collective fails due to timeout, falls back to sequential which also times out
 	if len(result.Errors) == 0 {
 		t.Error("expected errors from timeout, got none")
 	}
 }
 
-func TestRunnerCollectiveErrorFallsBackToPerExpert(t *testing.T) {
+func TestRunnerCollectiveErrorFallsBackToSequential(t *testing.T) {
 	backend := &MockBackend{
 		CollectiveErr: fmt.Errorf("API rate limited"),
 		Results: map[string]ExpertVerdict{
@@ -290,7 +297,7 @@ func TestRunnerCollectiveErrorFallsBackToPerExpert(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Mode: ModeCollective, Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -304,7 +311,7 @@ func TestRunnerCollectiveErrorFallsBackToPerExpert(t *testing.T) {
 		t.Errorf("expected 1 collective call, got %d", backend.collectiveCalls.Load())
 	}
 	if backend.calls.Load() != 2 {
-		t.Errorf("expected 2 per-expert fallback calls, got %d", backend.calls.Load())
+		t.Errorf("expected 2 sequential fallback calls, got %d", backend.calls.Load())
 	}
 	if len(result.Perspectives) != 2 {
 		t.Fatalf("expected 2 perspectives from fallback, got %d", len(result.Perspectives))
@@ -317,7 +324,7 @@ func TestRunnerCollectiveErrorFallsBackToPerExpert(t *testing.T) {
 	}
 }
 
-func TestRunnerPerExpertPartialFailure(t *testing.T) {
+func TestRunnerSequentialPartialFailure(t *testing.T) {
 	backend := &MockBackend{
 		Results: map[string]ExpertVerdict{
 			"kent-beck": {Expert: "kent-beck", Verdict: VerdictPass, Confidence: 0.9},
@@ -329,10 +336,9 @@ func TestRunnerPerExpertPartialFailure(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Timeout: 10},
 	}
 
-	// Single expert uses per-expert path
 	inputs := []ExpertInput{
 		{Expert: &expert.Expert{ID: "kent-beck", Name: "Kent Beck", Focus: "TDD"}},
 	}
@@ -344,7 +350,7 @@ func TestRunnerPerExpertPartialFailure(t *testing.T) {
 	}
 }
 
-func TestRunnerPerExpertAllFail(t *testing.T) {
+func TestRunnerSequentialAllFail(t *testing.T) {
 	backend := &MockBackend{
 		Errors: map[string]error{
 			"kent-beck": fmt.Errorf("timeout"),
@@ -353,7 +359,7 @@ func TestRunnerPerExpertAllFail(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Timeout: 10},
 	}
 
 	inputs := []ExpertInput{
@@ -370,14 +376,14 @@ func TestRunnerPerExpertAllFail(t *testing.T) {
 	}
 }
 
-func TestRunnerPerExpertContextCancellation(t *testing.T) {
+func TestRunnerSequentialContextCancellation(t *testing.T) {
 	backend := &MockBackend{
 		Delay: 5 * time.Second,
 	}
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 1},
+		Options: ReviewOptions{Timeout: 1},
 	}
 
 	inputs := []ExpertInput{
@@ -394,60 +400,75 @@ func TestRunnerPerExpertContextCancellation(t *testing.T) {
 	}
 }
 
-func TestRunnerPerExpertConcurrencyLimit(t *testing.T) {
-	var maxConcurrent atomic.Int32
-	var current atomic.Int32
+func TestRunnerDefaultsToSequential(t *testing.T) {
+	backend := &MockBackend{}
+	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10}}
 
+	inputs := []ExpertInput{
+		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck", Focus: "TDD"}},
+		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Virtual Bruce Schneier", Focus: "Security"}},
+	}
+
+	runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
+
+	if backend.calls.Load() != 2 {
+		t.Errorf("expected 2 Review calls, got %d", backend.calls.Load())
+	}
+	if backend.collectiveCalls.Load() != 0 {
+		t.Errorf("expected 0 ReviewCollective calls, got %d", backend.collectiveCalls.Load())
+	}
+}
+
+func TestRunnerSequentialPassesPriorReviews(t *testing.T) {
 	backend := &MockBackend{
-		Delay: 50 * time.Millisecond,
+		Results: map[string]ExpertVerdict{
+			"dhh":       {Expert: "dhh", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
+			"kent-beck": {Expert: "kent-beck", Verdict: VerdictComment, Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}}},
+		},
+		Errors: map[string]error{"rob-pike": fmt.Errorf("timeout")},
+	}
+	runner := &Runner{Backend: backend, Options: ReviewOptions{Timeout: 10}}
+
+	inputs := []ExpertInput{
+		{Expert: &expert.Expert{ID: "dhh", Name: "Virtual DHH"}},
+		{Expert: &expert.Expert{ID: "rob-pike", Name: "Virtual Rob Pike"}},
+		{Expert: &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}},
+		{Expert: &expert.Expert{ID: "bruce-schneier", Name: "Virtual Bruce Schneier"}},
 	}
 
-	wrapper := &concurrencyTracker{
-		inner:         backend,
-		current:       &current,
-		maxConcurrent: &maxConcurrent,
-	}
+	result := runner.Run(context.Background(), inputs, Submission{Content: "test diff"})
 
-	runner := &Runner{
-		Backend: wrapper,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+	// Order is preserved and each expert sees only successful earlier reviews.
+	wantPrior := map[string][]string{
+		"dhh":            nil,
+		"rob-pike":       {"dhh"},
+		"kent-beck":      {"dhh"},
+		"bruce-schneier": {"dhh", "kent-beck"},
 	}
-
-	// 5 experts triggers large-prompt fallback (collective prompt > threshold not guaranteed
-	// with tiny bodies, so use large content to force fallback)
-	largeContent := strings.Repeat("x", CollectiveThreshold)
-	inputs := make([]ExpertInput, 5)
-	for i := range inputs {
-		inputs[i] = ExpertInput{
-			Expert: &expert.Expert{ID: fmt.Sprintf("expert-%d", i), Name: fmt.Sprintf("Expert %d", i), Focus: "Testing"},
+	if len(backend.seen) != len(inputs) {
+		t.Fatalf("expected %d calls, got %d", len(inputs), len(backend.seen))
+	}
+	for i, inp := range inputs {
+		call := backend.seen[i]
+		if call.expert != inp.Expert.ID {
+			t.Errorf("call %d: expert = %s, want %s", i, call.expert, inp.Expert.ID)
+		}
+		var got []string
+		for _, p := range call.sub.Prior {
+			got = append(got, p.Expert)
+		}
+		if fmt.Sprint(got) != fmt.Sprint(wantPrior[inp.Expert.ID]) {
+			t.Errorf("%s saw prior %v, want %v", inp.Expert.ID, got, wantPrior[inp.Expert.ID])
 		}
 	}
 
-	runner.Run(context.Background(), inputs, Submission{Content: largeContent})
-
-	if maxConcurrent.Load() > 2 {
-		t.Errorf("max concurrent = %d, want <= 2", maxConcurrent.Load())
+	if backend.seen[2].sub.Prior[0].Name != "Virtual DHH" {
+		t.Errorf("prior review should carry the expert name, got %q", backend.seen[2].sub.Prior[0].Name)
 	}
-}
-
-type concurrencyTracker struct {
-	inner         Backend
-	current       *atomic.Int32
-	maxConcurrent *atomic.Int32
-}
-
-func (c *concurrencyTracker) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
-	n := c.current.Add(1)
-	for {
-		old := c.maxConcurrent.Load()
-		if n <= old || c.maxConcurrent.CompareAndSwap(old, n) {
-			break
-		}
+	if len(result.Errors) != 1 {
+		t.Errorf("expected 1 error, got %v", result.Errors)
 	}
-	defer c.current.Add(-1)
-	return c.inner.Review(ctx, e, sub)
-}
-
-func (c *concurrencyTracker) ReviewCollective(ctx context.Context, experts []*expert.Expert, sub Submission) (*SynthesizedResult, error) {
-	return c.inner.ReviewCollective(ctx, experts, sub)
+	if !strings.Contains(result.Tension, "Virtual Kent Beck disagrees with Virtual DHH") {
+		t.Errorf("tension should come from the disagree reply, got %q", result.Tension)
+	}
 }

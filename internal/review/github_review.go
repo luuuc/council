@@ -178,7 +178,10 @@ func formatReviewBody(result *SynthesizedResult, packName string, expertCount in
 
 	if result.Tension != "" {
 		b.WriteString("### Tension\n")
-		fmt.Fprintf(&b, "%s\n\n", result.Tension)
+		for _, l := range strings.Split(result.Tension, "\n") {
+			fmt.Fprintf(&b, "- %s\n", l)
+		}
+		b.WriteByte('\n')
 	}
 
 	if len(result.Perspectives) > 0 {
@@ -190,7 +193,7 @@ func formatReviewBody(result *SynthesizedResult, packName string, expertCount in
 			if len(p.Notes) > 0 {
 				concern = truncateString(p.Notes[0], 80)
 			}
-			fmt.Fprintf(&b, "| %s | %s | %s |\n", p.Expert, p.Verdict, concern)
+			fmt.Fprintf(&b, "| %s | %s | %s |\n", perspectiveName(p), p.Verdict, concern)
 		}
 		b.WriteByte('\n')
 	}
@@ -227,7 +230,7 @@ func extractInlineComments(result *SynthesizedResult, dp *DiffPosition) ([]GitHu
 				continue
 			}
 
-			body := fmt.Sprintf("**%s** (%s):\n%s", p.Expert, p.Verdict, text)
+			body := fmt.Sprintf("**%s** (%s):\n%s", perspectiveName(p), p.Verdict, text)
 
 			pos, ok := dp.Position(file, line)
 			if ok {
@@ -312,4 +315,12 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// perspectiveName returns the expert's display name, falling back to the ID.
+func perspectiveName(p ExpertVerdict) string {
+	if p.Name != "" {
+		return p.Name
+	}
+	return p.Expert
 }

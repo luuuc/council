@@ -138,8 +138,7 @@ func runServer(input string, backend review.Backend) (string, error) {
 	srv := NewServer(reader, &writer, "test", opts...)
 	srv.config = &config.Config{
 		AI: config.AIConfig{
-			Concurrency: 2,
-			Timeout:     10,
+			Timeout: 10,
 		},
 	}
 

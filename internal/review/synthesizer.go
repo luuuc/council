@@ -117,8 +117,14 @@ func findAgreements(verdicts []ExpertVerdict) []string {
 	return agreements
 }
 
-// findTension checks for known tension pairs among disagreeing experts.
+// findTension reports where experts disagree. Disagreements the experts
+// voiced in their replies come first; otherwise it falls back to known
+// tension pairs among experts with different verdicts.
 func findTension(verdicts []ExpertVerdict, experts map[string]*expert.Expert) string {
+	if t := replyDisagreements(verdicts, experts); t != "" {
+		return t
+	}
+
 	// Find pairs of experts who disagree
 	for i := 0; i < len(verdicts); i++ {
 		for j := i + 1; j < len(verdicts); j++ {
@@ -137,6 +143,32 @@ func findTension(verdicts []ExpertVerdict, experts map[string]*expert.Expert) st
 		}
 	}
 	return ""
+}
+
+// replyDisagreements lists every "disagree" reply, one per line.
+func replyDisagreements(verdicts []ExpertVerdict, experts map[string]*expert.Expert) string {
+	var lines []string
+	for _, v := range verdicts {
+		for _, r := range v.Replies {
+			if r.Stance != StanceDisagree {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("%s disagrees with %s: %s",
+				displayName(v.Expert, v.Name, experts), displayName(r.To, "", experts), r.Note))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// displayName prefers the verdict's name, then the expert's name, then the ID.
+func displayName(id, name string, experts map[string]*expert.Expert) string {
+	if name != "" {
+		return name
+	}
+	if e, ok := experts[id]; ok && e.Name != "" {
+		return e.Name
+	}
+	return id
 }
 
 // lookupTension checks both directions for a defined tension between two experts.

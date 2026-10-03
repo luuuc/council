@@ -101,3 +101,27 @@ func TestFormatJSON(t *testing.T) {
 		t.Errorf("parsed verdict = %q, want %q", parsed.Verdict, VerdictComment)
 	}
 }
+
+func TestFormatHumanShowsNamesAndReplies(t *testing.T) {
+	result := &SynthesizedResult{
+		Verdict: VerdictComment,
+		Perspectives: []ExpertVerdict{
+			{Expert: "dhh", Name: "Virtual DHH", Verdict: VerdictBlock, Notes: []string{"Too many layers"}},
+			{Expert: "kent-beck", Name: "Virtual Kent Beck", Verdict: VerdictComment,
+				Replies: []Reply{{To: "dhh", Stance: StanceDisagree, Note: "The layers make it testable"}}},
+		},
+		Tension: "Virtual Kent Beck disagrees with Virtual DHH: The layers make it testable\nVirtual DHH disagrees with nobody",
+	}
+
+	out := FormatHuman(result, "", 2)
+
+	for _, want := range []string{
+		"Virtual DHH",
+		"  → disagrees with Virtual DHH:\n    The layers make it testable",
+		"Tension:\n  - Virtual Kent Beck disagrees with Virtual DHH",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\n\n%s", want, out)
+		}
+	}
+}

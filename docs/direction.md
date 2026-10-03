@@ -31,7 +31,7 @@ A good Council mixes people with different incentives. An engineering Council mi
 The current CLI moved away from these ideas. These are the changes needed to get back:
 
 - **Real-person personas, with the Virtual prefix.** Done: the library is back to 97 real-person personas named "Virtual X". Roles (security engineer, SRE) can still be added as custom personas.
-- **Make review sequential.** Today's collective review asks one LLM call to play everyone at once. Each persona should get its own turn, with the prior reviews in its prompt.
+- **Sequential review.** Done: each persona gets its own call with the earlier reviews in its prompt, and replies to them (agree, disagree, adds). The one-call collective review remains as `--mode collective`.
 - **Keep the debate in the output.** Show who said what, who disagreed with whom, and where it stayed unresolved, instead of collapsing it into a single recommendation.
 - **Add customer personas.** Let a Council include user types alongside experts.
 - **Support Councils of Councils.** Run several Councils and let their conclusions challenge each other.

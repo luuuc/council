@@ -582,7 +582,7 @@ func TestAPIBackendRunnerIntegration(t *testing.T) {
 
 	runner := &Runner{
 		Backend: backend,
-		Options: ReviewOptions{Concurrency: 2, Timeout: 10},
+		Options: ReviewOptions{Timeout: 10},
 	}
 
 	inputs := []ExpertInput{

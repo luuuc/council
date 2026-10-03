@@ -12,7 +12,19 @@ var promptTemplate = template.Must(template.New("review-prompt").Parse(`You are 
 ## Your Persona
 
 {{.Expert.Body}}
+{{if .Submission.Prior}}
+## The Council So Far
 
+You speak after these members. Read their reviews. Do not repeat what they said.
+Stay true to your own views: push back where you disagree, back them up where
+you agree for your own reasons, and add what they missed. Do not agree just to
+be agreeable — the disagreements are the most useful part of the review.
+{{range .Submission.Prior}}
+### {{if .Name}}{{.Name}}{{else}}{{.Expert}}{{end}} ({{.Expert}}) — {{.Verdict}}
+{{range .Notes}}
+- {{.}}{{end}}{{range .Replies}}
+- [{{.Stance}} {{.To}}] {{.Note}}{{end}}
+{{end}}{{end}}
 ## Submission
 
 ` + "```" + `
@@ -27,13 +39,16 @@ var promptTemplate = template.Must(template.New("review-prompt").Parse(`You are 
 
 You MUST respond with ONLY a JSON object matching this exact schema. No markdown, no code fences, no explanation before or after.
 
-{"expert":"{{.Expert.ID}}","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation 1>","<observation 2>"],"blocking":false}
+{"expert":"{{.Expert.ID}}","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation 1>","<observation 2>"],{{if .Submission.Prior}}"replies":[{"to":"<expert-id>","stance":"<agree|disagree|adds>","note":"<your reaction to their point>"}],{{end}}"blocking":false}
 
 Field definitions:
 - verdict: "pass" (no issues), "comment" (suggestions worth considering), "block" (must fix before shipping), "escalate" (beyond your expertise to judge)
 - confidence: how confident you are in your assessment, from 0.0 to 1.0
 - notes: specific observations from your area of expertise — be direct and concrete
 - blocking: true only if this is a blocking issue that must be resolved
+{{- if .Submission.Prior}}
+- replies: your reactions to earlier members, by their expert id — "disagree" (you think they are wrong), "agree" (you back them, with your own reason), "adds" (you build on their point). Use an empty list if you have nothing to say to them.
+{{- end}}
 
 Respond with ONLY the JSON object. Nothing else.`))
 

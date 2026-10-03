@@ -28,13 +28,12 @@ type Config struct {
 
 // AIConfig holds AI configuration for reviews.
 type AIConfig struct {
-	Command     string   `yaml:"command,omitempty"`
-	Args        []string `yaml:"args,omitempty"`
-	Backend     string   `yaml:"backend,omitempty"`     // "cli" or "api"
-	Provider    string   `yaml:"provider,omitempty"`     // "anthropic", "openai", "ollama"
-	Model       string   `yaml:"model,omitempty"`        // e.g. "claude-sonnet-4-6", "gpt-4o"
-	Timeout     int      `yaml:"timeout"`
-	Concurrency int      `yaml:"concurrency,omitempty"`
+	Command  string   `yaml:"command,omitempty"`
+	Args     []string `yaml:"args,omitempty"`
+	Backend  string   `yaml:"backend,omitempty"`  // "cli" or "api"
+	Provider string   `yaml:"provider,omitempty"` // "anthropic", "openai", "ollama"
+	Model    string   `yaml:"model,omitempty"`    // e.g. "claude-sonnet-4-6", "gpt-4o"
+	Timeout  int      `yaml:"timeout"`
 }
 
 // ValidBackends is the set of recognized backend values.
@@ -180,11 +179,6 @@ func (c *Config) applyDefaults() {
 	// If no timeout specified, use default
 	if c.AI.Timeout == 0 {
 		c.AI.Timeout = defaults.AI.Timeout
-	}
-
-	// If no concurrency specified, use default
-	if c.AI.Concurrency == 0 {
-		c.AI.Concurrency = 4
 	}
 }
 

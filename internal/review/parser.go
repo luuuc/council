@@ -31,14 +31,21 @@ func ParseVerdict(expertID string, raw []byte) ExpertVerdict {
 		}
 	}
 
-	// Strategy 3: regex extract JSON object containing "verdict"
+	// Strategy 3: outermost braces (handles nested objects like replies)
+	if start, end := strings.IndexByte(text, '{'), strings.LastIndexByte(text, '}'); start >= 0 && end > start {
+		if v, ok := tryUnmarshal(expertID, []byte(text[start:end+1])); ok {
+			return v
+		}
+	}
+
+	// Strategy 4: regex extract flat JSON object containing "verdict"
 	if match := jsonObjectRe.FindString(text); match != "" {
 		if v, ok := tryUnmarshal(expertID, []byte(match)); ok {
 			return v
 		}
 	}
 
-	// Strategy 4: fallback
+	// Strategy 5: fallback
 	return fallbackVerdict(expertID, truncate(text, 200))
 }
 
@@ -49,6 +56,7 @@ func tryUnmarshal(expertID string, data []byte) (ExpertVerdict, bool) {
 		Verdict    Verdict     `json:"verdict"`
 		Confidence float64     `json:"confidence"`
 		Notes      interface{} `json:"notes"`
+		Replies    []Reply     `json:"replies"`
 		Blocking   bool        `json:"blocking"`
 	}
 
@@ -77,8 +85,27 @@ func tryUnmarshal(expertID string, data []byte) (ExpertVerdict, bool) {
 		Verdict:    raw.Verdict,
 		Confidence: raw.Confidence,
 		Notes:      notes,
+		Replies:    normalizeReplies(raw.Replies),
 		Blocking:   raw.Blocking,
 	}, true
+}
+
+// normalizeReplies drops replies with no target, no note, or an unknown stance.
+func normalizeReplies(replies []Reply) []Reply {
+	var out []Reply
+	for _, r := range replies {
+		r.Stance = Stance(strings.ToLower(strings.TrimSpace(string(r.Stance))))
+		switch r.Stance {
+		case StanceAgree, StanceDisagree, StanceAdds:
+		default:
+			continue
+		}
+		if r.To == "" || strings.TrimSpace(r.Note) == "" {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
 }
 
 // normalizeNotes converts various note formats to []string.

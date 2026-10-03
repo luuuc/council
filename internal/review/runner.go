@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/luuuc/council/internal/expert"
@@ -23,24 +22,32 @@ type ExpertInput struct {
 }
 
 // CollectiveThreshold is the byte-count threshold for the collective prompt.
-// If the prompt exceeds this, the runner falls back to per-expert review.
+// If the prompt exceeds this, the runner falls back to sequential review.
 // Default: 32KB (~8K tokens) — conservative for small-context models.
 const CollectiveThreshold = 32 * 1024
 
-// Run executes a collective review by default (one LLM call with all experts).
-// Falls back to per-expert concurrent review when a single expert is specified
-// or the estimated collective prompt exceeds CollectiveThreshold.
+// Run executes a sequential review by default: one call per expert, in order,
+// each seeing the reviews before it. ModeCollective runs one call for all
+// experts instead, falling back to sequential when the prompt is too large
+// or the call fails.
 func (r *Runner) Run(ctx context.Context, inputs []ExpertInput, sub Submission) *SynthesizedResult {
-	if len(inputs) == 1 {
-		return r.runPerExpert(ctx, inputs, sub)
+	if r.Options.Mode != ModeCollective || len(inputs) == 1 {
+		return r.runSequential(ctx, inputs, sub)
 	}
 
 	if estimateCollectiveSize(inputs, sub) > CollectiveThreshold {
-		log.Println("collective prompt exceeds context threshold, falling back to per-expert review")
-		return r.runPerExpert(ctx, inputs, sub)
+		log.Println("collective prompt exceeds context threshold, falling back to sequential review")
+		return r.runSequential(ctx, inputs, sub)
 	}
 
 	return r.runCollective(ctx, inputs, sub)
+}
+
+func (r *Runner) timeout() time.Duration {
+	if r.Options.Timeout <= 0 {
+		return 120 * time.Second
+	}
+	return time.Duration(r.Options.Timeout) * time.Second
 }
 
 // estimateCollectiveSize approximates the collective prompt size in bytes
@@ -55,41 +62,38 @@ func estimateCollectiveSize(inputs []ExpertInput, sub Submission) int {
 }
 
 // runCollective executes a single collective LLM call.
-// Falls back to per-expert review if the collective call fails.
+// Falls back to sequential review if the collective call fails.
 func (r *Runner) runCollective(ctx context.Context, inputs []ExpertInput, sub Submission) *SynthesizedResult {
-	timeout := time.Duration(r.Options.Timeout) * time.Second
-	if timeout <= 0 {
-		timeout = 120 * time.Second
-	}
-
 	experts := make([]*expert.Expert, len(inputs))
 	for i, inp := range inputs {
 		experts[i] = inp.Expert
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	callCtx, cancel := context.WithTimeout(ctx, r.timeout())
 	defer cancel()
 
 	result, err := r.Backend.ReviewCollective(callCtx, experts, sub)
 	if err != nil {
-		log.Printf("collective review failed, falling back to per-expert: %s", err)
-		return r.runPerExpert(ctx, inputs, sub)
+		log.Printf("collective review failed, falling back to sequential: %s", err)
+		return r.runSequential(ctx, inputs, sub)
 	}
 
 	// Override Blocking per perspective from pack config
+	byID := make(map[string]*expert.Expert, len(experts))
 	blockingByID := make(map[string]bool, len(inputs))
 	for _, inp := range inputs {
+		byID[inp.Expert.ID] = inp.Expert
 		blockingByID[inp.Expert.ID] = inp.Blocking
 	}
 	for i := range result.Perspectives {
-		result.Perspectives[i].Blocking = blockingByID[result.Perspectives[i].Expert]
+		p := &result.Perspectives[i]
+		p.Blocking = blockingByID[p.Expert]
+		if e, ok := byID[p.Expert]; ok {
+			p.Name = e.Name
+		}
 	}
 
 	// Validate overall verdict against hierarchy
-	byID := make(map[string]*expert.Expert, len(experts))
-	for _, e := range experts {
-		byID[e.ID] = e
-	}
 	hierarchyVerdict := ResolveOverallVerdict(result.Perspectives, byID)
 	if hierarchyVerdict.Severity() > result.Verdict.Severity() {
 		result.Verdict = hierarchyVerdict
@@ -99,64 +103,31 @@ func (r *Runner) runCollective(ctx context.Context, inputs []ExpertInput, sub Su
 	return result
 }
 
-// runPerExpert executes reviews in parallel with bounded concurrency (fallback path).
-func (r *Runner) runPerExpert(ctx context.Context, inputs []ExpertInput, sub Submission) *SynthesizedResult {
-	concurrency := r.Options.Concurrency
-	if concurrency <= 0 {
-		concurrency = DefaultConcurrency
-	}
-
-	timeout := time.Duration(r.Options.Timeout) * time.Second
-	if timeout <= 0 {
-		timeout = 120 * time.Second
-	}
-
-	type result struct {
-		verdict ExpertVerdict
-		err     error
-	}
-
-	results := make([]result, len(inputs))
-	sem := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
-
-	for i, input := range inputs {
-		wg.Add(1)
-		go func(idx int, inp ExpertInput) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			expertCtx, cancel := context.WithTimeout(ctx, timeout)
-			defer cancel()
-
-			verdict, err := r.Backend.Review(expertCtx, inp.Expert, sub)
-			if err != nil {
-				results[idx] = result{
-					err: fmt.Errorf("%s: %w", inp.Expert.ID, err),
-				}
-				return
-			}
-
-			verdict.Blocking = inp.Blocking
-			results[idx] = result{verdict: verdict}
-		}(i, input)
-	}
-
-	wg.Wait()
-
+// runSequential runs one review per expert, in order. Each expert receives
+// the earlier verdicts in its prompt so it can react to them. A failed expert
+// is recorded as an error and the review continues with the next one.
+func (r *Runner) runSequential(ctx context.Context, inputs []ExpertInput, sub Submission) *SynthesizedResult {
 	var verdicts []ExpertVerdict
 	var errors []string
 	experts := make([]*expert.Expert, 0, len(inputs))
 
-	for i, r := range results {
-		experts = append(experts, inputs[i].Expert)
-		if r.err != nil {
-			errors = append(errors, r.err.Error())
+	for _, inp := range inputs {
+		experts = append(experts, inp.Expert)
+
+		turn := sub
+		turn.Prior = verdicts
+
+		callCtx, cancel := context.WithTimeout(ctx, r.timeout())
+		verdict, err := r.Backend.Review(callCtx, inp.Expert, turn)
+		cancel()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %s", inp.Expert.ID, err))
 			continue
 		}
-		verdicts = append(verdicts, r.verdict)
+
+		verdict.Name = inp.Expert.Name
+		verdict.Blocking = inp.Blocking
+		verdicts = append(verdicts, verdict)
 	}
 
 	return Synthesize(verdicts, experts, errors)

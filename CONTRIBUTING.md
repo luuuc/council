@@ -97,7 +97,7 @@ council/
 │   ├── mcp/              # MCP server (stdin/stdout JSON-RPC)
 │   ├── pack/             # Reusable expert groupings (built-in + custom)
 │   ├── prompt/           # Prompt generation
-│   ├── review/           # Blind parallel review engine
+│   ├── review/           # Sequential review engine
 │   └── sync/             # Sync targets (claude, opencode, etc.)
 ├── .doc/                 # Documentation
 ├── install.sh            # Installer script
@@ -120,7 +120,7 @@ Two implementations:
 - `CLIBackend` — spawns AI CLI subprocesses (`claude`, `opencode`)
 - `APIBackend` — direct HTTP calls to Anthropic, OpenAI, or Ollama
 
-The `Runner` orchestrates N parallel expert reviews with bounded concurrency and per-expert timeouts. The `Synthesizer` aggregates verdicts, detects agreements/tensions, and resolves hierarchy.
+The `Runner` runs experts one at a time with per-call timeouts. Each expert sees the earlier verdicts and can reply to them. The `Synthesizer` aggregates verdicts, detects agreements/tensions, and resolves hierarchy.
 
 ### MCP Server (`internal/mcp/`)
 

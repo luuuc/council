@@ -102,3 +102,39 @@ func TestBuildCollectivePromptNoContext(t *testing.T) {
 		t.Error("collective prompt should not contain Context section when context is empty")
 	}
 }
+
+func TestBuildPromptWithPriorReviews(t *testing.T) {
+	e := &expert.Expert{ID: "kent-beck", Name: "Virtual Kent Beck"}
+
+	first := BuildPrompt(e, Submission{Content: "diff"})
+	for _, absent := range []string{"The Council So Far", `"replies"`} {
+		if strings.Contains(first, absent) {
+			t.Errorf("first speaker's prompt should not contain %q", absent)
+		}
+	}
+
+	sub := Submission{
+		Content: "diff",
+		Prior: []ExpertVerdict{{
+			Expert:  "dhh",
+			Name:    "Virtual DHH",
+			Verdict: VerdictBlock,
+			Notes:   []string{"Too many layers"},
+			Replies: []Reply{{To: "rob-pike", Stance: StanceAgree, Note: "Keep it simple"}},
+		}},
+	}
+	prompt := BuildPrompt(e, sub)
+
+	for _, check := range []string{
+		"The Council So Far",
+		"### Virtual DHH (dhh) — block",
+		"- Too many layers",
+		"- [agree rob-pike] Keep it simple",
+		`"replies"`,
+		"agree|disagree|adds",
+	} {
+		if !strings.Contains(prompt, check) {
+			t.Errorf("prompt missing %q\n\nPrompt:\n%s", check, prompt)
+		}
+	}
+}

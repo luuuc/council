@@ -21,6 +21,9 @@ func FormatHuman(result *SynthesizedResult, packName string, expertCount int) st
 	// Perspectives
 	for _, p := range result.Perspectives {
 		name := p.Expert
+		if p.Name != "" {
+			name = p.Name
+		}
 		verdict := string(p.Verdict)
 
 		// Right-align verdict
@@ -38,6 +41,10 @@ func FormatHuman(result *SynthesizedResult, packName string, expertCount int) st
 			fmt.Fprintf(&b, "  - %s\n", wrapNote(note, 46))
 		}
 
+		for _, r := range p.Replies {
+			fmt.Fprintf(&b, "  → %s %s:\n    %s\n", replyVerb(r.Stance), replyTarget(r.To, result.Perspectives), wrapNote(r.Note, 46))
+		}
+
 		b.WriteByte('\n')
 	}
 
@@ -53,7 +60,16 @@ func FormatHuman(result *SynthesizedResult, packName string, expertCount int) st
 	// Tension
 	if result.Tension != "" {
 		b.WriteString(strings.Repeat("─", 50) + "\n")
-		fmt.Fprintf(&b, "Tension: %s\n\n", result.Tension)
+		lines := strings.Split(result.Tension, "\n")
+		if len(lines) == 1 {
+			fmt.Fprintf(&b, "Tension: %s\n\n", result.Tension)
+		} else {
+			b.WriteString("Tension:\n")
+			for _, l := range lines {
+				fmt.Fprintf(&b, "  - %s\n", l)
+			}
+			b.WriteByte('\n')
+		}
 	}
 
 	// Agreements
@@ -69,6 +85,28 @@ func FormatHuman(result *SynthesizedResult, packName string, expertCount int) st
 	fmt.Fprintf(&b, "Verdict: %s\n", verdictLabel)
 
 	return b.String()
+}
+
+// replyVerb renders a stance as the verb shown in human output.
+func replyVerb(s Stance) string {
+	switch s {
+	case StanceAgree:
+		return "agrees with"
+	case StanceDisagree:
+		return "disagrees with"
+	default:
+		return "adds to"
+	}
+}
+
+// replyTarget returns the display name of the expert a reply is addressed to.
+func replyTarget(id string, perspectives []ExpertVerdict) string {
+	for _, p := range perspectives {
+		if p.Expert == id && p.Name != "" {
+			return p.Name
+		}
+	}
+	return id
 }
 
 // FormatJSON marshals a SynthesizedResult as indented JSON.

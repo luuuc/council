@@ -89,14 +89,16 @@ council sync     # Syncs to your AI tool
 
 ## Review
 
-Run collective reviews where all experts review together and react to each other's perspectives:
+Experts review one at a time, in pack order. Each one reads the earlier reviews, then disagrees, backs them up, or adds what they missed:
 
 ```bash
 git diff main | council review --pack go
 council review --pack rails --file app/models/user.rb --json
 ```
 
-Each expert returns a verdict (pass / comment / block / escalate). The tension between perspectives produces richer, more nuanced reviews with agreements, disagreements, and a final recommendation. Falls back to per-expert review for small-context models.
+Each expert returns a verdict (pass / comment / block / escalate), notes, and replies to the experts before them. The output shows who disagreed with whom, so you see the trade-offs and make the call.
+
+Sequential review makes one LLM call per expert. `--mode collective` makes a single call that plays every expert at once: cheaper, but the debate is simulated.
 
 Works with any LLM backend — spawns CLI subprocesses (`claude`, `opencode`) or calls APIs directly (Anthropic, OpenAI, Ollama).
 
@@ -129,7 +131,7 @@ Use Council as a tool in any MCP-capable AI tool:
 ```
 
 Exposes three tools over stdin/stdout JSON-RPC:
-- `council_review` — collective review, returns structured verdict
+- `council_review` — sequential council review, returns structured verdict with replies
 - `council_list` — list pack members (no LLM calls)
 - `council_explain` — expand on a review note with expert reasoning
 
@@ -170,7 +172,7 @@ jobs:
 | `OPENAI_API_KEY` | OpenAI | `gpt-4.1` | BYOK |
 | Neither | GitHub Models | `gpt-4.1-mini` | Free (150 req/day) |
 
-**Free tier limits:** ~15 PR reviews/day (10 files each). Files over 8K tokens are skipped. Max 25 files per review. Per-file review means cross-file issues are invisible — use BYOK for larger context.
+**Free tier limits:** 150 requests/day. Sequential review makes one request per expert, so a 6-expert pack allows about 25 PR reviews/day. Files over 8K tokens are skipped. Max 25 files per review. Per-file review means cross-file issues are invisible — use BYOK for larger context.
 
 See [`action/examples/`](action/examples/) for more workflow examples.
 
