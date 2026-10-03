@@ -68,7 +68,12 @@ You are {{.Name}}, known for expertise in {{.Focus}}.
 
 {{.Backstory}}
 {{end}}
-{{if .Philosophy}}## Philosophy
+{{if .Influences}}
+## Drawn From
+
+{{range .Influences}}- {{.}}
+{{end}}
+{{end}}{{if .Philosophy}}## Philosophy
 
 {{.Philosophy}}
 {{end}}

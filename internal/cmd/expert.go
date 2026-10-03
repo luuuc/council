@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -156,7 +157,8 @@ If no match is found, guides you through creating a custom expert.
 
 Modes:
   council add "Kent Beck"         # Found in library - adds Virtual Kent Beck
-  council add "My CTO"            # Not found - creates custom persona
+  council add "Boris Cherny"      # Not in library - researches Virtual Boris Cherny
+  council add "My CTO"            # Unknown person - creates custom persona
   council add --interview         # AI-assisted persona creation
   council add --from kent-beck    # Fork existing persona as starting point`,
 	Args: cobra.MaximumNArgs(1),
@@ -224,15 +226,15 @@ Modes:
 			}
 		}
 
-		// No match found - trigger creation flow
-		if !isInteractive() {
+		// No match found - research the person, then fall back to a custom persona
+		if !isInteractive() && !addYes {
 			return fmt.Errorf("persona %q not found in curated library\n\n"+
+				"To research them as a real person and add them without prompts:\n  council add %q --yes\n\n"+
 				"To create a custom expert interactively, run without piping:\n  council add %q\n\n"+
-				"Or browse available personas:\n  council personas", name, name)
+				"Or browse available personas:\n  council personas", name, name, name)
 		}
 
-		fmt.Printf("'%s' not found in curated library. Let's create a custom persona.\n\n", name)
-		return runAddCreationFlow(name)
+		return runAddResearch(name)
 	},
 }
 
@@ -269,6 +271,46 @@ var removeCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+// runAddResearch builds a Virtual persona from the person's public work.
+// With --yes it saves without prompts; otherwise it previews the persona.
+// Falls back to the manual creation flow when the AI doesn't know the
+// person (e.g. "My CTO") or no AI CLI is available.
+func runAddResearch(name string) error {
+	fmt.Printf("'%s' is not in the library. Researching their public work...\n\n", name)
+
+	exp, err := researchPerson(name)
+	if err != nil {
+		if errors.Is(err, errUnknownPerson) {
+			fmt.Printf("Couldn't find enough public work by %s to build a faithful persona.\n", name)
+		} else {
+			fmt.Printf("Research failed: %v\n", err)
+		}
+		if !isInteractive() {
+			return fmt.Errorf("could not add %q: run without --yes to create a custom persona", name)
+		}
+		fmt.Printf("Let's create a custom persona instead.\n\n")
+		return runAddCreationFlow(name)
+	}
+
+	if expert.Exists(exp.ID) {
+		return fmt.Errorf("expert '%s' already exists", exp.ID)
+	}
+
+	if addYes || !isInteractive() {
+		if err := exp.Save(); err != nil {
+			return err
+		}
+		fmt.Printf("Added %s (%s)\n", exp.Name, exp.ID)
+		fmt.Printf("File: %s\n", exp.Path())
+		runAutoSync(addNoSync, nil)
+		return nil
+	}
+
+	return reviewGeneratedExpert(bufio.NewReader(os.Stdin), exp, func() (*expert.Expert, error) {
+		return researchPerson(name)
+	})
 }
 
 // runAddCreationFlow guides the user through creating a custom expert

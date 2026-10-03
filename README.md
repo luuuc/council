@@ -31,6 +31,7 @@ Your council is yours. Add whoever helps you do better work:
 
 ```bash
 council add "Kent Beck"             # Adds Virtual Kent Beck from the library
+council add "Boris Cherny"           # Not in the library: researches Virtual Boris Cherny
 council add "My Tech Lead"           # Create custom persona
 /council-add a security expert       # AI-assisted discovery
 ```
@@ -78,7 +79,7 @@ council sync     # Syncs to your AI tool
 | Command | What it does |
 |---------|--------------|
 | `council start` | Zero-config setup (init + detect + add experts + sync) |
-| `council add "Name"` | Add expert from library or create custom |
+| `council add "Name"` | Add from the library, research a real person, or create custom |
 | `council add --interview` | AI-assisted persona creation |
 | `council add --from ID` | Fork existing persona as starting point |
 | `council list` | See your council members |

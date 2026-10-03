@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/review"
+	"gopkg.in/yaml.v3"
 )
 
 //go:embed prompts/interview.txt
@@ -65,15 +65,22 @@ func runAddInterview() error {
 	fmt.Println()
 
 	// Generate expert using AI
-	exp, err := generateExpertFromDescription(description)
+	generate := func() (*expert.Expert, error) {
+		return generateExpert(fmt.Sprintf(interviewPrompt, description))
+	}
+	exp, err := generate()
 	if err != nil {
 		return fmt.Errorf("failed to generate expert: %w", err)
 	}
 
-	// Display generated expert
+	return reviewGeneratedExpert(reader, exp, generate)
+}
+
+// reviewGeneratedExpert previews an AI-generated expert and lets the user
+// accept, edit, or regenerate it before saving to the project council.
+func reviewGeneratedExpert(reader *bufio.Reader, exp *expert.Expert, regenerate func() (*expert.Expert, error)) error {
 	displayExpertPreview(exp)
 
-	// Accept/Edit/Regenerate loop
 	for {
 		fmt.Println()
 		fmt.Print("Accept, Edit, or Regenerate? [a/e/r]: ")
@@ -87,7 +94,10 @@ func runAddInterview() error {
 		case "a", "":
 			// Accept - prompt for ID and save
 			fmt.Println()
-			suggestedID := expert.ToID(exp.Name)
+			suggestedID := exp.ID
+			if suggestedID == "" {
+				suggestedID = expert.ToID(exp.Name)
+			}
 			fmt.Printf("ID: [%s] ", suggestedID)
 			idInput, _ := reader.ReadString('\n')
 			idInput = strings.TrimSpace(idInput)
@@ -111,51 +121,26 @@ func runAddInterview() error {
 			return nil
 
 		case "e":
-			// Edit in $EDITOR
-			tmpfile, err := os.CreateTemp("", "council-interview-*.md")
+			edited, err := editExpert(exp)
 			if err != nil {
-				return fmt.Errorf("failed to create temp file: %w", err)
-			}
-			defer func() { _ = os.Remove(tmpfile.Name()) }()
-
-			// Write current expert to temp file
-			content := formatExpertForEdit(exp)
-			if _, err := tmpfile.WriteString(content); err != nil {
-				return fmt.Errorf("failed to write temp file: %w", err)
-			}
-			_ = tmpfile.Close()
-
-			// Open editor
-			if err := openInEditor(tmpfile.Name()); err != nil {
 				return err
 			}
-
-			// Parse edited content
-			data, err := os.ReadFile(tmpfile.Name())
-			if err != nil {
-				return fmt.Errorf("failed to read temp file: %w", err)
-			}
-
-			edited, err := expert.Parse(data)
-			if err != nil {
-				fmt.Printf("Error parsing edited file: %v\n", err)
-				fmt.Println("Please fix the formatting and try again.")
+			if edited == nil {
 				continue
 			}
-
 			exp = edited
 			displayExpertPreview(exp)
 
 		case "r":
-			// Regenerate
 			fmt.Println()
 			fmt.Println("Regenerating...")
 			fmt.Println()
 
-			exp, err = generateExpertFromDescription(description)
+			regenerated, err := regenerate()
 			if err != nil {
 				return fmt.Errorf("failed to regenerate: %w", err)
 			}
+			exp = regenerated
 			displayExpertPreview(exp)
 
 		default:
@@ -164,29 +149,76 @@ func runAddInterview() error {
 	}
 }
 
-// generateExpertFromDescription uses AI to create an expert from a description.
-func generateExpertFromDescription(description string) (*expert.Expert, error) {
-	// Load config for AI command
+// editExpert opens the expert in $EDITOR and returns the edited version.
+// Returns nil (and no error) when the edited file doesn't parse, so the
+// caller can let the user try again.
+func editExpert(exp *expert.Expert) (*expert.Expert, error) {
+	tmpfile, err := os.CreateTemp("", "council-expert-*.md")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
+
+	content, err := formatExpertForEdit(exp)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tmpfile.WriteString(content); err != nil {
+		return nil, fmt.Errorf("failed to write temp file: %w", err)
+	}
+	_ = tmpfile.Close()
+
+	if err := openInEditor(tmpfile.Name()); err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(tmpfile.Name())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read temp file: %w", err)
+	}
+
+	edited, err := expert.Parse(data)
+	if err != nil {
+		fmt.Printf("Error parsing edited file: %v\n", err)
+		fmt.Println("Please fix the formatting and try again.")
+		return nil, nil
+	}
+	return edited, nil
+}
+
+// aiPrompt sends a prompt to the AI and returns its answer.
+// It is a variable so tests can replace the real AI CLI.
+var aiPrompt = runAIPrompt
+
+// generateExpert sends a persona-generation prompt to the headless AI CLI
+// and parses the YAML expert it returns.
+func generateExpert(prompt string) (*expert.Expert, error) {
+	raw, err := aiPrompt(prompt)
+	if err != nil {
+		return nil, err
+	}
+	return parseGeneratedExpert(raw)
+}
+
+// runAIPrompt sends a prompt to the configured AI CLI in headless mode.
+func runAIPrompt(prompt string) (string, error) {
 	cfg, err := config.Load()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w\nHint: run 'council start' first", err)
+		return "", fmt.Errorf("failed to load config: %w\nHint: run 'council start' first", err)
 	}
 
 	// Detect or use configured AI command
 	aiCmd, err := cfg.DetectAICommand()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	// Check if command exists
+	if aiCmd == "" {
+		return "", fmt.Errorf("persona generation needs an AI CLI (claude, opencode, or codex)")
+	}
 	if _, err := exec.LookPath(aiCmd); err != nil {
-		return nil, fmt.Errorf("AI command '%s' not found\n\nInstall it or configure a different command", aiCmd)
+		return "", fmt.Errorf("AI command '%s' not found\n\nInstall it or configure a different command", aiCmd)
 	}
 
-	// Generate prompt from embedded template
-	prompt := fmt.Sprintf(interviewPrompt, description)
-
-	// Execute AI command
 	timeout := cfg.AI.Timeout
 	if timeout == 0 {
 		timeout = 60
@@ -198,12 +230,15 @@ func generateExpertFromDescription(description string) (*expert.Expert, error) {
 	raw, err := review.NewCLIBackend(aiCmd, cfg.AI.Args).Run(ctx, prompt)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return nil, fmt.Errorf("AI command timed out after %d seconds", timeout)
+			return "", fmt.Errorf("AI command timed out after %d seconds", timeout)
 		}
-		return nil, fmt.Errorf("AI command failed: %w", err)
+		return "", fmt.Errorf("AI command failed: %w", err)
 	}
+	return raw, nil
+}
 
-	// Try to extract YAML if wrapped in code blocks
+// parseGeneratedExpert extracts the YAML expert from an AI response.
+func parseGeneratedExpert(raw string) (*expert.Expert, error) {
 	response := raw
 	if idx := findYAMLStart(response); idx >= 0 {
 		response = response[idx:]
@@ -213,7 +248,6 @@ func generateExpertFromDescription(description string) (*expert.Expert, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse AI response: %w\n\nRaw response:\n%s", err, raw)
 	}
-
 	return exp, nil
 }
 
@@ -263,52 +297,13 @@ func displayExpertPreview(e *expert.Expert) {
 	fmt.Println("+---------------------------------------------------------+")
 }
 
-// formatExpertForEdit formats an expert for editing in a text editor.
-func formatExpertForEdit(e *expert.Expert) string {
-	var buf bytes.Buffer
-
-	buf.WriteString("---\n")
-	fmt.Fprintf(&buf, "id: %s\n", e.ID)
-	fmt.Fprintf(&buf, "name: %s\n", e.Name)
-	fmt.Fprintf(&buf, "focus: %s\n", e.Focus)
-	if e.Category != "" {
-		fmt.Fprintf(&buf, "category: %s\n", e.Category)
+// formatExpertForEdit formats an expert's frontmatter for editing in a text editor.
+func formatExpertForEdit(e *expert.Expert) (string, error) {
+	fm, err := yaml.Marshal(e)
+	if err != nil {
+		return "", fmt.Errorf("failed to format expert: %w", err)
 	}
-	if e.Priority != "" {
-		fmt.Fprintf(&buf, "priority: %s\n", e.Priority)
-	}
-
-	if len(e.Triggers) > 0 {
-		buf.WriteString("triggers:\n")
-		for _, t := range e.Triggers {
-			fmt.Fprintf(&buf, "  - %s\n", t)
-		}
-	}
-
-	if e.Philosophy != "" {
-		buf.WriteString("philosophy: |\n")
-		for _, line := range wrapText(e.Philosophy, 70) {
-			fmt.Fprintf(&buf, "  %s\n", line)
-		}
-	}
-
-	if len(e.Principles) > 0 {
-		buf.WriteString("principles:\n")
-		for _, pr := range e.Principles {
-			fmt.Fprintf(&buf, "  - %s\n", pr)
-		}
-	}
-
-	if len(e.RedFlags) > 0 {
-		buf.WriteString("red_flags:\n")
-		for _, rf := range e.RedFlags {
-			fmt.Fprintf(&buf, "  - %s\n", rf)
-		}
-	}
-
-	buf.WriteString("---\n")
-
-	return buf.String()
+	return "---\n" + string(fm) + "---\n", nil
 }
 
 // truncate shortens a string to maxLen, adding "..." if needed.
