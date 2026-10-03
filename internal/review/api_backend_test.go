@@ -15,10 +15,10 @@ import (
 
 func testExpert() *expert.Expert {
 	return &expert.Expert{
-		ID:   "test-expert",
-		Name: "Test Expert",
+		ID:    "test-expert",
+		Name:  "Test Expert",
 		Focus: "Testing",
-		Body: "You are a testing expert.",
+		Body:  "You are a testing expert.",
 	}
 }
 
@@ -282,7 +282,7 @@ func TestAPIBackendOllama(t *testing.T) {
 func TestAPIBackendHTTPError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		_, _ = io.WriteString(w,`{"error":{"message":"rate limit exceeded"}}`)
+		_, _ = io.WriteString(w, `{"error":{"message":"rate limit exceeded"}}`)
 	}))
 	defer server.Close()
 
@@ -307,7 +307,7 @@ func TestAPIBackendHTTPError(t *testing.T) {
 func TestAPIBackendServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = io.WriteString(w,`{"error":{"message":"internal server error"}}`)
+		_, _ = io.WriteString(w, `{"error":{"message":"internal server error"}}`)
 	}))
 	defer server.Close()
 
@@ -397,7 +397,7 @@ func TestAPIBackendUnknownProvider(t *testing.T) {
 
 func TestAPIBackendMalformedJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w,"not json at all")
+		_, _ = io.WriteString(w, "not json at all")
 	}))
 	defer server.Close()
 

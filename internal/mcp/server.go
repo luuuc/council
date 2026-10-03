@@ -335,7 +335,7 @@ func toolDefinitions() []toolDefinition {
 				Properties: map[string]schemaProperty{
 					"pack": {
 						Type:        "string",
-						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\")",
+						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\"); not needed when councils is set",
 					},
 					"content": {
 						Type:        "string",
@@ -346,7 +346,7 @@ func toolDefinitions() []toolDefinition {
 						Description: "Optional: several packs, comma-separated (e.g. \"product,security,code\"). Each council debates, then they challenge each other's conclusions; pack is ignored.",
 					},
 				},
-				Required: []string{"pack", "content"},
+				Required: []string{"content"},
 			},
 		},
 		{
@@ -359,7 +359,7 @@ func toolDefinitions() []toolDefinition {
 				Properties: map[string]schemaProperty{
 					"pack": {
 						Type:        "string",
-						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\")",
+						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\"); not needed when councils is set",
 					},
 					"content": {
 						Type:        "string",
@@ -369,8 +369,12 @@ func toolDefinitions() []toolDefinition {
 						Type:        "string",
 						Description: "Optional background for the council (e.g., the goal, constraints, or options being considered)",
 					},
+					"councils": {
+						Type:        "string",
+						Description: "Optional: several packs, comma-separated (e.g. \"product,security\"). Each council debates, then their spokespersons answer each other; pack is ignored. Many turns: about two per member plus one per council.",
+					},
 				},
-				Required: []string{"pack", "content"},
+				Required: []string{"content"},
 			},
 		},
 		{

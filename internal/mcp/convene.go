@@ -16,15 +16,24 @@ import (
 // reviews, and synthesizes the result. This works in clients with no
 // headless mode and no API key, such as Claude Desktop.
 type session struct {
-	debate *review.Debate
-	turn   review.Turn // the turn whose answer is expected next
+	debate   steps
+	councils *review.CouncilsDebate // set when several councils debate
+	turn     review.Turn            // the turn whose answer is expected next
+}
+
+// steps is a debate run one turn at a time: one council (review.Debate)
+// or several (review.CouncilsDebate).
+type steps interface {
+	Next() (review.Turn, bool)
+	RecordVerdict(review.ExpertVerdict)
+	RecordRaw(review.TurnKind, string) bool
 }
 
 // handleConvene implements the council_convene MCP tool.
 func (s *Server) handleConvene(args map[string]any) toolCallResult {
-	packName, ok := args["pack"].(string)
-	if !ok || packName == "" {
-		return errorResult("missing required field: pack")
+	packName, _ := args["pack"].(string)
+	if list, _ := args["councils"].(string); packName == "" && list == "" {
+		return errorResult("missing required field: pack (or councils)")
 	}
 	content, ok := args["content"].(string)
 	if !ok || content == "" {
@@ -32,9 +41,34 @@ func (s *Server) handleConvene(args map[string]any) toolCallResult {
 	}
 	background, _ := args["context"].(string)
 
-	inputs, err := resolvePackInputs(packName)
-	if err != nil {
-		return errorResult(err.Error())
+	sub := review.Submission{Content: content, Context: background}
+	var sess *session
+	var intro string
+	if list, _ := args["councils"].(string); list != "" {
+		councils, err := resolveCouncils(list)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		cd := review.NewCouncilsDebate(councils, sub, true, true)
+		sess = &session{debate: cd, councils: cd}
+		var names []string
+		for _, c := range councils {
+			names = append(names, c.Name)
+		}
+		intro = fmt.Sprintf("%d councils will each debate in turn (%s); then each council's spokesperson answers the others, "+
+			"and a moderator lists where the councils disagree and what to decide.", len(councils), strings.Join(names, ", "))
+	} else {
+		inputs, err := resolvePackInputs(packName)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		names := make([]string, len(inputs))
+		for i, inp := range inputs {
+			names[i] = inp.Expert.Name
+		}
+		sess = &session{debate: review.NewDebate(inputs, sub, true, true)}
+		intro = fmt.Sprintf("%d members will speak in this order: %s. "+
+			"Then earlier members get a final word, and a moderator lists disagreements and decisions.", len(inputs), strings.Join(names, ", "))
 	}
 
 	id, err := newSessionID()
@@ -44,20 +78,12 @@ func (s *Server) handleConvene(args map[string]any) toolCallResult {
 	if s.sessions == nil {
 		s.sessions = map[string]*session{}
 	}
-	debate := review.NewDebate(inputs, review.Submission{Content: content, Context: background}, true, true)
-	turn, _ := debate.Next()
-	sess := &session{debate: debate, turn: turn}
+	turn, _ := sess.debate.Next()
+	sess.turn = turn
 	s.sessions[id] = sess
 
-	names := make([]string, len(inputs))
-	for i, inp := range inputs {
-		names[i] = inp.Expert.Name
-	}
-
 	var b strings.Builder
-	fmt.Fprintf(&b, "Council session %s: %d members will speak in this order: %s. "+
-		"Then earlier members get a final word, and a moderator lists disagreements and decisions.\n\n",
-		id, len(inputs), strings.Join(names, ", "))
+	fmt.Fprintf(&b, "Council session %s: %s\n\n", id, intro)
 	b.WriteString(turnPrompt(id, sess.turn))
 	return textResult(b.String())
 }
@@ -80,12 +106,10 @@ func (s *Server) handleTurn(args map[string]any) toolCallResult {
 
 	retry := fmt.Sprintf("could not read the answer for %s: it must be a single JSON object in the format the prompt asks for. "+
 		"Call council_turn again with session %q and the corrected JSON.", sess.turn.Label(), id)
-	if sess.turn.Kind == review.TurnModerator {
-		if !sess.debate.RecordModeration(raw) {
-			// The turn is consumed; finish without the moderator's summary
-			// rather than looping on a summary the model can't produce.
-			return s.finish(id, sess)
-		}
+	if k := sess.turn.Kind; k == review.TurnModerator || k == review.TurnSpokesperson || k == review.TurnCrossModerator {
+		// Raw turns are consumed even when unreadable, so a summary the
+		// model can't produce doesn't loop forever.
+		sess.debate.RecordRaw(k, raw)
 	} else {
 		verdict := review.ParseVerdict(sess.turn.Expert.ID, []byte(raw))
 		if verdict.Error != "" {
@@ -105,7 +129,15 @@ func (s *Server) handleTurn(args map[string]any) toolCallResult {
 // finish ends a session and returns the debate for the client to present.
 func (s *Server) finish(id string, sess *session) toolCallResult {
 	delete(s.sessions, id)
-	result := sess.debate.Result()
+
+	if sess.councils != nil {
+		var b strings.Builder
+		b.WriteString("The councils have finished. Present each council's debate briefly, then how the councils answered each other, " +
+			"then where the councils disagree and what the user has to decide. Do not recommend an outcome.\n\n")
+		b.WriteString(review.FormatHumanCouncils(sess.councils.Result()))
+		return textResult(b.String())
+	}
+	result := sess.debate.(*review.Debate).Result()
 
 	var b strings.Builder
 	b.WriteString("The council has finished. Present the debate to the user:\n" +
@@ -122,6 +154,10 @@ func turnPrompt(id string, t review.Turn) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Turn %d of up to %d: %s.\n\n", t.Number, t.Total, t.Label())
 	switch t.Kind {
+	case review.TurnSpokesperson:
+		fmt.Fprintf(&b, "Speak for the %s council by following the prompt below: represent its conclusions faithfully and challenge the other councils. ", t.Council)
+	case review.TurnCrossModerator:
+		b.WriteString("Write the moderator's summary across councils by following the prompt below. Stay neutral: no opinion, no vote, no recommendation. ")
 	case review.TurnModerator:
 		b.WriteString("Write the moderator's summary by following the prompt below. Stay neutral: no opinion, no vote, no recommendation. ")
 	case review.TurnFinalWord:
@@ -208,4 +244,26 @@ func newSessionID() (string, error) {
 
 func textResult(text string) toolCallResult {
 	return toolCallResult{Content: []toolContent{{Type: "text", Text: text}}}
+}
+
+// resolveCouncils resolves a comma-separated list of packs into councils.
+func resolveCouncils(list string) ([]review.Council, error) {
+	var councils []review.Council
+	seen := map[string]bool{}
+	for _, name := range strings.Split(list, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		inputs, err := resolvePackInputs(name)
+		if err != nil {
+			return nil, err
+		}
+		councils = append(councils, review.Council{Name: name, Inputs: inputs})
+	}
+	if len(councils) < 2 {
+		return nil, fmt.Errorf("councils needs at least two packs, e.g. \"product,security,code\"")
+	}
+	return councils, nil
 }

@@ -12,7 +12,7 @@ import (
 type Domain int
 
 const (
-	DomainQuality     Domain = iota // Lowest priority
+	DomainQuality Domain = iota // Lowest priority
 	DomainPerformance
 	DomainConvention
 	DomainScope
@@ -23,18 +23,18 @@ const (
 // domainKeywords maps keywords found in expert Focus fields to domains.
 var domainKeywords = map[string]Domain{
 	// Security
-	"security":        DomainSecurity,
-	"cryptography":    DomainSecurity,
-	"authentication":  DomainSecurity,
-	"authorization":   DomainSecurity,
-	"vulnerability":   DomainSecurity,
-	"threat":          DomainSecurity,
-	"encryption":      DomainSecurity,
-	"secure":          DomainSecurity,
-	"infosec":         DomainSecurity,
-	"appsec":          DomainSecurity,
-	"penetration":     DomainSecurity,
-	"safety":          DomainSecurity,
+	"security":       DomainSecurity,
+	"cryptography":   DomainSecurity,
+	"authentication": DomainSecurity,
+	"authorization":  DomainSecurity,
+	"vulnerability":  DomainSecurity,
+	"threat":         DomainSecurity,
+	"encryption":     DomainSecurity,
+	"secure":         DomainSecurity,
+	"infosec":        DomainSecurity,
+	"appsec":         DomainSecurity,
+	"penetration":    DomainSecurity,
+	"safety":         DomainSecurity,
 
 	// Product
 	"product":    DomainProduct,
@@ -47,13 +47,13 @@ var domainKeywords = map[string]Domain{
 	"accessible": DomainProduct,
 
 	// Scope
-	"scope":         DomainScope,
-	"simplicity":    DomainScope,
-	"minimalism":    DomainScope,
-	"yagni":         DomainScope,
-	"lean":          DomainScope,
-	"pragmatism":    DomainScope,
-	"less is more":  DomainScope,
+	"scope":        DomainScope,
+	"simplicity":   DomainScope,
+	"minimalism":   DomainScope,
+	"yagni":        DomainScope,
+	"lean":         DomainScope,
+	"pragmatism":   DomainScope,
+	"less is more": DomainScope,
 
 	// Convention
 	"convention":  DomainConvention,
@@ -65,14 +65,14 @@ var domainKeywords = map[string]Domain{
 	"clarity":     DomainConvention,
 
 	// Performance
-	"performance":   DomainPerformance,
-	"optimization":  DomainPerformance,
-	"scalability":   DomainPerformance,
-	"efficiency":    DomainPerformance,
-	"latency":       DomainPerformance,
-	"throughput":    DomainPerformance,
-	"memory":        DomainPerformance,
-	"caching":       DomainPerformance,
+	"performance":  DomainPerformance,
+	"optimization": DomainPerformance,
+	"scalability":  DomainPerformance,
+	"efficiency":   DomainPerformance,
+	"latency":      DomainPerformance,
+	"throughput":   DomainPerformance,
+	"memory":       DomainPerformance,
+	"caching":      DomainPerformance,
 
 	// Quality
 	"testing":       DomainQuality,

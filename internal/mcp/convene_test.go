@@ -211,3 +211,52 @@ func TestReviewWithCouncils(t *testing.T) {
 		t.Errorf("expected product and security councils, got %+v", councils.Councils)
 	}
 }
+
+func TestConveneCouncils(t *testing.T) {
+	cleanup := setupTestCouncil(t)
+	defer cleanup()
+
+	s := NewServer(strings.NewReader(""), io.Discard, "test")
+	res := s.handleConvene(map[string]any{"councils": "writing, security", "content": "Launch post draft"})
+	if res.IsError {
+		t.Fatalf("convene failed: %s", res.Content[0].Text)
+	}
+	text := res.Content[0].Text
+	id := sessionIDRe.FindStringSubmatch(text)[1]
+	if !strings.Contains(text, "2 councils will each debate in turn (writing, security)") || !strings.Contains(text, ": writing council: Virtual Luc Perussault-Diallo.") {
+		t.Fatalf("expected the writing council's first turn:\n%s", text)
+	}
+
+	sawSpokesperson, sawCross := 0, false
+	for i := 0; i < 60 && !strings.Contains(res.Content[0].Text, "The councils have finished"); i++ {
+		text = res.Content[0].Text
+		if res.IsError {
+			t.Fatalf("turn failed: %s", text)
+		}
+		answer := `{"verdict":"comment","confidence":0.8,"notes":["Fine"],"blocking":false}`
+		switch {
+		case strings.Contains(text, "Spokesperson for the writing council."):
+			sawSpokesperson++
+			answer = `{"position":"Cut it in half.","challenges":[{"to":"security","stance":"disagree","note":"The warning box buries the lede"}]}`
+		case strings.Contains(text, "Spokesperson for the security council."):
+			sawSpokesperson++
+			answer = `{"position":"Mention the breach.","challenges":[{"to":"writing","stance":"disagree","note":"Hiding it costs trust"}]}`
+		case strings.Contains(text, "Moderator across councils."):
+			sawCross = true
+			answer = `{"disagreements":[{"topic":"Mention the breach?","sides":[{"experts":["writing"],"position":"Keep it short"},{"experts":["security"],"position":"Say it plainly"}]}],"decisions":["How prominent is the breach note?"]}`
+		case strings.Contains(text, "Moderator (disagreements and decisions)."):
+			answer = `{"decisions":["Within-council decision"]}`
+		}
+		res = s.handleTurn(map[string]any{"session": id, "review": answer})
+	}
+
+	text = res.Content[0].Text
+	if sawSpokesperson != 2 || !sawCross {
+		t.Fatalf("expected 2 spokespersons and a cross moderator (got %d, %v)", sawSpokesperson, sawCross)
+	}
+	for _, want := range []string{"The writing council (", "The security council (", "The councils answer each other", "→ disagrees with the security council:", "Mention the breach?", "How prominent is the breach note?"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("final result missing %q:\n%s", want, text)
+		}
+	}
+}

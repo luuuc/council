@@ -8,8 +8,8 @@ import (
 
 func TestExpertDomain(t *testing.T) {
 	tests := []struct {
-		focus  string
-		want   Domain
+		focus string
+		want  Domain
 	}{
 		{"Application security", DomainSecurity},
 		{"Cryptography and encryption", DomainSecurity},

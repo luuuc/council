@@ -22,9 +22,9 @@ func NewDiffPosition(diff string) *DiffPosition {
 
 	lines := strings.Split(diff, "\n")
 	var currentFile string
-	var position int  // 1-based position relative to first @@ in this file
-	var newLine int   // current line number in the new file
-	var inHunk bool   // whether we've seen at least one @@ for this file
+	var position int // 1-based position relative to first @@ in this file
+	var newLine int  // current line number in the new file
+	var inHunk bool  // whether we've seen at least one @@ for this file
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "diff --git ") {

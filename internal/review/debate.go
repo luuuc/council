@@ -20,27 +20,39 @@ const (
 
 // Turn is one step of a debate: who speaks and what they see.
 type Turn struct {
-	Kind   TurnKind
-	Number int // 1-based position among all turns
-	Total  int
-	Expert *expert.Expert // the member, or Moderator
-	Sub    Submission     // for member turns: what BuildPrompt renders
+	Kind    TurnKind
+	Number  int // 1-based position among all turns
+	Total   int
+	Expert  *expert.Expert // the member, or Moderator
+	Sub     Submission     // for member turns: what BuildPrompt renders
+	Council string         // set when several councils debate
+
+	rawPrompt string // prompt for council-level turns (spokesperson, cross moderator)
 }
 
 // Label names the turn for progress output, e.g. "Virtual DHH (final word)".
+// Turns inside one of several councils start with the council's name.
 func (t Turn) Label() string {
+	var label string
 	switch t.Kind {
 	case TurnFinalWord:
-		return t.Expert.Name + " (final word)"
+		label = t.Expert.Name + " (final word)"
 	case TurnModerator:
-		return "Moderator (disagreements and decisions)"
+		label = "Moderator (disagreements and decisions)"
 	default:
-		return t.Expert.Name
+		label = t.Expert.Name
 	}
+	if t.Council != "" && t.Kind != TurnSpokesperson {
+		label = t.Council + " council: " + label
+	}
+	return label
 }
 
 // Prompt renders the turn's prompt.
 func (t Turn) Prompt() string {
+	if t.rawPrompt != "" {
+		return t.rawPrompt
+	}
 	if t.Kind == TurnModerator {
 		return BuildModeratorPrompt(t.Sub)
 	}
@@ -232,4 +244,13 @@ func (d *Debate) spokenAfter(i int) []ExpertVerdict {
 		}
 	}
 	return out
+}
+
+// RecordRaw records a raw answer for a turn of kind k. In a single
+// council only the moderator answers raw.
+func (d *Debate) RecordRaw(k TurnKind, raw string) bool {
+	if k != TurnModerator {
+		return false
+	}
+	return d.RecordModeration(raw)
 }

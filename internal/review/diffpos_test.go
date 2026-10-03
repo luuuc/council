@@ -69,7 +69,7 @@ func TestDiffPositionMultiHunk(t *testing.T) {
 		ok   bool
 	}{
 		{"handler.go", 7, 3, true},   // +import "log" (first hunk, position 3)
-		{"handler.go", 23, 10, true},  // +log.Println (second hunk)
+		{"handler.go", 23, 10, true}, // +log.Println (second hunk)
 	}
 
 	for _, tt := range tests {

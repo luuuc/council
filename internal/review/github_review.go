@@ -31,17 +31,17 @@ type GitHubReviewComment struct {
 
 // GitHubCheckRun is the payload for a GitHub Check Run annotation.
 type GitHubCheckRun struct {
-	Name       string              `json:"name"`
-	Status     string              `json:"status"`
-	Conclusion string              `json:"conclusion"`
-	Output     GitHubCheckOutput   `json:"output"`
+	Name       string            `json:"name"`
+	Status     string            `json:"status"`
+	Conclusion string            `json:"conclusion"`
+	Output     GitHubCheckOutput `json:"output"`
 }
 
 // GitHubCheckOutput is the output section of a Check Run.
 type GitHubCheckOutput struct {
-	Title       string                   `json:"title"`
-	Summary     string                   `json:"summary"`
-	Annotations []GitHubCheckAnnotation  `json:"annotations,omitempty"`
+	Title       string                  `json:"title"`
+	Summary     string                  `json:"summary"`
+	Annotations []GitHubCheckAnnotation `json:"annotations,omitempty"`
 }
 
 // GitHubCheckAnnotation is an inline annotation in a Check Run.
