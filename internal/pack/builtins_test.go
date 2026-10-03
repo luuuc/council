@@ -5,7 +5,7 @@ import "testing"
 func TestBuiltins(t *testing.T) {
 	packs := Builtins()
 
-	expected := []string{"rails", "go", "writing", "code"}
+	expected := []string{"rails", "go", "writing", "code", "product", "growth", "security", "architecture"}
 	for _, name := range expected {
 		p, ok := packs[name]
 		if !ok {

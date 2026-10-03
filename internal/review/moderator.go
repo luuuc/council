@@ -131,3 +131,19 @@ func nonEmpty(items []string) []string {
 	}
 	return out
 }
+
+// decodeJSONObject decodes the JSON object in a model answer into v: the
+// whole text, a code fence, or the outermost braces. It reports success.
+func decodeJSONObject(raw string, v any) bool {
+	text := strings.TrimSpace(raw)
+	candidates := []string{text, extractFromCodeFence(text)}
+	if start, end := strings.IndexByte(text, '{'), strings.LastIndexByte(text, '}'); start >= 0 && end > start {
+		candidates = append(candidates, text[start:end+1])
+	}
+	for _, c := range candidates {
+		if c != "" && json.Unmarshal([]byte(c), v) == nil {
+			return true
+		}
+	}
+	return false
+}

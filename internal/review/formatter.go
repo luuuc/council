@@ -111,22 +111,7 @@ func FormatOutcome(result *SynthesizedResult) string {
 		names[p.Expert] = displayNameOf(p)
 	}
 
-	switch {
-	case len(result.Disagreements) > 0:
-		b.WriteString(rule)
-		b.WriteString("Where they disagree\n")
-		for i, d := range result.Disagreements {
-			fmt.Fprintf(&b, "  %d. %s\n", i+1, wrapIndent(d.Topic, 46, "     "))
-			for _, s := range d.Sides {
-				var who []string
-				for _, id := range s.Experts {
-					who = append(who, nameOr(names, id))
-				}
-				fmt.Fprintf(&b, "     - %s\n", wrapIndent(strings.Join(who, ", ")+": "+s.Position, 44, "       "))
-			}
-		}
-		b.WriteByte('\n')
-	case result.Tension != "":
+	if len(result.Disagreements) == 0 && result.Tension != "" {
 		b.WriteString(rule)
 		b.WriteString("Where they disagree\n")
 		for _, l := range strings.Split(result.Tension, "\n") {
@@ -134,27 +119,107 @@ func FormatOutcome(result *SynthesizedResult) string {
 		}
 		b.WriteByte('\n')
 	}
-
-	if len(result.Decisions) > 0 {
-		b.WriteString("What you need to decide\n")
-		for _, d := range result.Decisions {
-			fmt.Fprintf(&b, "  - %s\n", wrapNote(d, 46))
-		}
-		b.WriteByte('\n')
-	}
-
-	if len(result.Agreements) > 0 {
-		b.WriteString("Nobody disputed\n")
-		for _, a := range result.Agreements {
-			fmt.Fprintf(&b, "  - %s\n", wrapNote(a, 46))
-		}
-		b.WriteByte('\n')
-	}
+	writeDecisionSections(&b, result.Disagreements, result.Decisions, result.Agreements, names)
 
 	fmt.Fprintf(&b, "Votes: %s\n", voteCount(result.Perspectives))
 	if result.Blocking {
 		b.WriteString("Blocked: a blocking member voted block or escalate.\n")
 	}
+	return b.String()
+}
+
+// writeDecisionSections renders where the parties disagree, what the author
+// has to decide, and what nobody disputed. names maps side IDs to names.
+func writeDecisionSections(b *strings.Builder, disagreements []Disagreement, decisions, agreements []string, names map[string]string) {
+	if len(disagreements) > 0 {
+		b.WriteString(strings.Repeat("─", 50) + "\n")
+		b.WriteString("Where they disagree\n")
+		for i, d := range disagreements {
+			fmt.Fprintf(b, "  %d. %s\n", i+1, wrapIndent(d.Topic, 46, "     "))
+			for _, s := range d.Sides {
+				var who []string
+				for _, id := range s.Experts {
+					who = append(who, nameOr(names, id))
+				}
+				fmt.Fprintf(b, "     - %s\n", wrapIndent(strings.Join(who, ", ")+": "+s.Position, 44, "       "))
+			}
+		}
+		b.WriteByte('\n')
+	}
+
+	if len(decisions) > 0 {
+		b.WriteString("What you need to decide\n")
+		for _, d := range decisions {
+			fmt.Fprintf(b, "  - %s\n", wrapNote(d, 46))
+		}
+		b.WriteByte('\n')
+	}
+
+	if len(agreements) > 0 {
+		b.WriteString("Nobody disputed\n")
+		for _, a := range agreements {
+			fmt.Fprintf(b, "  - %s\n", wrapNote(a, 46))
+		}
+		b.WriteByte('\n')
+	}
+}
+
+// FormatCouncilHeader introduces one council's review in a multi-council run.
+func FormatCouncilHeader(name string, members int) string {
+	return fmt.Sprintf("\n%s\nThe %s council (%d members)\n%s\n\n", strings.Repeat("═", 50), name, members, strings.Repeat("═", 50))
+}
+
+// FormatStatement renders a council spokesperson answering the others.
+func FormatStatement(s CouncilStatement) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "The %s council\n", s.Council)
+	fmt.Fprintf(&b, "  %s\n", wrapIndent(s.Position, 48, "  "))
+	for _, c := range s.Challenges {
+		fmt.Fprintf(&b, "  → %s the %s council:\n    %s\n", replyVerb(c.Stance), c.To, wrapNote(c.Note, 46))
+	}
+	b.WriteByte('\n')
+	return b.String()
+}
+
+// FormatCouncilsDebateHeader introduces the councils answering each other.
+func FormatCouncilsDebateHeader() string {
+	return fmt.Sprintf("\n%s\nThe councils answer each other\n%s\n\n", strings.Repeat("═", 50), strings.Repeat("═", 50))
+}
+
+// FormatCouncilsOutcome renders where the councils disagree and what the
+// author has to decide.
+func FormatCouncilsOutcome(r *CouncilsResult) string {
+	var b strings.Builder
+	if len(r.Errors) > 0 {
+		b.WriteString(strings.Repeat("─", 50) + "\n")
+		for _, e := range r.Errors {
+			fmt.Fprintf(&b, "Error: %s\n", e)
+		}
+		b.WriteByte('\n')
+	}
+	names := map[string]string{}
+	for _, c := range r.Councils {
+		names[c.Name] = "the " + c.Name + " council"
+	}
+	writeDecisionSections(&b, r.Disagreements, r.Decisions, r.Agreements, names)
+	return b.String()
+}
+
+// FormatHumanCouncils renders a whole multi-council run (used when nothing
+// was streamed).
+func FormatHumanCouncils(r *CouncilsResult) string {
+	var b strings.Builder
+	for _, c := range r.Councils {
+		b.WriteString(FormatCouncilHeader(c.Name, len(c.Result.Perspectives)))
+		b.WriteString(FormatHuman(c.Result, c.Name, len(c.Result.Perspectives)))
+	}
+	if len(r.Statements) > 0 {
+		b.WriteString(FormatCouncilsDebateHeader())
+		for _, s := range r.Statements {
+			b.WriteString(FormatStatement(s))
+		}
+	}
+	b.WriteString(FormatCouncilsOutcome(r))
 	return b.String()
 }
 

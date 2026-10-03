@@ -112,7 +112,9 @@ Run it with the ` + "`council review`" + ` command instead of playing the member
 
 ### 2. Run the council
 
-Pass ` + "`--pack <name>`" + ` through if the arguments include one.
+Pass ` + "`--pack <name>`" + ` through if the arguments include one. If the user asks for
+several councils (e.g. "product and security"), use ` + "`--councils product,security`" + `
+instead: each council debates, then they challenge each other's conclusions.
 
 ` + "```bash" + `
 git diff HEAD | council review [--pack <name>]   # changes

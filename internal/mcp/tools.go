@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"text/template"
 
 	"github.com/luuuc/council/internal/expert"
@@ -21,6 +22,9 @@ func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCall
 	content, ok := args["content"].(string)
 	if !ok || content == "" {
 		return errorResult("missing required field: content")
+	}
+	if list, _ := args["councils"].(string); list != "" {
+		return s.handleCouncilsReview(ctx, list, content)
 	}
 
 	inputs, err := resolvePackInputs(packName)
@@ -214,4 +218,37 @@ func errorResult(msg string) toolCallResult {
 		Content: []toolContent{{Type: "text", Text: msg}},
 		IsError: true,
 	}
+}
+
+// handleCouncilsReview runs several packs as councils that then challenge
+// each other's conclusions.
+func (s *Server) handleCouncilsReview(ctx context.Context, list, content string) toolCallResult {
+	var councils []review.Council
+	for _, name := range strings.Split(list, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		inputs, err := resolvePackInputs(name)
+		if err != nil {
+			return errorResult(err.Error())
+		}
+		councils = append(councils, review.Council{Name: name, Inputs: inputs})
+	}
+	if len(councils) < 2 {
+		return errorResult("councils needs at least two packs, e.g. \"product,security,code\"")
+	}
+
+	backend, err := s.getBackend()
+	if err != nil {
+		return errorResult(fmt.Sprintf("backend error: %v\n\nCouncils of councils need an AI CLI or API key; council_convene runs one pack at a time.", err))
+	}
+	runner := &review.Runner{Backend: backend, Options: review.ReviewOptions{Timeout: s.config.AI.Timeout, FinalWord: true, Moderate: true}}
+
+	result := runner.RunCouncils(ctx, councils, review.Submission{Content: content}, review.CouncilHooks{})
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to marshal result: %v", err))
+	}
+	return toolCallResult{Content: []toolContent{{Type: "text", Text: string(data)}}}
 }

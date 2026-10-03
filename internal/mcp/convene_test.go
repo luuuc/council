@@ -175,3 +175,39 @@ principles:
 		t.Error("unknown kind should be rejected")
 	}
 }
+
+func TestReviewWithCouncils(t *testing.T) {
+	cleanup := setupTestCouncil(t)
+	defer cleanup()
+
+	input := sendRequest(1, "tools/call", toolCallParams{
+		Name:      "council_review",
+		Arguments: map[string]any{"pack": "go", "councils": "product, security", "content": "Require 2FA at signup"},
+	}) + "\n"
+	output, err := runServer(input, &mockBackend{})
+	if err != nil {
+		t.Fatalf("server error: %v", err)
+	}
+	resp, err := parseResponse(output)
+	if err != nil || resp.Error != nil {
+		t.Fatalf("unexpected error: %v %v", err, resp.Error)
+	}
+	data, _ := json.Marshal(resp.Result)
+	var result toolCallResult
+	_ = json.Unmarshal(data, &result)
+	if result.IsError {
+		t.Fatalf("tool error: %s", result.Content[0].Text)
+	}
+
+	var councils struct {
+		Councils []struct {
+			Name string `json:"name"`
+		} `json:"councils"`
+	}
+	if err := json.Unmarshal([]byte(result.Content[0].Text), &councils); err != nil {
+		t.Fatalf("result is not councils JSON: %v\n%s", err, result.Content[0].Text)
+	}
+	if len(councils.Councils) != 2 || councils.Councils[0].Name != "product" || councils.Councils[1].Name != "security" {
+		t.Errorf("expected product and security councils, got %+v", councils.Councils)
+	}
+}

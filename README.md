@@ -110,6 +110,8 @@ Each expert's review prints as soon as it's done, so you watch the debate unfold
 
 Works with any LLM backend: runs an AI CLI headless (`claude -p`, `opencode run`, `codex exec`) or calls APIs directly (Anthropic, OpenAI, Ollama). The first CLI found is used; set `ai.command` in `.council/config.yaml` to pick one.
 
+**Councils of Councils.** `council review --councils product,security,code --file plan.md` runs several packs on the same submission. Each council debates on its own, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
+
 `/council` in Claude Code and OpenCode runs the same review: point it at files, your current changes, or a question, and it presents the debate and what you need to decide.
 
 ## Packs
@@ -123,7 +125,7 @@ council packs create my-pack               # Create custom pack
 council packs add my-pack kent-beck        # Add expert to pack
 ```
 
-Built-in packs: `code` (any language), `go`, `rails`, `writing`. Custom packs override built-ins with the same name.
+Built-in packs: `code` (any language), `product`, `growth`, `security`, `architecture`, `go`, `rails`, `writing`. Each mixes members with different incentives so they don't agree by default. Custom packs override built-ins with the same name.
 
 ## MCP Server
 

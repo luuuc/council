@@ -328,6 +328,10 @@ func toolDefinitions() []toolDefinition {
 						Type:        "string",
 						Description: "The code diff, file content, or text to review",
 					},
+					"councils": {
+						Type:        "string",
+						Description: "Optional: several packs, comma-separated (e.g. \"product,security,code\"). Each council debates, then they challenge each other's conclusions; pack is ignored.",
+					},
 				},
 				Required: []string{"pack", "content"},
 			},
