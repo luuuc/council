@@ -200,3 +200,38 @@ func TestParseHunkNewStart(t *testing.T) {
 		}
 	}
 }
+
+func TestParseDiffPath(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{"diff --git a/src/main.go b/src/main.go", "src/main.go"},
+		{"diff --git a/README.md b/README.md", "README.md"},
+		{"diff --git a/a/b/c.txt b/a/b/c.txt", "a/b/c.txt"},
+	}
+	for _, tt := range tests {
+		got := parseDiffPath(tt.line)
+		if got != tt.want {
+			t.Errorf("parseDiffPath(%q) = %q, want %q", tt.line, got, tt.want)
+		}
+	}
+}
+
+func TestParseDiffPathEdgeCases(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{"diff --git a/src/main.go b/src/main.go", "src/main.go"},
+		{"diff --git a/README.md b/README.md", "README.md"},
+		{"diff --git a/deep/nested/path/file.go b/deep/nested/path/file.go", "deep/nested/path/file.go"},
+		{"diff --git a/b/file.go b/b/file.go", "b/file.go"},
+	}
+	for _, tt := range tests {
+		got := parseDiffPath(tt.line)
+		if got != tt.want {
+			t.Errorf("parseDiffPath(%q) = %q, want %q", tt.line, got, tt.want)
+		}
+	}
+}

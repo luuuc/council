@@ -203,7 +203,7 @@ jobs:
 | `OPENAI_API_KEY` | OpenAI | `gpt-4.1` | BYOK |
 | Neither | GitHub Models | `gpt-4.1-mini` | Free (150 req/day) |
 
-**Free tier limits:** 150 requests/day. On the free tier the Action uses `--mode collective` (one request per review) by default; set `mode: sequential` for a real debate at one request per expert (about 25 reviews/day with a 6-expert pack). With an API key, sequential is the default. Files over 8K tokens are skipped. Max 25 files per review. Per-file review means cross-file issues are invisible — use BYOK for larger context.
+**Free tier limits:** 150 requests/day. On the free tier the Action uses `--mode collective` (one request per review) by default; set `mode: sequential` for a real debate at one request per expert (about 25 reviews/day with a 6-expert pack). With an API key, sequential is the default. The free tier also caps how much text one request can carry, so large PR diffs may fail there; use an API key for larger PRs.
 
 See [`action/examples/`](action/examples/) for more workflow examples.
 

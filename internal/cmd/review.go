@@ -66,11 +66,8 @@ need to decide.
 --mode collective runs one call that plays every expert at once. It is
 cheaper (one call instead of one per expert) but the debate is simulated.
 
-Input can be a diff from stdin or a file via --file.
-
-Note: per-file review (--provider github) reviews each file in isolation.
-Cross-file issues (e.g. function defined in A, misused in B) are invisible.
-Use BYOK (--provider anthropic/openai) for cross-file analysis.
+Input can be a diff from stdin or a file via --file. The whole submission
+goes to every call, so members see cross-file issues.
 
 Examples:
   git diff main | council review --pack rails

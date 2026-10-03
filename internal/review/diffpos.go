@@ -124,3 +124,20 @@ func parseHunkNewStart(header string) int {
 	}
 	return n
 }
+
+// parseDiffPath extracts the file path from a "diff --git a/path b/path" line.
+func parseDiffPath(diffLine string) string {
+	// Format: "diff --git a/path/to/file b/path/to/file\n"
+	diffLine = strings.TrimSpace(diffLine)
+	// Split on the last " b/" to handle paths containing " b/" as a substring.
+	idx := strings.LastIndex(diffLine, " b/")
+	if idx >= 0 {
+		return diffLine[idx+3:]
+	}
+	// Fallback: try to extract from a/ prefix
+	parts := strings.SplitN(diffLine, " a/", 2)
+	if len(parts) == 2 {
+		return strings.SplitN(parts[1], " ", 2)[0]
+	}
+	return diffLine
+}
