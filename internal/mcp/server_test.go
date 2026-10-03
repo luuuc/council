@@ -225,12 +225,12 @@ func TestToolsList(t *testing.T) {
 func TestToolsCallReview(t *testing.T) {
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"the-tdd-advocate": {
-				Expert: "the-tdd-advocate", Verdict: review.VerdictComment,
+			"kent-beck": {
+				Expert: "kent-beck", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"the-threat-modeler": {
-				Expert: "the-threat-modeler", Verdict: review.VerdictPass,
+			"bruce-schneier": {
+				Expert: "bruce-schneier", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"No security concerns"},
 			},
 		},
@@ -446,7 +446,7 @@ func TestToolsCallExplainMissingFields(t *testing.T) {
 		},
 		{
 			name: "missing note",
-			args: map[string]any{"expert": "the-tdd-advocate"},
+			args: map[string]any{"expert": "kent-beck"},
 			want: "missing required field: note",
 		},
 	}
@@ -648,16 +648,16 @@ func setupTestCouncil(t *testing.T) func() {
 func testExperts() []*expert.Expert {
 	return []*expert.Expert{
 		{
-			ID:    "the-tdd-advocate",
-			Name:  "The TDD Advocate",
+			ID:    "kent-beck",
+			Name:  "Virtual Kent Beck",
 			Focus: "TDD",
-			Body:  "# The TDD Advocate - TDD\n\nYou are The TDD Advocate.",
+			Body:  "# Virtual Kent Beck - TDD\n\nYou are Virtual Kent Beck.",
 		},
 		{
-			ID:    "the-go-purist",
-			Name:  "The Go Purist",
+			ID:    "rob-pike",
+			Name:  "Virtual Rob Pike",
 			Focus: "Go clarity",
-			Body:  "# The Go Purist - Go clarity\n\nYou are The Go Purist.",
+			Body:  "# Virtual Rob Pike - Go clarity\n\nYou are Virtual Rob Pike.",
 		},
 	}
 }
@@ -668,18 +668,18 @@ func TestToolsCallReviewHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"the-tdd-advocate": {
-				Expert: "the-tdd-advocate", Verdict: review.VerdictComment,
+			"kent-beck": {
+				Expert: "kent-beck", Verdict: review.VerdictComment,
 				Confidence: 0.8, Notes: []string{"Add test for edge case"},
 			},
-			"the-go-purist": {
-				Expert: "the-go-purist", Verdict: review.VerdictPass,
+			"rob-pike": {
+				Expert: "rob-pike", Verdict: review.VerdictPass,
 				Confidence: 0.95, Notes: []string{"Clean and idiomatic"},
 			},
 		},
 	}
 
-	// Use the "go" builtin pack — it includes the-tdd-advocate and the-go-purist
+	// Use the "go" builtin pack — it includes kent-beck and rob-pike
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_review",
 		Arguments: map[string]any{
@@ -737,10 +737,10 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 
 	backend := &mockBackend{
 		results: map[string]review.ExpertVerdict{
-			"the-tdd-advocate": {
-				Expert: "the-tdd-advocate", Verdict: review.VerdictComment,
+			"kent-beck": {
+				Expert: "kent-beck", Verdict: review.VerdictComment,
 				Confidence: 0.9,
-				Notes: []string{"This pattern violates the Single Responsibility Principle. The function handles both parsing and validation, which should be separated for testability."},
+				Notes:      []string{"This pattern violates the Single Responsibility Principle. The function handles both parsing and validation, which should be separated for testability."},
 			},
 		},
 	}
@@ -748,7 +748,7 @@ func TestToolsCallExplainHappyPath(t *testing.T) {
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name: "council_explain",
 		Arguments: map[string]any{
-			"expert": "the-tdd-advocate",
+			"expert": "kent-beck",
 			"note":   "No test for the empty-state CSV.",
 		},
 	}) + "\n"
@@ -853,16 +853,16 @@ func TestToolsCallListHappyPath(t *testing.T) {
 		t.Error("expected at least one expert in list")
 	}
 
-	// Verify the-go-purist is in the list (composite expert in the go builtin pack)
+	// Verify rob-pike is in the list (real-person expert in the go builtin pack)
 	found := false
 	for _, e := range listOutput.Experts {
-		if e.ID == "the-go-purist" {
+		if e.ID == "rob-pike" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected the-go-purist in go pack list")
+		t.Error("expected rob-pike in go pack list")
 	}
 }
 

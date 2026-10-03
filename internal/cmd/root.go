@@ -21,12 +21,12 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "council",
-	Short: "Expert councils for AI coding assistants",
-	Long: `council helps you create an expert council for AI coding assistants.
+	Short: "A room of Virtual experts who review your work and argue",
+	Long: `council builds a team of AI reviewers modeled on real people, real roles,
+and real perspectives - Virtual DHH, a security engineer, your customers.
 
-The council pattern establishes quality standards through expert personas
-that represent excellence in specific domains - Sable Okoro for Go clarity,
-Ada Redgrave for testing, Elara Nygaard for design simplicity.
+Members are picked to disagree. They see each other's arguments, push back,
+and expose trade-offs. You make the decision.
 
 Quick start:
   council start          Zero-config setup (creates council, adds experts, syncs)

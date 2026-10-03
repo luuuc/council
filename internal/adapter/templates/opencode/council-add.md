@@ -6,7 +6,7 @@ Add a new expert to the council: $ARGUMENTS
 
 Determine what type of input $ARGUMENTS is:
 
-- **Name**: Quoted string, or 2-3 capitalized words forming a person's name (e.g., "Ada Redgrave", Sable Okoro)
+- **Name**: Quoted string, or 2-3 capitalized words forming a person's name (e.g., "Kent Beck", Sandi Metz)
 - **Description**: Contains "a ", "someone", "expert in", "help with" (e.g., "a testing expert")
 - **Keyword**: Single word describing a domain (e.g., "testing", "APIs")
 
@@ -121,6 +121,8 @@ Wait for the user's response, then:
 ## Step 5: Generate Custom Profile
 
 Once an expert is confirmed for custom creation, generate a rich profile.
+
+If the persona is based on a real person, name it with the "Virtual" prefix (e.g. `Virtual Jason Fried`, id `jason-fried`). The prefix makes clear it is a model built from their public work, not the person. Roles and custom personas ("My CTO", "Security Engineer") keep their plain name.
 
 Research or use your knowledge of this person to generate:
 

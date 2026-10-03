@@ -48,13 +48,13 @@ func testInTempDir(t *testing.T, fn func(t *testing.T, dir string)) {
 func TestAddCmd_Success(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Run addCmd with a known persona
-		err := addCmd.RunE(addCmd, []string{"The Go Purist"})
+		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
 		if err != nil {
 			t.Fatalf("addCmd failed: %v", err)
 		}
 
 		// Verify file was created
-		expertPath := config.Path(config.ExpertsDir, "the-go-purist.md")
+		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
 		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
 			t.Errorf("expert file not created at %s", expertPath)
 		}
@@ -66,11 +66,11 @@ func TestAddCmd_Success(t *testing.T) {
 		}
 
 		content := string(data)
-		if !strings.Contains(content, "The Go Purist") {
-			t.Error("expert file does not contain 'The Go Purist'")
+		if !strings.Contains(content, "Virtual Rob Pike") {
+			t.Error("expert file does not contain 'Virtual Rob Pike'")
 		}
-		if !strings.Contains(content, "id: the-go-purist") {
-			t.Error("expert file does not contain 'id: the-go-purist'")
+		if !strings.Contains(content, "id: rob-pike") {
+			t.Error("expert file does not contain 'id: rob-pike'")
 		}
 	})
 }
@@ -78,13 +78,13 @@ func TestAddCmd_Success(t *testing.T) {
 func TestAddCmd_DuplicateExpert(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Add expert first time
-		err := addCmd.RunE(addCmd, []string{"The Go Purist"})
+		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
 		if err != nil {
 			t.Fatalf("first addCmd failed: %v", err)
 		}
 
 		// Try to add again
-		err = addCmd.RunE(addCmd, []string{"The Go Purist"})
+		err = addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
 		if err == nil {
 			t.Fatal("expected error for duplicate expert, got nil")
 		}
@@ -116,19 +116,19 @@ func TestAddCmd_NotFound(t *testing.T) {
 
 func TestAddCmd_FuzzySuggestion(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
-		// Test with a typo that should suggest The Go Purist
-		err := addCmd.RunE(addCmd, []string{"The Go Puris"})
+		// Test with a typo that should suggest Virtual Rob Pike
+		err := addCmd.RunE(addCmd, []string{"Rob Pik"})
 
 		if err == nil {
 			// Expert was added (interactive mode with auto-confirm)
-			expertPath := config.Path(config.ExpertsDir, "the-go-purist.md")
+			expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
 			if _, statErr := os.Stat(expertPath); os.IsNotExist(statErr) {
 				t.Errorf("expert should have been added at %s", expertPath)
 			}
 		} else {
 			// Non-interactive mode - should have suggestion
 			errMsg := err.Error()
-			if !strings.Contains(errMsg, "Did you mean") && !strings.Contains(errMsg, "The Go Purist") {
+			if !strings.Contains(errMsg, "Did you mean") && !strings.Contains(errMsg, "Virtual Rob Pike") {
 				t.Errorf("error should contain suggestion, got: %v", err)
 			}
 		}
@@ -154,13 +154,13 @@ func TestAddCmd_FirstNameMatch(t *testing.T) {
 func TestAddCmd_CaseInsensitive(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Test case insensitive lookup
-		err := addCmd.RunE(addCmd, []string{"THE GO PURIST"})
+		err := addCmd.RunE(addCmd, []string{"ROB PIKE"})
 		if err != nil {
 			t.Fatalf("addCmd failed: %v", err)
 		}
 
 		// Verify file was created with correct ID
-		expertPath := config.Path(config.ExpertsDir, "the-go-purist.md")
+		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
 		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
 			t.Errorf("expert file not created at %s", expertPath)
 		}
@@ -170,12 +170,12 @@ func TestAddCmd_CaseInsensitive(t *testing.T) {
 func TestAddCmd_IDFormat(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Test using ID format directly
-		err := addCmd.RunE(addCmd, []string{"the-tdd-advocate"})
+		err := addCmd.RunE(addCmd, []string{"kent-beck"})
 		if err != nil {
 			t.Fatalf("addCmd failed: %v", err)
 		}
 
-		expertPath := config.Path(config.ExpertsDir, "the-tdd-advocate.md")
+		expertPath := config.Path(config.ExpertsDir, "kent-beck.md")
 		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
 			t.Errorf("expert file not created at %s", expertPath)
 		}
@@ -202,7 +202,7 @@ func TestAddCmd_NoCouncilInit(t *testing.T) {
 	}
 
 	// Try to add without council init
-	err = addCmd.RunE(addCmd, []string{"The Go Purist"})
+	err = addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
 	if err == nil {
 		t.Fatal("expected error when council not initialized, got nil")
 	}
@@ -219,13 +219,13 @@ func TestAddCmd_YesFlag(t *testing.T) {
 		defer func() { addYes = false }()
 
 		// Test with a typo - should auto-accept suggestion with --yes
-		err := addCmd.RunE(addCmd, []string{"The Go Puris"})
+		err := addCmd.RunE(addCmd, []string{"Rob Pik"})
 		if err != nil {
 			t.Fatalf("addCmd with --yes failed: %v", err)
 		}
 
-		// Verify The Go Purist was added
-		expertPath := config.Path(config.ExpertsDir, "the-go-purist.md")
+		// Verify Virtual Rob Pike was added
+		expertPath := config.Path(config.ExpertsDir, "rob-pike.md")
 		if _, err := os.Stat(expertPath); os.IsNotExist(err) {
 			t.Errorf("expert file not created at %s", expertPath)
 		}
@@ -235,7 +235,7 @@ func TestAddCmd_YesFlag(t *testing.T) {
 func TestAddCmd_YesFlagDuplicate(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Add expert first
-		err := addCmd.RunE(addCmd, []string{"The Go Purist"})
+		err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"})
 		if err != nil {
 			t.Fatalf("first addCmd failed: %v", err)
 		}
@@ -244,7 +244,7 @@ func TestAddCmd_YesFlagDuplicate(t *testing.T) {
 		addYes = true
 		defer func() { addYes = false }()
 
-		err = addCmd.RunE(addCmd, []string{"The Go Puris"})
+		err = addCmd.RunE(addCmd, []string{"Rob Pik"})
 		if err == nil {
 			t.Fatal("expected error for duplicate expert, got nil")
 		}
@@ -258,11 +258,11 @@ func TestAddCmd_YesFlagDuplicate(t *testing.T) {
 func TestListExperts(t *testing.T) {
 	testInTempDir(t, func(t *testing.T, dir string) {
 		// Add two experts
-		if err := addCmd.RunE(addCmd, []string{"The Go Purist"}); err != nil {
-			t.Fatalf("failed to add The Go Purist: %v", err)
+		if err := addCmd.RunE(addCmd, []string{"Virtual Rob Pike"}); err != nil {
+			t.Fatalf("failed to add Virtual Rob Pike: %v", err)
 		}
-		if err := addCmd.RunE(addCmd, []string{"The TDD Advocate"}); err != nil {
-			t.Fatalf("failed to add The TDD Advocate: %v", err)
+		if err := addCmd.RunE(addCmd, []string{"Virtual Kent Beck"}); err != nil {
+			t.Fatalf("failed to add Virtual Kent Beck: %v", err)
 		}
 
 		// Verify both files exist

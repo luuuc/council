@@ -7,10 +7,19 @@ import (
 // SuggestionBank is a map of category to list of experts used for persona lookup.
 type SuggestionBank map[string][]Expert
 
+// virtualPrefix marks personas modeled on real people (e.g. "Virtual Kent Beck").
+const virtualPrefix = "virtual "
+
+// baseName lowercases a persona name and drops the "Virtual" prefix,
+// so "Kent Beck" and "Virtual Kent Beck" match the same persona.
+func baseName(name string) string {
+	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(name)), virtualPrefix)
+}
+
 // LookupPersona finds a curated persona by name or ID (case-insensitive).
-// Returns nil if not found.
+// The "Virtual" prefix is optional. Returns nil if not found.
 func LookupPersona(bank SuggestionBank, nameOrID string) *Expert {
-	normalized := strings.ToLower(strings.TrimSpace(nameOrID))
+	normalized := baseName(nameOrID)
 
 	// Try legacy alias resolution first
 	if newID, ok := LegacyAlias(normalized); ok {
@@ -26,27 +35,27 @@ func LookupPersona(bank SuggestionBank, nameOrID string) *Expert {
 				return &copy
 			}
 			// Match by name (case-insensitive)
-			if strings.ToLower(e.Name) == normalized {
+			if baseName(e.Name) == normalized {
 				copy := e
 				return &copy
 			}
 			// Match by name converted to ID format (spaces → dashes)
-			if strings.ToLower(strings.ReplaceAll(e.Name, " ", "-")) == normalized {
+			if strings.ReplaceAll(baseName(e.Name), " ", "-") == normalized {
 				copy := e
 				return &copy
 			}
 		}
 	}
 
-	// Second pass: first-name matching (for inputs like "Luc" → "Luc Perussault-Diallo")
+	// Second pass: first-name matching (for inputs like "Luc" → "Virtual Luc Perussault-Diallo")
 	// Only if input looks like a single word (no spaces, no dashes)
 	if !strings.Contains(normalized, " ") && !strings.Contains(normalized, "-") {
 		var firstNameMatch *Expert
 		matchCount := 0
 		for _, experts := range bank {
 			for _, e := range experts {
-				nameParts := strings.Split(e.Name, " ")
-				if len(nameParts) > 0 && strings.ToLower(nameParts[0]) == normalized {
+				nameParts := strings.Split(baseName(e.Name), " ")
+				if len(nameParts) > 0 && nameParts[0] == normalized {
 					matchCount++
 					if matchCount == 1 {
 						copy := e
@@ -104,17 +113,17 @@ func SuggestSimilar(bank SuggestionBank, input string) (*Expert, int) {
 		return nil, 0
 	}
 
-	normalized := strings.ToLower(strings.TrimSpace(input))
+	normalized := baseName(input)
 
 	// For short inputs (< 4 chars), try prefix matching on first names
-	// This handles cases like "Sable" → "Sable Okoro", "Iris" → "Iris Vance"
+	// This handles cases like "Rob" → "Virtual Rob Pike", "Cal" → "Virtual Cal Newport"
 	if len(normalized) < 4 && len(normalized) >= 2 {
 		var prefixMatches []*Expert
 		for _, experts := range bank {
 			for _, e := range experts {
-				nameParts := strings.Split(e.Name, " ")
+				nameParts := strings.Split(baseName(e.Name), " ")
 				if len(nameParts) > 0 {
-					firstName := strings.ToLower(nameParts[0])
+					firstName := nameParts[0]
 					if strings.HasPrefix(firstName, normalized) {
 						copy := e
 						prefixMatches = append(prefixMatches, &copy)
@@ -136,7 +145,7 @@ func SuggestSimilar(bank SuggestionBank, input string) (*Expert, int) {
 	for _, experts := range bank {
 		for _, e := range experts {
 			// Check distance against name
-			if d := levenshtein(normalized, strings.ToLower(e.Name)); d < bestDistance && d > 0 {
+			if d := levenshtein(normalized, baseName(e.Name)); d < bestDistance && d > 0 {
 				bestDistance = d
 				copy := e
 				bestMatch = &copy

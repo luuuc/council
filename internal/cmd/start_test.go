@@ -97,17 +97,17 @@ func TestSelectExperts_GoProject(t *testing.T) {
 		t.Fatal("expected experts to be selected for Go project")
 	}
 
-	// Should include The Go Purist for Go projects
+	// Should include Virtual Rob Pike for Go projects
 	hasSable := false
 	for _, e := range experts {
-		if e.ID == "the-go-purist" {
+		if e.ID == "rob-pike" {
 			hasSable = true
 			break
 		}
 	}
 
 	if !hasSable {
-		t.Error("expected The Go Purist to be selected for Go project")
+		t.Error("expected Virtual Rob Pike to be selected for Go project")
 	}
 }
 
@@ -127,17 +127,17 @@ func TestSelectExperts_RailsProject(t *testing.T) {
 		t.Fatal("expected experts to be selected for Rails project")
 	}
 
-	// Should include The Rails Monolith for Rails projects
+	// Should include Virtual DHH for Rails projects
 	hasRailsMonolith := false
 	for _, e := range experts {
-		if e.ID == "the-rails-monolith" {
+		if e.ID == "dhh" {
 			hasRailsMonolith = true
 			break
 		}
 	}
 
 	if !hasRailsMonolith {
-		t.Error("expected The Rails Monolith to be selected for Rails project")
+		t.Error("expected Virtual DHH to be selected for Rails project")
 	}
 }
 
@@ -149,17 +149,17 @@ func TestSelectExperts_FallbackToGeneralists(t *testing.T) {
 		t.Fatal("expected generalists to be selected")
 	}
 
-	// Should include The TDD Advocate as a generalist
+	// Should include Virtual Kent Beck as a generalist
 	hasAda := false
 	for _, e := range generalists {
-		if e.ID == "the-tdd-advocate" {
+		if e.ID == "kent-beck" {
 			hasAda = true
 			break
 		}
 	}
 
 	if !hasAda {
-		t.Error("expected The TDD Advocate in generalists")
+		t.Error("expected Virtual Kent Beck in generalists")
 	}
 }
 

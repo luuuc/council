@@ -2,22 +2,22 @@ rails:
   name: rails
   description: Ruby on Rails review council
   members:
-    - id: the-tdd-advocate
-    - id: the-rails-monolith
-    - id: the-threat-modeler
-    - id: the-scope-cutter
-    - id: the-ruby-crafter
+    - id: kent-beck
+    - id: dhh
+    - id: bruce-schneier
+    - id: jason-fried
+    - id: matz
     - id: luc-perussault-diallo
 
 go:
   name: go
   description: Go review council
   members:
-    - id: the-go-purist
-    - id: the-tdd-advocate
-    - id: the-threat-modeler
-    - id: the-flow-optimizer
-    - id: the-design-minimalist
+    - id: rob-pike
+    - id: kent-beck
+    - id: bruce-schneier
+    - id: gene-kim
+    - id: dieter-rams
     - id: luc-perussault-diallo
 
 writing:
@@ -25,6 +25,6 @@ writing:
   description: Technical writing review council
   members:
     - id: luc-perussault-diallo
-    - id: the-scope-cutter
-    - id: the-design-minimalist
-    - id: the-revision-hawk
+    - id: jason-fried
+    - id: dieter-rams
+    - id: william-zinsser

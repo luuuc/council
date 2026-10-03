@@ -65,8 +65,8 @@ Body content.`,
 		{
 			name: "expert with influences and backstory",
 			input: `---
-id: the-tdd-advocate
-name: The TDD Advocate
+id: kent-beck
+name: Virtual Kent Beck
 focus: Test-driven development and incremental design
 influences:
   - "Kent Beck — TDD, red-green-refactor"
@@ -80,17 +80,17 @@ red_flags:
   - Code without tests
 ---
 
-# The TDD Advocate`,
+# Virtual Kent Beck`,
 			want: &Expert{
-				ID:         "the-tdd-advocate",
-				Name:       "The TDD Advocate",
+				ID:         "kent-beck",
+				Name:       "Virtual Kent Beck",
 				Focus:      "Test-driven development and incremental design",
 				Influences: []string{"Kent Beck — TDD, red-green-refactor", "Michael Feathers — Working with legacy code"},
 				Backstory:  "Former embedded systems engineer who moved to web development.\n",
 				Philosophy: "Untested code is a liability.",
 				Principles: []string{"Red-green-refactor"},
 				RedFlags:   []string{"Code without tests"},
-				Body:       "# The TDD Advocate",
+				Body:       "# Virtual Kent Beck",
 			},
 			wantErr: false,
 		},
@@ -240,7 +240,7 @@ func TestSave(t *testing.T) {
 		{
 			name: "save expert with all fields",
 			expert: &Expert{
-				ID:         "the-rails-monolith",
+				ID:         "dhh",
 				Name:       "Diego Valdez",
 				Focus:      "Rails and convention over configuration",
 				Philosophy: "Optimize for programmer happiness.",
@@ -253,7 +253,7 @@ func TestSave(t *testing.T) {
 			name: "save expert with influences and backstory",
 			expert: &Expert{
 				ID:         "composite",
-				Name:       "The TDD Advocate",
+				Name:       "Virtual Kent Beck",
 				Focus:      "Test-driven development",
 				Influences: []string{"Kent Beck — TDD", "Michael Feathers — Legacy code"},
 				Backstory:  "Former embedded systems engineer.",
@@ -577,15 +577,15 @@ func TestGenerateBody(t *testing.T) {
 
 func TestGenerateBody_WithBackstory(t *testing.T) {
 	e := &Expert{
-		ID:        "the-tdd-advocate",
-		Name:      "The TDD Advocate",
+		ID:        "kent-beck",
+		Name:      "Virtual Kent Beck",
 		Focus:     "Test-driven development",
 		Backstory: "Former embedded systems engineer who moved to web development.",
 	}
 
 	body := e.generateBody()
 
-	if !strings.Contains(body, "You are The TDD Advocate") {
+	if !strings.Contains(body, "You are Virtual Kent Beck") {
 		t.Error("generateBody() should use 'You are' identity, not 'channeling'")
 	}
 	if !strings.Contains(body, "Former embedded systems engineer") {

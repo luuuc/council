@@ -54,7 +54,7 @@ Use BYOK (--provider anthropic/openai) for cross-file analysis.
 Examples:
   git diff main | council review --pack rails
   council review --pack code --file src/controller.rb
-  council review --expert the-tdd-advocate --file lib/utils.rb
+  council review --expert kent-beck --file lib/utils.rb
   git diff main | council review --pack rails --json
   git diff main | council review --backend api --provider github --output github-pr`,
 	SilenceUsage: true,

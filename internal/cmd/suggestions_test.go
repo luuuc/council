@@ -101,24 +101,25 @@ func TestSuggestSimilar(t *testing.T) {
 		wantName string // empty means expect nil
 	}{
 		// Single character typos (matches against IDs and names)
-		{"Luc Perussault-Diall", "Luc Perussault-Diallo"},
-		{"the-tdd-advocat", "The TDD Advocate"},
-		{"The Go Puris", "The Go Purist"},
+		{"Luc Perussault-Diall", "Virtual Luc Perussault-Diallo"},
+		{"kent-bec", "Virtual Kent Beck"},
+		{"Rob Pik", "Virtual Rob Pike"},
+		{"Virtual Rob Pik", "Virtual Rob Pike"},
 
 		// Case insensitive - exact matches should return nil (use LookupPersona)
-		{"THE GO PURIST", ""},
-		{"the go purist", ""},
+		{"ROB PIKE", ""},
+		{"virtual rob pike", ""},
 
 		// First-name found by LookupPersona - should return nil
 		{"Luc", ""},
 		{"luc", ""},
 
 		// Legacy alias resolution - returns nil because LookupPersona resolves them
-		{"kent-beck", ""},
-		{"rob-pike", ""},
+		{"the-tdd-advocate", ""},
+		{"the-go-purist", ""},
 
 		// Prefix matching for short inputs (2-3 chars) - unique prefix
-		{"Lu", "Luc Perussault-Diallo"},
+		{"Bj", "Virtual Bjarne Stroustrup"},
 
 		// No close match
 		{"xyz", ""},
@@ -153,22 +154,23 @@ func TestLookupPersona(t *testing.T) {
 		wantNil bool
 	}{
 		// Exact matches by name
-		{"The Go Purist", "the-go-purist", false},
-		{"THE GO PURIST", "the-go-purist", false},
-		{"  The Go Purist  ", "the-go-purist", false},
-		{"The TDD Advocate", "the-tdd-advocate", false},
+		{"Rob Pike", "rob-pike", false},
+		{"ROB PIKE", "rob-pike", false},
+		{"  Rob Pike  ", "rob-pike", false},
+		{"Virtual Kent Beck", "kent-beck", false},
+		{"virtual kent beck", "kent-beck", false},
 
 		// Exact match by ID
-		{"the-go-purist", "the-go-purist", false},
-		{"the-tdd-advocate", "the-tdd-advocate", false},
+		{"rob-pike", "rob-pike", false},
+		{"kent-beck", "kent-beck", false},
 
-		// First-name matching (only Luc has a non-"The" first name)
+		// First-name matching (unique first names only)
 		{"Luc", "luc-perussault-diallo", false},
 		{"luc", "luc-perussault-diallo", false},
 
 		// Legacy alias resolution
-		{"kent-beck", "the-tdd-advocate", false},
-		{"rob-pike", "the-go-purist", false},
+		{"the-tdd-advocate", "kent-beck", false},
+		{"the-go-purist", "rob-pike", false},
 
 		// Unknown
 		{"Unknown Person", "", true},

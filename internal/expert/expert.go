@@ -168,9 +168,18 @@ func (e *Expert) generateBody() string {
 
 // Load reads an expert from disk
 func Load(id string) (*Expert, error) {
-	id, _ = LegacyAlias(id)
+	return LoadFile(expertPath(id))
+}
+
+// expertPath returns the file for id, following a legacy alias only when
+// no file exists under the given id (old councils may still have them).
+func expertPath(id string) string {
 	path := config.Path(config.ExpertsDir, id+".md")
-	return LoadFile(path)
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	id, _ = LegacyAlias(id)
+	return config.Path(config.ExpertsDir, id+".md")
 }
 
 // LoadFile reads an expert from a specific file
@@ -314,9 +323,7 @@ func Delete(id string) error {
 
 // Exists checks if an expert exists
 func Exists(id string) bool {
-	id, _ = LegacyAlias(id)
-	path := config.Path(config.ExpertsDir, id+".md")
-	_, err := os.Stat(path)
+	_, err := os.Stat(expertPath(id))
 	return err == nil
 }
 

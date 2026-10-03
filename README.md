@@ -1,12 +1,14 @@
 # The Council Creator
 
-**Better feedback. Broader perspective. Voices that push back.**
+**A room full of Virtual experts, colleagues, critics, and customers who review your work, argue with each other, and force better decisions.**
 
-AI tools are eager to please. They validate your ideas, agree with your approach, and move fast. That's useful—but you lose something. Your own judgment fades within the AI's rapid flow. No one asks the hard questions.
+AI tools are eager to please. They validate your ideas and move fast. No one asks the hard questions, and your own judgment fades.
 
-A council fixes this. You create a group of expert voices—composite experts, fictional characters, your team members, anyone—who review your work from their unique perspectives. Sable Okoro asks if it's clear. Ada Redgrave asks where the tests are. Marcus Torrent asks if you really need that feature.
+A Council fixes this. It is a team of AI reviewers modeled on real people, real roles, and real perspectives. Personas based on real people carry the **Virtual** prefix: Virtual DHH, Virtual Boris Cherny, Virtual Jason Fried. Mix them with roles like a security engineer or an SRE, and with the customers you build for.
 
-The AI stops being one agreeable voice and becomes many distinct, challenging voices.
+Members are picked to disagree. Each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
+
+Code review is one use. Product, writing, architecture, and security decisions are others. See [docs/direction.md](docs/direction.md) for where Council is heading.
 
 ## Get Started
 
@@ -22,13 +24,13 @@ After setup, use `/council <topic>` to convene your experts.
 
 Your council is yours. Add whoever helps you do better work:
 
-- **Curated experts**: 48 composite personas covering Go, Rails, Python, security, design, and more
-- **Your team**: Add your CTO, your tech lead, your mentor
-- **Fictional characters**: Donald Duck for your cartoon project? Valid.
-- **Custom voices**: Create personas with specific philosophies and red flags
+- **Virtual experts**: personas built from real people's public talks, writing, and decisions
+- **Roles**: a security engineer, an SRE, a product-minded CTO
+- **Your customers**: the user types you are actually building for
+- **Your team**: your CTO, your tech lead, your mentor
 
 ```bash
-council add "Ada Redgrave"           # From curated library
+council add "Kent Beck"             # Adds Virtual Kent Beck from the library
 council add "My Tech Lead"           # Create custom persona
 /council-add a security expert       # AI-assisted discovery
 ```
@@ -38,10 +40,10 @@ council add "My Tech Lead"           # Create custom persona
 ```
 Your Council                         Your AI Tool
 ┌─────────────────┐                  ┌─────────────────┐
-│ Sable Okoro     │                  │ /council        │
-│ Ada Redgrave    │───── sync ──────▶│ /council-add    │
+│ Virtual DHH     │                  │ /council        │
+│ Security Eng.   │───── sync ──────▶│ /council-add    │
 │ Your CTO        │                  │ /council-remove │
-│ Custom Expert   │                  │                 │
+│ Your Customer   │                  │                 │
 └─────────────────┘                  └─────────────────┘
 ```
 
@@ -67,7 +69,7 @@ Or step by step:
 
 ```bash
 council init     # Creates .council/ directory
-council add "Ada Redgrave" # Add experts one by one
+council add "Kent Beck"   # Add experts one by one
 council sync     # Syncs to your AI tool
 ```
 
@@ -127,7 +129,7 @@ Use Council as a tool in any MCP-capable AI tool:
 ```
 
 Exposes three tools over stdin/stdout JSON-RPC:
-- `council_review` — blind parallel review, returns structured verdict
+- `council_review` — collective review, returns structured verdict
 - `council_list` — list pack members (no LLM calls)
 - `council_explain` — expand on a review note with expert reasoning
 
@@ -185,9 +187,11 @@ See [`action/examples/`](action/examples/) for more workflow examples.
 
 ## Philosophy
 
-- **Your council, your voices.** We provide a curated library; you decide who sits on your council.
-- **Outcome over mechanism.** The tool should disappear. You just say `/council` and get feedback.
-- **Openness over prescription.** Code review, writing feedback, business decisions—councils work for any domain.
+- **Real personas over invented ones.** Built from public talks, writing, principles, and decisions.
+- **Friction by design.** Members hold different positions and should not agree by default.
+- **Sequential debate.** Each member sees the previous reviews and reacts to them.
+- **Customers have a seat.** Product reviews include the people expected to use the product.
+- **The human decides.** Council exposes disagreements, blind spots, and trade-offs. It does not vote for you.
 
 ## Contributing
 
