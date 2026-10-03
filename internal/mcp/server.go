@@ -286,6 +286,19 @@ func (s *Server) getBackend() (review.Backend, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
+	if len(cfg.AI.Mix) > 0 && cfg.AI.Backend != "api" {
+		specs := make([]review.CLISpec, len(cfg.AI.Mix))
+		for i, m := range cfg.AI.Mix {
+			specs[i] = review.CLISpec{Command: m.Command, Model: m.Model, Args: m.Args}
+		}
+		b, err := review.NewCLIMix(specs)
+		if err != nil {
+			return nil, err
+		}
+		s.backend = b
+		return b, nil
+	}
+
 	backend, provider, model := cfg.DetectBackend()
 	switch backend {
 	case "api":
@@ -303,7 +316,7 @@ func (s *Server) getBackend() (review.Backend, error) {
 		if err != nil {
 			return nil, err
 		}
-		b := review.NewCLIBackend(aiCmd, cfg.AI.Args)
+		b := review.NewCLIBackend(aiCmd, cfg.AI.Args).WithModel(cfg.AI.Model)
 		s.backend = b
 		return b, nil
 	default:

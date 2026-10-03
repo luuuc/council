@@ -34,6 +34,16 @@ type AIConfig struct {
 	Provider string   `yaml:"provider,omitempty"` // "anthropic", "openai", "ollama"
 	Model    string   `yaml:"model,omitempty"`    // e.g. "claude-sonnet-4-6", "gpt-4o"
 	Timeout  int      `yaml:"timeout"`
+	// Mix spreads council members across several AI CLIs (and models),
+	// round-robin. Overrides Command when set.
+	Mix []MixEntry `yaml:"mix,omitempty"`
+}
+
+// MixEntry is one AI CLI in ai.mix, with an optional model.
+type MixEntry struct {
+	Command string   `yaml:"command"`
+	Model   string   `yaml:"model,omitempty"`
+	Args    []string `yaml:"args,omitempty"`
 }
 
 // ValidBackends is the set of recognized backend values.

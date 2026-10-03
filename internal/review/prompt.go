@@ -73,7 +73,7 @@ Field definitions:
 - confidence: how sure you are about how you'd react, from 0.0 to 1.0
 - notes: what you'd notice as a user, in your own words — what helps, what confuses you, what's missing
 {{- else}}
-- verdict: "pass" (no issues), "comment" (suggestions worth considering), "block" (must fix before shipping), "escalate" (beyond your expertise to judge)
+- verdict: "pass" (go ahead as it is), "comment" (go ahead, with changes worth considering), "block" (don't go ahead as it stands: for code, must fix before shipping; for a plan or decision, you'd argue against it), "escalate" (beyond your expertise to judge)
 - confidence: how confident you are in your assessment, from 0.0 to 1.0
 - notes: specific observations from your area of expertise — be direct and concrete
 {{- end}}
@@ -126,7 +126,7 @@ Respond with ONLY a JSON object matching this exact schema. No markdown, no code
 {"verdict":"<pass|comment|block|escalate>","blocking":false,"perspectives":[{"expert":"<expert-id>","verdict":"<pass|comment|block|escalate>","confidence":<0.0-1.0>,"notes":["<observation>"],"blocking":false}],"agreements":["<things all experts agree on>"],"disagreements":[{"topic":"<the open question>","sides":[{"experts":["<expert-id>"],"position":"<what they hold>"}]}],"decisions":["<a question the author must answer, naming the trade-off>"]}
 
 Field definitions:
-- verdict: overall recommendation — "pass" (no issues), "comment" (suggestions), "block" (must fix), "escalate" (beyond expertise)
+- verdict: the most severe member verdict — "pass" (go ahead as it is), "comment" (go ahead, with changes), "block" (don't go ahead as it stands), "escalate" (beyond the members' expertise)
 - perspectives: one entry per expert with their individual assessment
 - agreements: observations that all experts share
 - disagreements: where experts take different positions, with the expert ids on each side

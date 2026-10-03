@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/luuuc/council/internal/expert"
 )
 
 func TestKnownCLIDefaults(t *testing.T) {
@@ -58,5 +60,58 @@ func TestCLIBackendRun(t *testing.T) {
 				t.Errorf("Run() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+type namedBackend struct{ name string }
+
+func (n namedBackend) Label() string { return n.name }
+func (n namedBackend) Review(_ context.Context, e *expert.Expert, _ Submission) (ExpertVerdict, error) {
+	return ExpertVerdict{Expert: e.ID, Verdict: VerdictPass, Notes: []string{n.name}}, nil
+}
+func (n namedBackend) ReviewCollective(context.Context, []*expert.Expert, Submission) (*SynthesizedResult, error) {
+	return &SynthesizedResult{Summary: n.name}, nil
+}
+
+func TestMixBackendAssignsMembersRoundRobin(t *testing.T) {
+	m := NewMixBackend(namedBackend{"claude"}, namedBackend{"codex"}, namedBackend{"opencode"})
+
+	order := []string{"dhh", "rob-pike", "boris-cherny", "kent-beck", "dhh", "moderator", "product-council"}
+	var got []string
+	for _, id := range order {
+		got = append(got, m.LabelFor(id))
+	}
+	want := "claude codex opencode claude claude claude claude"
+	if strings.Join(got, " ") != want {
+		t.Errorf("assignments = %v, want %s", got, want)
+	}
+
+	v, _ := m.Review(context.Background(), &expert.Expert{ID: "rob-pike"}, Submission{})
+	if v.Notes[0] != "codex" {
+		t.Errorf("rob-pike should keep speaking through codex, got %s", v.Notes[0])
+	}
+}
+
+func TestCLIBackendModelArgs(t *testing.T) {
+	tests := []struct{ command, model, want string }{
+		{"claude", "opus", "--model opus"},
+		{"codex", "gpt-5", "-m gpt-5"},
+		{"opencode", "kimi-code-plan-global/k3", "-m kimi-code-plan-global/k3"},
+		{"aichat", "x", ""},
+		{"claude", "", ""},
+	}
+	for _, tt := range tests {
+		if got := strings.Join(modelArgs(tt.command, tt.model), " "); got != tt.want {
+			t.Errorf("modelArgs(%q, %q) = %q, want %q", tt.command, tt.model, got, tt.want)
+		}
+	}
+
+	// The model flag goes after the headless args and before the prompt.
+	b := NewCLIBackend("sh", []string{"-c", `echo "$@"`, "sh"}).WithModel("ignored-for-sh")
+	if out, err := b.Run(context.Background(), "hi"); err != nil || out != "hi" {
+		t.Errorf("Run() = %q, %v", out, err)
+	}
+	if NewCLIBackend("opencode", nil).WithModel("ollama-cloud/deepseek-v4-pro").Label() != "opencode ollama-cloud/deepseek-v4-pro" {
+		t.Error("label should name the CLI and model")
 	}
 }

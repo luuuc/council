@@ -227,7 +227,7 @@ func runAIPrompt(prompt string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	raw, err := review.NewCLIBackend(aiCmd, cfg.AI.Args).Run(ctx, prompt)
+	raw, err := review.NewCLIBackend(aiCmd, cfg.AI.Args).WithModel(cfg.AI.Model).Run(ctx, prompt)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("AI command timed out after %d seconds", timeout)

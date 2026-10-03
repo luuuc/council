@@ -65,9 +65,11 @@ security:
   description: Security council, threats weighed against operations, usability, and cost
   members:
     - id: bruce-schneier
-    - id: gene-kim
+    - id: troy-hunt
+    - id: thomas-ptacek
     - id: jakob-nielsen
     - id: jason-fried
+    - id: gene-kim
 
 architecture:
   name: architecture

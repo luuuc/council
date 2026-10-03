@@ -26,6 +26,7 @@ var (
 	reviewMode     string
 	reviewQuick    bool
 	reviewCouncils string
+	reviewMix      string
 )
 
 func init() {
@@ -38,7 +39,8 @@ func init() {
 	reviewCmd.Flags().StringVar(&reviewOutput, "output", "", "Output format: github-pr (implies --json)")
 	reviewCmd.Flags().StringVar(&reviewBackend, "backend", "", "Backend: cli or api")
 	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "API provider: anthropic, openai, ollama, github")
-	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "LLM model override")
+	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "Model override (API model, or the AI CLI's model, e.g. opus, gpt-5, kimi-code-plan-global/k3 for opencode)")
+	reviewCmd.Flags().StringVar(&reviewMix, "mix", "", "Spread members across AI CLIs, round-robin: e.g. \"claude,codex,opencode=kimi-code-plan-global/k3\" (overrides ai.mix)")
 	reviewCmd.Flags().StringVar(&reviewCouncils, "councils", "", "Several packs that each review, then challenge each other's conclusions (e.g. product,security,code)")
 	reviewCmd.Flags().BoolVar(&reviewQuick, "quick", false, "Sequential mode: skip the final word and the moderator (about half the AI calls)")
 	reviewCmd.Flags().StringVar(&reviewMode, "mode", string(review.ModeSequential), "Review mode: sequential (one call per expert, each reacts to the others) or collective (one call, cheaper)")
@@ -140,7 +142,11 @@ func runReview(cmd *cobra.Command) error {
 
 	// Progress goes to stderr so JSON output on stdout stays clean.
 	runner.OnStart = func(t review.Turn) {
-		fmt.Fprintf(os.Stderr, "[%d/%d] %s...\n", t.Number, t.Total, t.Label())
+		via := ""
+		if mix, ok := backend.(*review.MixBackend); ok {
+			via = " (" + mix.LabelFor(t.Expert.ID) + ")"
+		}
+		fmt.Fprintf(os.Stderr, "[%d/%d] %s%s...\n", t.Number, t.Total, t.Label(), via)
 	}
 
 	if councils != nil {
@@ -276,6 +282,11 @@ func buildBackend(cfg *config.Config) (review.Backend, error) {
 		overridden.AI.Model = reviewModel
 	}
 
+	// A mix of AI CLIs (--mix or ai.mix) spreads members across models.
+	if specs := mixSpecs(overridden.AI.Mix); len(specs) > 0 && overridden.AI.Backend != "api" {
+		return review.NewCLIMix(specs)
+	}
+
 	backend, provider, model := overridden.DetectBackend()
 
 	switch backend {
@@ -289,7 +300,7 @@ func buildBackend(cfg *config.Config) (review.Backend, error) {
 		if err != nil {
 			return nil, err
 		}
-		return review.NewCLIBackend(aiCmd, cfg.AI.Args), nil
+		return review.NewCLIBackend(aiCmd, cfg.AI.Args).WithModel(overridden.AI.Model), nil
 	default:
 		return nil, fmt.Errorf("no backend available\n\nInstall an AI CLI (claude, opencode, codex) or set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN)")
 	}
@@ -410,4 +421,16 @@ func runCouncilsReview(cmd *cobra.Command, runner *review.Runner, councils []rev
 	}
 	fmt.Print(review.FormatCouncilsOutcome(result))
 	return nil
+}
+
+// mixSpecs returns the AI CLI mix from --mix, or else from ai.mix.
+func mixSpecs(fromConfig []config.MixEntry) []review.CLISpec {
+	if reviewMix != "" {
+		return review.ParseMix(reviewMix)
+	}
+	specs := make([]review.CLISpec, len(fromConfig))
+	for i, m := range fromConfig {
+		specs[i] = review.CLISpec{Command: m.Command, Model: m.Model, Args: m.Args}
+	}
+	return specs
 }

@@ -108,7 +108,24 @@ A review makes about two LLM calls per expert (review, final word) plus one for 
 
 Each expert's review prints as soon as it's done, so you watch the debate unfold.
 
-Works with any LLM backend: runs an AI CLI headless (`claude -p`, `opencode run`, `codex exec`) or calls APIs directly (Anthropic, OpenAI, Ollama). The first CLI found is used; set `ai.command` in `.council/config.yaml` to pick one.
+Works with any LLM backend: runs an AI CLI headless (`claude -p`, `opencode run`, `codex exec`) on your existing subscriptions, or calls APIs directly (Anthropic, OpenAI, Ollama). The first CLI found is used; set `ai.command` in `.council/config.yaml` to pick one, and `--model` (or `ai.model`) to pick its model, e.g. `opencode` with `kimi-code-plan-global/k3`.
+
+**Mix models.** Models from different labs disagree more honestly than one model playing everyone. `--mix` spreads members across CLIs, round-robin, and each member keeps their model for the whole review:
+
+```bash
+git diff main | council review --pack go --mix "claude,codex,opencode=kimi-code-plan-global/k3"
+```
+
+Or set it once in `.council/config.yaml`:
+
+```yaml
+ai:
+  mix:
+    - command: claude
+    - command: codex
+    - command: opencode
+      model: kimi-code-plan-global/k3
+```
 
 **Councils of Councils.** `council review --councils product,security,code --file plan.md` runs several packs on the same submission. Each council debates on its own, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
 

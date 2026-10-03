@@ -1,6 +1,9 @@
 package cmd
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSuggestionsSchema(t *testing.T) {
 	bank := loadSuggestionBank()
@@ -52,12 +55,13 @@ func TestSuggestionsSchema(t *testing.T) {
 				t.Errorf(prefix("too few red_flags (%d, want at least 2)"), len(e.RedFlags))
 			}
 
-			// PIR-001: composite persona fields (enforced after PIR-004 gallery replacement)
-			if len(e.Influences) > 0 && e.Backstory == "" {
-				t.Error(prefix("has influences but missing backstory"))
+			// Library personas are real people: named "Virtual X", drawn from
+			// their public work (influences), never from an invented backstory.
+			if !strings.HasPrefix(e.Name, "Virtual ") {
+				t.Error(prefix("real-person persona must be named \"Virtual {Name}\""))
 			}
-			if e.Backstory != "" && len(e.Influences) == 0 {
-				t.Error(prefix("has backstory but missing influences"))
+			if e.Backstory != "" {
+				t.Error(prefix("real-person persona must not have an invented backstory"))
 			}
 
 			// ID format: must be kebab-case (lowercase, hyphens only)
@@ -208,7 +212,7 @@ func TestFilterPersonasByCategory(t *testing.T) {
 		wantLen  int
 	}{
 		{"go", 1},
-		{"GO", 1},       // case-insensitive
+		{"GO", 1}, // case-insensitive
 		{"general", 1},
 		{"rails", 1},
 		{"unknown", 0},
@@ -236,11 +240,11 @@ func TestFilterPersonasBySearch(t *testing.T) {
 		wantLen int
 	}{
 		{"Purist", 1},
-		{"purist", 1},         // case-insensitive
-		{"security", 1},       // matches name and focus (same persona)
-		{"test", 1},           // matches focus
-		{"xyz", 0},            // no match
-		{"Go", 1},             // matches focus
+		{"purist", 1},   // case-insensitive
+		{"security", 1}, // matches name and focus (same persona)
+		{"test", 1},     // matches focus
+		{"xyz", 0},      // no match
+		{"Go", 1},       // matches focus
 	}
 
 	for _, tt := range tests {

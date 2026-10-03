@@ -20,6 +20,7 @@ type Backend interface {
 type CLIBackend struct {
 	Command string
 	Args    []string
+	Model   string // optional; passed with the CLI's model flag
 }
 
 // knownCLIDefaults returns the headless-mode args for known AI CLIs.
@@ -55,12 +56,49 @@ func NewCLIBackend(command string, args []string) *CLIBackend {
 	}
 }
 
+// WithModel returns the backend set to use the given model ("" keeps the
+// CLI's default). For opencode the model is "provider/model".
+func (b *CLIBackend) WithModel(model string) *CLIBackend {
+	b.Model = model
+	return b
+}
+
+// Label names the backend for progress output, e.g. "opencode k3".
+func (b *CLIBackend) Label() string {
+	base := b.Command
+	if idx := strings.LastIndex(base, "/"); idx >= 0 {
+		base = base[idx+1:]
+	}
+	if b.Model == "" {
+		return base
+	}
+	return base + " " + b.Model
+}
+
+// modelArgs returns the flags that select model for known CLIs.
+func modelArgs(command, model string) []string {
+	if model == "" {
+		return nil
+	}
+	base := command
+	if idx := strings.LastIndex(command, "/"); idx >= 0 {
+		base = command[idx+1:]
+	}
+	switch base {
+	case "claude":
+		return []string{"--model", model}
+	case "codex", "opencode", "llm":
+		return []string{"-m", model}
+	default:
+		return nil
+	}
+}
+
 // Run sends a prompt to the CLI in headless mode and returns its answer.
 // The answer is read from stdout; stderr is used only when stdout is empty,
 // since CLIs like codex and opencode write progress logs to stderr.
 func (b *CLIBackend) Run(ctx context.Context, prompt string) (string, error) {
-	args := make([]string, len(b.Args))
-	copy(args, b.Args)
+	args := append(append([]string{}, b.Args...), modelArgs(b.Command, b.Model)...)
 
 	cmd := exec.CommandContext(ctx, b.Command, args...)
 
