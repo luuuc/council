@@ -33,7 +33,7 @@ Claude Desktop starts MCP servers outside any project, so `--dir` points Council
 
 ### Usage
 
-Pick **council** from the prompt menu, choose a pack, and describe what to review. Or ask directly:
+Pick **council** from the prompt menu, optionally name a pack, and describe what to review. Or ask directly:
 
 > "Convene the code council on this code"
 > [paste code]
@@ -64,68 +64,24 @@ Claude reads the project, proposes members with reasons (people with documented 
 **"no council in this directory":**
 - Add `--dir /path/to/project` to the server args, for a project that has run `council init`
 
-## Local LLMs (Ollama, LM Studio, etc.)
+## Codex and other AI tools
 
-Use your council as a system prompt for local language models.
+`council init` writes `AGENTS.md` when it finds no Claude Code or OpenCode setup (or with `--tool generic`). Besides the members, it holds a "Convening the council" section: any AI tool that reads `AGENTS.md` and can run a shell follows the same steps as `/council`.
 
-### Setup
+## Model APIs and local models
 
-1. Export your council:
-
-```bash
-council export > system-prompt.md
-```
-
-2. Configure your local LLM to use this as the system prompt
-
-**Ollama example:**
+`council review --api` sends the room prompt straight to a model API with your key and prints the review. It's what the GitHub Action uses, and it works with local models through Ollama:
 
 ```bash
-# Create a Modelfile
-cat > Modelfile << 'EOF'
-FROM llama3.1
-SYSTEM """
-You have access to an expert council for code review.
-
-$(cat system-prompt.md)
-
-When asked to review code, consider each expert's perspective.
-"""
-EOF
-
-ollama create council-reviewer -f Modelfile
-ollama run council-reviewer
+git diff main | council review --api --provider anthropic --pack product      # ANTHROPIC_API_KEY
+git diff main | council review --api --provider ollama --model llama3.1       # local
 ```
 
-**LM Studio:**
-Copy the contents of `system-prompt.md` into the System Prompt field.
+Without `--provider`, Council uses `ai.provider` from `.council/config.yaml`, else the first key it finds (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GITHUB_TOKEN`). `--model` (or `ai.model`) picks the model. Small models often struggle to write the whole debate as valid JSON; Council asks once more with what to fix, then gives up with the errors.
 
-## Anthropic API
+## Tips
 
-```python
-import anthropic
-
-with open('council.md', 'r') as f:
-    council = f.read()
-
-client = anthropic.Anthropic()
-message = client.messages.create(
-    model="claude-sonnet-4-20250514",
-    max_tokens=1024,
-    system=f"""You have access to an expert council:
-
-{council}
-
-Review code from each expert's perspective.""",
-    messages=[
-        {"role": "user", "content": "Review this code: ..."}
-    ]
-)
-```
-
-## Best Practices
-
-1. **Keep your council focused** - 3-5 experts is usually optimal
-2. **Update regularly** - Re-sync when you add or modify experts
-3. **Match experts to project** - Your Rails project council differs from your Go project council
-4. **Test with real code** - Verify experts give useful, distinct perspectives
+- **Keep councils small and opinionated.** 3 to 7 members who disagree beat a crowd that agrees.
+- **Include a customer** for anything users touch.
+- **Use packs** to convene the right people: `product`, `security`, `writing`.
+- **Re-run `council sync`** after editing persona files by hand.

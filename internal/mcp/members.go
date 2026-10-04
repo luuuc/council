@@ -36,7 +36,8 @@ func (s *Server) handleAdd(args map[string]any) toolCallResult {
 	if err != nil {
 		return errorResult(fmt.Sprintf("could not read the persona: %v", err))
 	}
-	if err := expert.Prepare(e); err != nil {
+	notes, err := expert.Prepare(e)
+	if err != nil {
 		return errorResult(err.Error())
 	}
 	if expert.Exists(e.ID) {
@@ -46,8 +47,11 @@ func (s *Server) handleAdd(args map[string]any) toolCallResult {
 		return errorResult(fmt.Sprintf("failed to save persona: %v", err))
 	}
 
-	return textResult(fmt.Sprintf("Added %s (%s) to the council. File: %s\n"+
-		"Run `council sync` in the project to update Claude Code and OpenCode configs.", e.Name, e.ID, e.Path()))
+	text := fmt.Sprintf("Added %s (%s) to the council. File: %s\n", e.Name, e.ID, e.Path())
+	for _, n := range notes {
+		text += "Note: " + n + "\n"
+	}
+	return textResult(text + "Run `council sync` in the project to update Claude Code and OpenCode configs.")
 }
 
 func textResult(text string) toolCallResult {

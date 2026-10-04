@@ -108,9 +108,7 @@ confuses you, what is missing for you, and whether it is worth your time or
 money. You don't judge code quality; you judge whether this helps you.
 `))
 
-// Expert represents an expert persona.
-// This is the canonical type used throughout the codebase for both
-// project experts and custom/installed personas.
+// Expert is a council member's persona: a person, a role, or a customer.
 type Expert struct {
 	ID         string    `yaml:"id" json:"id"`
 	Name       string    `yaml:"name" json:"name"`
@@ -133,14 +131,6 @@ type Expert struct {
 
 	// Body is the markdown content after frontmatter
 	Body string `yaml:"-" json:"-"`
-
-	// Source indicates where this expert came from: "", "custom", or "installed:<name>"
-	Source string `yaml:"-" json:"-"`
-}
-
-// ExpertSuggestions is the expected AI response format
-type ExpertSuggestions struct {
-	Experts []Expert `yaml:"experts"`
 }
 
 // ListResult contains the result of listing experts, including any warnings
@@ -357,52 +347,6 @@ func ToID(name string) string {
 	id = strings.Trim(id, "-")
 
 	return id
-}
-
-// ParseAIResponse parses YAML response from AI into experts
-func ParseAIResponse(data []byte) ([]Expert, error) {
-	// Try to extract YAML from markdown code block
-	content := string(data)
-	if idx := strings.Index(content, "```yaml"); idx >= 0 {
-		content = content[idx+7:]
-		if end := strings.Index(content, "```"); end >= 0 {
-			content = content[:end]
-		}
-	} else if idx := strings.Index(content, "```"); idx >= 0 {
-		content = content[idx+3:]
-		if end := strings.Index(content, "```"); end >= 0 {
-			content = content[:end]
-		}
-	}
-
-	var suggestions ExpertSuggestions
-	if err := yaml.Unmarshal([]byte(content), &suggestions); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML: %w", err)
-	}
-
-	return suggestions.Experts, nil
-}
-
-// SourceMarker returns the display marker for an expert's source
-func (e *Expert) SourceMarker() string {
-	switch {
-	case e.Source == "custom":
-		return " [custom]"
-	case strings.HasPrefix(e.Source, "installed:"):
-		return " [" + e.Source + "]"
-	default:
-		return ""
-	}
-}
-
-// ParseFrontmatter parses just the YAML frontmatter into an Expert.
-// Unlike Parse, this expects only the YAML content without the --- delimiters.
-func ParseFrontmatter(data []byte) (*Expert, error) {
-	var e Expert
-	if err := yaml.Unmarshal(data, &e); err != nil {
-		return nil, err
-	}
-	return &e, nil
 }
 
 // SaveToPath writes the expert to a specific file path.

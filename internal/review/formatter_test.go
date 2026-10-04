@@ -1,7 +1,6 @@
 package review
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -73,32 +72,6 @@ func TestFormatHumanWithErrors(t *testing.T) {
 
 	if !strings.Contains(output, "Error: dev: timeout") {
 		t.Errorf("expected error in output, got:\n%s", output)
-	}
-}
-
-func TestFormatJSON(t *testing.T) {
-	result := &SynthesizedResult{
-		Verdict:  VerdictComment,
-		Blocking: false,
-		Perspectives: []ExpertVerdict{
-			{Expert: "ada", Verdict: VerdictComment, Confidence: 0.85},
-		},
-		Summary: "1 expert reviewed.",
-	}
-
-	data, err := FormatJSON(result)
-	if err != nil {
-		t.Fatalf("FormatJSON error: %v", err)
-	}
-
-	// Verify it's valid JSON
-	var parsed SynthesizedResult
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
-
-	if parsed.Verdict != VerdictComment {
-		t.Errorf("parsed verdict = %q, want %q", parsed.Verdict, VerdictComment)
 	}
 }
 

@@ -30,16 +30,16 @@ var packsAddBlocking bool
 
 var packsCmd = &cobra.Command{
 	Use:   "packs",
-	Short: "List available expert packs",
-	Long: `Shows all available expert packs (built-in and custom).
-
-A pack is a reusable group of experts for focused reviews.
+	Short: "Group members into named councils (product, security)",
+	Long: `Lists your packs. A pack is a named group of your members, such as
+"product" or "security", for focused reviews (council review --pack product)
+or Councils of Councils (--councils product,security).
 
 Examples:
-  council packs                  # List all packs
-  council packs --json           # JSON output
-  council packs show rails       # Show pack details
-  council packs create my-api    # Create a custom pack`,
+  council packs                          # List packs
+  council packs show product             # Show a pack's members
+  council packs create product           # Create a pack
+  council packs add product jane-doe     # Add a member`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		packs, err := pack.ListAll()
 		if err != nil {
@@ -100,13 +100,29 @@ var packsShowCmd = &cobra.Command{
 			return nil
 		}
 
+		available, err := expert.List()
+		if err != nil {
+			return err
+		}
+		missing := map[string]bool{}
+		for _, id := range pack.Missing(p, available) {
+			missing[id] = true
+		}
+
 		fmt.Printf("Members (%d):\n", len(p.Members))
 		for _, m := range p.Members {
-			blocking := ""
+			note := ""
 			if m.Blocking {
-				blocking = " [blocking]"
+				note = " [blocking]"
 			}
-			fmt.Printf("  - %s%s\n", m.ID, blocking)
+			if missing[m.ID] {
+				note += " (not on the council)"
+			}
+			fmt.Printf("  - %s%s\n", m.ID, note)
+		}
+		if len(missing) > 0 {
+			fmt.Printf("\nMembers marked \"not on the council\" aren't in .council/experts/. Add them with\n"+
+				"/council-assemble in your AI tool, or drop them with 'council packs remove %s <id>'.\n", p.Name)
 		}
 
 		// Show known tensions between pack members.
@@ -175,7 +191,7 @@ var packsShowCmd = &cobra.Command{
 
 var packsCreateCmd = &cobra.Command{
 	Use:   "create <name>",
-	Short: "Create a custom pack",
+	Short: "Create a pack",
 	Long:  `Create a custom pack in .council/packs/. Pack names must not contain spaces or slashes.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

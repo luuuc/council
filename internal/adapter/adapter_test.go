@@ -235,9 +235,6 @@ func TestClaude_Templates(t *testing.T) {
 	claude, _ := Get("claude")
 	templates := claude.Templates()
 
-	if templates.Install == "" {
-		t.Error("Templates().Install is empty")
-	}
 	if len(templates.Commands) == 0 {
 		t.Error("Templates().Commands is empty")
 	}
@@ -367,9 +364,6 @@ func TestOpenCode_Templates(t *testing.T) {
 	opencode, _ := Get("opencode")
 	templates := opencode.Templates()
 
-	if templates.Install == "" {
-		t.Error("Templates().Install is empty")
-	}
 	if len(templates.Commands) == 0 {
 		t.Error("Templates().Commands is empty")
 	}
@@ -484,39 +478,14 @@ func TestGeneric_Templates_NoCommands(t *testing.T) {
 	generic, _ := Get("generic")
 	templates := generic.Templates()
 
-	if templates.Install == "" {
-		t.Error("Templates().Install is empty")
-	}
 	if len(templates.Commands) != 0 {
 		t.Errorf("Templates().Commands = %v, want empty map", templates.Commands)
 	}
 }
 
-// AgentFilename tests
-
 func TestAgentFilename(t *testing.T) {
-	tests := []struct {
-		name     string
-		source   string
-		id       string
-		expected string
-	}{
-		{"project expert", "", "ada", "ada.md"},
-		{"custom expert", "custom", "my-expert", "custom-my-expert.md"},
-		{"installed expert", "installed:rails-council", "ben", "installed-ben.md"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := &expert.Expert{
-				ID:     tt.id,
-				Source: tt.source,
-			}
-			result := AgentFilename(e)
-			if result != tt.expected {
-				t.Errorf("AgentFilename() = %q, want %q", result, tt.expected)
-			}
-		})
+	if got := AgentFilename(&expert.Expert{ID: "ada"}); got != "ada.md" {
+		t.Errorf("AgentFilename() = %q, want ada.md", got)
 	}
 }
 

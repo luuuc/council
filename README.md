@@ -4,142 +4,73 @@
 
 AI tools are eager to please. They validate your ideas and move fast. No one asks the hard questions, and your own judgment fades.
 
-A Council fixes this. It is a team of AI reviewers modeled on real people, real roles, and real perspectives. You choose who sits on it; your AI builds each persona from public material. Personas based on real people carry the **Virtual** prefix ("Virtual Jane Doe"): a model of their public positions, not the person, and not affiliated with or endorsed by them. Mix them with roles like a security engineer or an SRE, and with the customers you build for.
-
-Council ships no people. It ships the engine, the persona format, and the instructions your AI follows. The one exception is the author's own persona, Virtual Luc Perussault-Diallo: every new council starts with it as a ready-to-use example, and you can remove it like any other member.
-
-Members are picked to disagree. Each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
+A Council fixes this. It is a team of AI reviewers modeled on real people, roles, and the customers you build for. You choose who sits on it, and your AI builds each persona. Members are picked to disagree: each one reads what the others said, then pushes back, adds what they missed, or changes their mind. You get the debate, not a consensus. You still make the call.
 
 Code review is one use. Product, writing, architecture, and security decisions are others.
 
-## Get Started
+## Three steps
 
-**Tell your AI assistant:**
+**1. Install.** Tell your AI tool (Claude Code, OpenCode, Codex):
 
-> Grab https://raw.githubusercontent.com/luuuc/council/main/AGENT-INSTALL.md and get me set up
+> Grab https://raw.githubusercontent.com/luuuc/council/main/AGENT-INSTALL.md and set me up
 
-That's it. Works with Claude Code, OpenCode, or any AI that can fetch URLs.
-
-After setup, use `/council <topic>` to convene your experts.
-
-## Create Your Council
-
-Your council is yours. Add whoever helps you do better work:
-
-- **Virtual experts**: people you choose, modeled on their public talks, writing, and decisions
-- **Roles**: a security engineer, an SRE, a product-minded CTO
-- **Your customers**: the user types you are actually building for
-- **Your team**: your CTO, your tech lead, your mentor
-
-In your AI tool:
+**2. Assemble your council.**
 
 ```
-/council-assemble                    # Your AI reads the project, proposes members with reasons, you choose
-/council-add Jane Doe                # Add one person, researched from public work
-/council-add an SRE                  # Add a role
-/council-add freelancers who bill by the hour
-                                     # Add a customer, built from evidence (docs, support, analytics)
+/council-assemble
 ```
 
-Your AI builds each persona and saves it with `council add`. People need public sources and get a no-affiliation disclaimer; customers need evidence.
+Your AI reads the project (code, docs, goals, support tickets), proposes members with a reason for each, and you pick. It builds each persona; Council checks it and saves it in `.council/experts/`.
 
-## How It Works
+**3. Convene it.**
 
 ```
-Your Council                         Your AI Tool
-┌─────────────────┐                  ┌─────────────────┐
-│ Virtual J. Doe  │                  │ /council        │
-│ Security Eng.   │───── sync ──────▶│ /council-add    │
-│ Your CTO        │                  │ /council-remove │
-│ Your Customer   │                  │                 │
-└─────────────────┘                  └─────────────────┘
+/council the pricing change in docs/pricing.md
+/council my current changes
+/council should we drop the free tier? with the product and security councils
 ```
 
-Councils live in your project (`.council/experts/`), sync to your AI tool's native format, and become slash commands you invoke anytime.
+Your AI writes the whole debate in one pass, following the room prompt Council gives it. Council checks the answer and shows each member's verdict, notes, and replies, their final words, **where they disagree**, and **what you need to decide**. Reviews are saved in `.council/reviews/`.
 
-## Manual Installation
+## Who sits on a council
+
+- **Virtual people**: people with documented public positions, modeled on their talks, writing, and decisions. They carry the **Virtual** prefix ("Virtual Jane Doe") and a disclaimer: a model of their public positions, not affiliated with or endorsed by them. Positions read from their work, rather than stated by them, are kept apart.
+- **Roles**: a security engineer, an SRE, a CFO.
+- **Customers**: the users you build for, drawn from evidence (support threads, interviews, analytics), not just a description.
+
+Council ships no people. It ships the engine, the persona format, and the instructions your AI follows. The one exception is the author's own persona, Virtual Luc Perussault-Diallo: every new council starts with it as an example, and `council remove luc-perussault-diallo` takes it out.
+
+Add one member with `/council-add <who>`; remove one with `/council-remove <id>`.
+
+## How a review runs
+
+Everyone sits in the same room:
+
+1. Members speak in order. Each gives a verdict (pass, comment, block, escalate), notes, and replies to the earlier members (agree, disagree, adds).
+2. Earlier members get a final word on what came after them, and may change their verdict.
+3. A neutral moderator lists where they disagree, what you need to decide, and what nobody disputed. No recommendation: you make the call.
+
+**Packs** group members into named councils for focused reviews:
 
 ```bash
-# Direct download
-curl -fsSL https://raw.githubusercontent.com/luuuc/council/main/install.sh | sh
-
-# Or via Go
-go install github.com/luuuc/council/cmd/council@latest
+council packs create product
+council packs add product jane-doe
 ```
 
-Then:
+**Councils of Councils.** With several packs in the room, each council debates, then each council's spokesperson challenges the others, and a moderator lists where the councils disagree.
+
+Under the hood, `/council` runs two commands. Any AI tool that can run a shell can do the same:
 
 ```bash
-council init               # Creates .council/ and installs the slash commands
-council assemble           # The brief your AI follows to build the council
-council sync               # Syncs changes to your AI tool
+git diff HEAD | council review --pack product              # prints the room prompt
+council review --pack product --record answer.json         # checks the answer, shows it, saves it
 ```
 
-## Commands
-
-| Command | What it does |
-|---------|--------------|
-| `council init` | Create `.council/` and install the slash commands for your AI tool |
-| `council assemble` | Print the brief your AI follows to propose and build members |
-| `council add <file \| ->` | Check and save a persona your AI wrote (person, role, or customer) |
-| `council list` | See your council members |
-| `council remove <id>` | Remove an expert |
-| `council sync` | Sync to your AI tool |
-| `council export` | Export as portable markdown |
-
-## Review
-
-Type `/council` in Claude Code or OpenCode and point it at files, your current changes, or a question. Everyone sits in the same room: your AI tool writes the whole debate in one pass, following the room prompt Council gives it, and Council checks it and shows it.
-
-Members speak in pack order. Each one gives a verdict (pass / comment / block / escalate), notes, and replies to the members before them (agree, disagree, adds). Then the earlier members get a final word on what came after them, and may change their verdict. A neutral moderator closes with **where they disagree** and **what you need to decide**. Council doesn't recommend an outcome: you make the call. Reviews are saved in `.council/reviews/`.
-
-Under the hood, `/council` runs:
-
-```bash
-git diff main | council review --pack code             # prints the room prompt
-council review --pack code --record answer.json        # checks the AI's answer, shows it, saves it
-```
-
-**Councils of Councils.** `--councils product,security` puts several packs in the room. Each council debates, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
-
-**Unattended.** `council review --api` sends the room prompt to a model API with your own key (Anthropic, OpenAI, GitHub Models, Ollama) and shows the review. The GitHub Action uses it.
-
-## Packs
-
-Packs group your members into named councils (`product`, `security`) for targeted reviews:
-
-```bash
-council packs list                         # See your packs
-council packs show product                 # See members
-council packs create product               # Create a pack
-council packs add product jane-doe         # Add a member to it
-```
-
-Mix members with different incentives so they don't agree by default. Council ships no packs: they hold your members.
-
-## MCP Server
-
-Use Council as a tool in any MCP-capable AI tool:
-
-```json
-{
-  "mcpServers": {
-    "council": {
-      "command": "council",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-Exposes these tools over stdin/stdout JSON-RPC, plus a `council` prompt for prompt menus. See [docs/integrations.md](docs/integrations.md) for Claude Desktop setup.
-- `council_room` / `council_record` — the room prompt the client's model answers in one pass, and recording that debate (no API key needed, e.g. Claude Desktop)
-- `council_assemble` / `council_add` — the brief for building members, and saving each one
-- `council_list` — list pack members
+If the answer is incomplete or malformed, `--record` says what to fix and the AI answers again.
 
 ## GitHub Action
 
-Get Council reviews on every pull request — zero config, zero cost:
+Review every pull request with the council committed in your repo. Commit `.council/` after assembling it, then:
 
 ```yaml
 # .github/workflows/council-review.yml
@@ -158,50 +89,83 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: luuuc/council/action@v1
         with:
-          pack: code
+          pack: product   # optional: a pack from .council/packs/
+          # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-**How it works:** The Action fetches the PR diff, runs Council with the specified pack from the `.council/` committed in your repository, and posts a PR Review with inline comments + a Check Run status badge.
+The Action sends the room prompt for the PR diff to a model API (`council review --api`) and posts a PR review with inline comments, plus a check run.
 
-**LLM selection (automatic):**
+| Input set | Provider | Default model |
+|---|---|---|
+| `anthropic-api-key` | Anthropic | `claude-sonnet-4-6` |
+| `openai-api-key` | OpenAI | `gpt-4.1` |
+| Neither | GitHub Models (free, 150 requests/day) | `openai/gpt-4.1-mini` |
 
-| Secret set | Provider | Model | Cost |
-|---|---|---|---|
-| `ANTHROPIC_API_KEY` | Anthropic | `claude-sonnet-4-6` | BYOK |
-| `OPENAI_API_KEY` | OpenAI | `gpt-4.1` | BYOK |
-| Neither | GitHub Models | `gpt-4.1-mini` | Free (150 req/day) |
+Each review is one request (two if the first answer needs fixing). The free tier caps how much text a request can carry, so large diffs or big councils need an API key.
 
-The Action reviews with the council committed in the repo: commit `.council/` after assembling it. Each review is one request (two if the first answer needs fixing).
+## Claude Desktop and other MCP clients
 
-**Free tier limits:** 150 requests/day. The free tier also caps how much text one request can carry, so large PR diffs or big councils may fail there; use an API key for those.
+```json
+{
+  "mcpServers": {
+    "council": {
+      "command": "council",
+      "args": ["mcp", "--dir", "/path/to/your/project"]
+    }
+  }
+}
+```
 
-See [`action/examples/`](action/examples/) for more workflow examples.
+Pick **council** or **assemble** from the prompt menu. The client's own model writes the debate; no API key needed. See [docs/integrations.md](docs/integrations.md).
 
-## Supported AI Tools
+## Supported tools
 
-| Tool | Integration |
-|------|-------------|
-| GitHub Actions | PR reviews on every pull request |
-| Claude Code | Slash commands + agents + MCP |
-| Cursor | MCP |
-| Claude Desktop | MCP |
-| OpenCode | Agents |
-| Others | `council export` for portable markdown |
+| Tool | How |
+|---|---|
+| Claude Code | `/council`, `/council-assemble`, agents |
+| OpenCode | `/council`, `/council-assemble`, agents |
+| Codex and other `AGENTS.md` readers | Instructions in `AGENTS.md` |
+| Claude Desktop, Cursor | MCP |
+| GitHub | The Action |
+
+## Commands
+
+Your AI tool drives these; you rarely type them.
+
+| Command | Does |
+|---|---|
+| `council init` | Create `.council/` and install the slash commands for your AI tool |
+| `council assemble` | Print the brief your AI follows to propose and build members |
+| `council add <file \| ->` | Check a persona, stamp the disclaimer, save it |
+| `council list` / `show <id>` / `remove <id>` | Manage members |
+| `council packs ...` | Group members into named councils |
+| `council review` | Print the room prompt (`--pack`, `--councils`, `--file`) |
+| `council review --record <file \| ->` | Check the debate, show it, save it |
+| `council review --api` | Unattended: send the prompt to a model API with your key |
+| `council sync` | Rewrite slash commands and agent files |
+| `council mcp` | The same, as MCP tools |
+
+Manual install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/luuuc/council/main/install.sh | sh
+# or
+go install github.com/luuuc/council/cmd/council@latest
+```
 
 ## Philosophy
 
-- **Real personas over invented ones.** Built from public talks, writing, principles, and decisions.
 - **Friction by design.** Members hold different positions and should not agree by default.
-- **Sequential debate.** Each member sees the previous reviews and reacts to them.
-- **Customers have a seat.** Product reviews include the people expected to use the product.
-- **The human decides.** Council exposes disagreements, blind spots, and trade-offs. It does not vote for you.
+- **One room.** Members react to each other in order, in one pass.
+- **Customers have a seat.** Product reviews include the people who will use the product.
+- **The human decides.** Council shows disagreements, blind spots, and trade-offs. It does not vote for you.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

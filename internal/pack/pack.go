@@ -114,15 +114,6 @@ func Save(p *Pack) error {
 	return nil
 }
 
-// Delete removes a custom pack file.
-func Delete(name string) error {
-	p := path(name)
-	if _, err := os.Stat(p); os.IsNotExist(err) {
-		return fmt.Errorf("pack '%s' not found", name)
-	}
-	return os.Remove(p)
-}
-
 // ListResult contains the result of listing packs, including any warnings.
 type ListResult struct {
 	Packs    []*Pack

@@ -29,10 +29,10 @@ and real perspectives - people you choose, a security engineer, your customers.
 Members are picked to disagree. They see each other's arguments, push back,
 and expose trade-offs. You make the decision.
 
-Quick start:
-  council init           Create .council/ and install the slash commands
-  council assemble       The brief your AI follows to propose and build members
-  council sync           Sync council to AI tool configs`,
+You talk to your AI tool; it drives this CLI:
+  1. council init        Create .council/ and install the slash commands
+  2. /council-assemble   Your AI proposes members, you pick, it builds them
+  3. /council <topic>    Your AI writes the debate in one pass; Council checks it`,
 }
 
 func Execute() error {
@@ -131,7 +131,6 @@ func initCouncil(clean bool, toolFlag string) error {
 	dirs := []string{
 		config.CouncilDir,
 		config.Path(config.ExpertsDir),
-		config.Path(config.CommandsDir),
 		config.Path(config.PacksDir),
 	}
 
@@ -149,7 +148,7 @@ func initCouncil(clean bool, toolFlag string) error {
 	}
 
 	// Create .gitkeep files
-	for _, subdir := range []string{config.ExpertsDir, config.CommandsDir, config.PacksDir} {
+	for _, subdir := range []string{config.ExpertsDir, config.PacksDir} {
 		path := config.Path(subdir, ".gitkeep")
 		if err := os.WriteFile(path, []byte(""), 0644); err != nil {
 			return fmt.Errorf("failed to create .gitkeep: %w", err)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
+	"github.com/luuuc/council/internal/pack"
 	"github.com/luuuc/council/internal/sync"
 	"github.com/spf13/cobra"
 )
@@ -56,20 +57,19 @@ var listCmd = &cobra.Command{
 		}
 
 		if len(result.Experts) == 0 {
-			fmt.Println("No experts in the council yet.")
+			fmt.Println("No members in the council yet.")
 			fmt.Println()
-			fmt.Println("Add experts with:")
-			fmt.Println("  council add \"Name\"    Add from curated library or create custom")
-			return nil
+			fmt.Println("Assemble the council from your AI tool with /council-assemble.")
+		} else {
+			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+			_, _ = fmt.Fprintln(w, "ID\tNAME\tFOCUS")
+			for _, e := range result.Experts {
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", e.ID, e.Name, e.Focus)
+			}
+			_ = w.Flush()
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		_, _ = fmt.Fprintln(w, "ID\tNAME\tFOCUS")
-		for _, e := range result.Experts {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", e.ID, e.Name, e.Focus)
-		}
-		_ = w.Flush()
-
+		printMissingPackMembers(result.Experts)
 		return nil
 	},
 }
@@ -208,7 +208,8 @@ func runAdd(arg string) error {
 	if err != nil {
 		return fmt.Errorf("could not read the persona: %w", err)
 	}
-	if err := expert.Prepare(e); err != nil {
+	notes, err := expert.Prepare(e)
+	if err != nil {
 		return err
 	}
 	if expert.Exists(e.ID) {
@@ -220,6 +221,9 @@ func runAdd(arg string) error {
 
 	fmt.Printf("Added %s (%s)\n", e.Name, e.ID)
 	fmt.Printf("File: %s\n", e.Path())
+	for _, n := range notes {
+		fmt.Printf("Note: %s\n", n)
+	}
 	runAutoSync(addNoSync, nil)
 	return nil
 }
@@ -281,5 +285,30 @@ func runAutoSync(skipSync bool, cfg *config.Config) {
 	if err := sync.SyncAll(cfg, sync.Options{}); err != nil {
 		fmt.Printf("Warning: sync failed: %v\n", err)
 		fmt.Println("Run 'council sync' to retry.")
+	}
+}
+
+// printMissingPackMembers names pack members that aren't on the council,
+// such as people from packs made with older versions of Council.
+func printMissingPackMembers(available []*expert.Expert) {
+	packs, err := pack.ListAll()
+	if err != nil {
+		return
+	}
+	found := false
+	for _, p := range packs {
+		missing := pack.Missing(p, available)
+		if len(missing) == 0 {
+			continue
+		}
+		if !found {
+			fmt.Println()
+			fmt.Println("Packs name members who aren't on the council:")
+			found = true
+		}
+		fmt.Printf("  %s: %s\n", p.Name, strings.Join(missing, ", "))
+	}
+	if found {
+		fmt.Println("Add them with /council-assemble in your AI tool, or drop them with 'council packs remove <pack> <id>'.")
 	}
 }

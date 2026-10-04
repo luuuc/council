@@ -16,6 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: luuuc/council/action@v1
+        # Reviews with the council committed in .council/
         with:
-          pack: go
           # anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

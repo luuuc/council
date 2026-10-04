@@ -8,9 +8,6 @@ import (
 	"github.com/luuuc/council/internal/expert"
 )
 
-//go:embed templates/opencode/install.md
-var opencodeInstallTemplate string
-
 //go:embed templates/opencode/council-add.md
 var opencodeCouncilAddTemplate string
 
@@ -49,7 +46,6 @@ func (o *OpenCode) Paths() Paths {
 
 func (o *OpenCode) Templates() Templates {
 	return Templates{
-		Install: opencodeInstallTemplate,
 		Commands: map[string]string{
 			"council-assemble": opencodeCouncilAssembleTemplate,
 			"council-add":      opencodeCouncilAddTemplate,

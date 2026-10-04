@@ -4,13 +4,9 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/luuuc/council/internal/expert"
 )
-
-//go:embed templates/claude/install.md
-var claudeInstallTemplate string
 
 //go:embed templates/claude/council-add.md
 var claudeCouncilAddTemplate string
@@ -50,7 +46,6 @@ func (c *Claude) Paths() Paths {
 
 func (c *Claude) Templates() Templates {
 	return Templates{
-		Install: claudeInstallTemplate,
 		Commands: map[string]string{
 			"council-assemble": claudeCouncilAssembleTemplate,
 			"council-add":      claudeCouncilAddTemplate,
@@ -149,15 +144,7 @@ into a consensus. The user makes the call, not the council and not you.
 `
 }
 
-// agentFilename returns the appropriate filename for an expert based on source
-// This is exported for use by sync package
+// AgentFilename returns the agent file name for an expert.
 func AgentFilename(e *expert.Expert) string {
-	switch {
-	case e.Source == "custom":
-		return "custom-" + e.ID + ".md"
-	case strings.HasPrefix(e.Source, "installed:"):
-		return "installed-" + e.ID + ".md"
-	default:
-		return e.ID + ".md"
-	}
+	return e.ID + ".md"
 }

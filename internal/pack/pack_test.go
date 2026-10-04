@@ -258,33 +258,6 @@ func TestLoadNotFound(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
-	tmp := t.TempDir()
-	origDir, _ := os.Getwd()
-	_ = os.Chdir(tmp)
-	defer func() { _ = os.Chdir(origDir) }()
-
-	_ = os.MkdirAll(filepath.Join(tmp, ".council", "packs"), 0755)
-
-	p := &Pack{Name: "doomed", Members: []Member{{ID: "alice"}}}
-	if err := Save(p); err != nil {
-		t.Fatalf("Save() error = %v", err)
-	}
-
-	if err := Delete("doomed"); err != nil {
-		t.Fatalf("Delete() error = %v", err)
-	}
-
-	if _, err := Load("doomed"); err == nil {
-		t.Error("Load() should fail after Delete()")
-	}
-
-	// Delete non-existent
-	if err := Delete("nonexistent"); err == nil {
-		t.Error("Delete(nonexistent) should fail")
-	}
-}
-
 func TestListWithWarnings(t *testing.T) {
 	tmp := t.TempDir()
 	origDir, _ := os.Getwd()

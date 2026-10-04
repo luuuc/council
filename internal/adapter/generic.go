@@ -1,15 +1,11 @@
 package adapter
 
 import (
-	_ "embed"
 	"fmt"
 	"strings"
 
 	"github.com/luuuc/council/internal/expert"
 )
-
-//go:embed templates/generic/install.md
-var genericInstallTemplate string
 
 func init() {
 	Register(&Generic{})
@@ -44,7 +40,6 @@ func (g *Generic) Paths() Paths {
 
 func (g *Generic) Templates() Templates {
 	return Templates{
-		Install:  genericInstallTemplate,
 		Commands: map[string]string{}, // No commands for generic
 	}
 }
@@ -54,7 +49,7 @@ func (g *Generic) Templates() Templates {
 func (g *Generic) FormatAgent(e *expert.Expert) string {
 	var parts []string
 
-	parts = append(parts, fmt.Sprintf("### %s%s", e.Name, e.SourceMarker()))
+	parts = append(parts, "### "+e.Name)
 	parts = append(parts, fmt.Sprintf("- **ID**: %s", e.ID))
 	parts = append(parts, fmt.Sprintf("- **Focus**: %s", e.Focus))
 	parts = append(parts, "")

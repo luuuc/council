@@ -167,9 +167,6 @@ func TestConstants(t *testing.T) {
 	if ExpertsDir != "experts" {
 		t.Errorf("ExpertsDir = %s, want experts", ExpertsDir)
 	}
-	if CommandsDir != "commands" {
-		t.Errorf("CommandsDir = %s, want commands", CommandsDir)
-	}
 }
 
 func TestValidateTool(t *testing.T) {

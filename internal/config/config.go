@@ -10,11 +10,10 @@ import (
 )
 
 const (
-	CouncilDir  = ".council"
-	ConfigFile  = "config.yaml"
-	ExpertsDir  = "experts"
-	CommandsDir = "commands"
-	PacksDir    = "packs"
+	CouncilDir = ".council"
+	ConfigFile = "config.yaml"
+	ExpertsDir = "experts"
+	PacksDir   = "packs"
 )
 
 // Config represents the council configuration
@@ -32,9 +31,6 @@ type AIConfig struct {
 	Provider string `yaml:"provider,omitempty"` // "anthropic", "openai", "ollama", "github"
 	Model    string `yaml:"model,omitempty"`    // e.g. "claude-sonnet-4-6", "gpt-4o"
 }
-
-// ValidProviders is the set of recognized API provider values.
-var ValidProviders = []string{"anthropic", "openai", "ollama", "github"}
 
 // ProviderEnvKeys maps providers to their expected environment variable.
 var ProviderEnvKeys = map[string]string{

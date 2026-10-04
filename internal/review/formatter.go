@@ -1,7 +1,6 @@
 package review
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -226,11 +225,6 @@ func FormatHumanCouncils(r *CouncilsResult) string {
 	}
 	b.WriteString(FormatCouncilsOutcome(r))
 	return b.String()
-}
-
-// FormatJSON marshals a SynthesizedResult as indented JSON.
-func FormatJSON(result *SynthesizedResult) ([]byte, error) {
-	return json.MarshalIndent(result, "", "  ")
 }
 
 // voteCount renders "2 block, 1 comment" in severity order.

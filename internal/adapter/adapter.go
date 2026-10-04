@@ -41,7 +41,6 @@ type Paths struct {
 
 // Templates contains embedded template content for a tool
 type Templates struct {
-	Install  string            // INSTALL.md content
 	Commands map[string]string // name -> template content (e.g., "council-add" -> content)
 }
 

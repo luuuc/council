@@ -95,15 +95,6 @@ func (dp *DiffPosition) Position(file string, line int) (int, bool) {
 	return pos, ok
 }
 
-// Files returns the list of files present in the diff.
-func (dp *DiffPosition) Files() []string {
-	files := make([]string, 0, len(dp.positions))
-	for f := range dp.positions {
-		files = append(files, f)
-	}
-	return files
-}
-
 // parseHunkNewStart extracts the new file start line from a hunk header.
 // Format: @@ -old_start[,old_count] +new_start[,new_count] @@
 func parseHunkNewStart(header string) int {

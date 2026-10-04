@@ -44,3 +44,19 @@ func Resolve(p *Pack, available []*expert.Expert) ([]ResolvedMember, []string) {
 
 	return resolved, warnings
 }
+
+// Missing returns the pack's member IDs that aren't among the available
+// experts, such as members of packs from older versions of Council.
+func Missing(p *Pack, available []*expert.Expert) []string {
+	have := make(map[string]bool, len(available))
+	for _, e := range available {
+		have[e.ID] = true
+	}
+	var missing []string
+	for _, m := range p.Members {
+		if !have[m.ID] {
+			missing = append(missing, m.ID)
+		}
+	}
+	return missing
+}

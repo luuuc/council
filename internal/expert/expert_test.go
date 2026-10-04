@@ -371,74 +371,6 @@ func TestToID(t *testing.T) {
 	}
 }
 
-func TestParseAIResponse(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		wantCount int
-		wantErr   bool
-	}{
-		{
-			name: "yaml in code block",
-			input: `Here are the experts:
-
-` + "```yaml" + `
-experts:
-  - id: ada
-    name: Ada
-    focus: TDD
-  - id: ben
-    name: Ben
-    focus: Rails
-` + "```" + `
-
-That's all!`,
-			wantCount: 2,
-			wantErr:   false,
-		},
-		{
-			name:      "yaml in generic code block",
-			input:     "```\nexperts:\n  - id: test\n    name: Test\n    focus: Testing\n```",
-			wantCount: 1,
-			wantErr:   false,
-		},
-		{
-			name: "plain yaml",
-			input: `experts:
-  - id: plain
-    name: Plain Expert
-    focus: Plain focus`,
-			wantCount: 1,
-			wantErr:   false,
-		},
-		{
-			name:      "invalid yaml",
-			input:     "not: [valid: yaml",
-			wantCount: 0,
-			wantErr:   true,
-		},
-		{
-			name:      "empty experts",
-			input:     "experts: []",
-			wantCount: 0,
-			wantErr:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseAIResponse([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseAIResponse() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if len(got) != tt.wantCount {
-				t.Errorf("ParseAIResponse() returned %d experts, want %d", len(got), tt.wantCount)
-			}
-		})
-	}
-}
-
 func TestListWithWarnings(t *testing.T) {
 	// Create a temp directory for testing
 	tmpDir, err := os.MkdirTemp("", "council-test-*")
@@ -703,84 +635,6 @@ func TestGenerateBody_SpecialCharacters(t *testing.T) {
 	}
 }
 
-func TestParseFrontmatter(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    *Expert
-		wantErr bool
-	}{
-		{
-			name: "valid frontmatter",
-			input: `id: ada
-name: Ada
-focus: TDD expert
-philosophy: Write tests first.
-principles:
-  - Red-green-refactor
-red_flags:
-  - No tests`,
-			want: &Expert{
-				ID:         "ada",
-				Name:       "Ada",
-				Focus:      "TDD expert",
-				Philosophy: "Write tests first.",
-				Principles: []string{"Red-green-refactor"},
-				RedFlags:   []string{"No tests"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "with category and priority",
-			input: `id: custom-expert
-name: Custom
-focus: Custom focus
-category: custom
-priority: high`,
-			want: &Expert{
-				ID:       "custom-expert",
-				Name:     "Custom",
-				Focus:    "Custom focus",
-				Category: "custom",
-				Priority: "high",
-			},
-			wantErr: false,
-		},
-		{
-			name:    "invalid yaml",
-			input:   "id: [broken",
-			want:    nil,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseFrontmatter([]byte(tt.input))
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseFrontmatter() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if tt.wantErr {
-				return
-			}
-
-			if got.ID != tt.want.ID {
-				t.Errorf("ParseFrontmatter() ID = %v, want %v", got.ID, tt.want.ID)
-			}
-			if got.Name != tt.want.Name {
-				t.Errorf("ParseFrontmatter() Name = %v, want %v", got.Name, tt.want.Name)
-			}
-			if got.Category != tt.want.Category {
-				t.Errorf("ParseFrontmatter() Category = %v, want %v", got.Category, tt.want.Category)
-			}
-			if got.Priority != tt.want.Priority {
-				t.Errorf("ParseFrontmatter() Priority = %v, want %v", got.Priority, tt.want.Priority)
-			}
-		})
-	}
-}
-
 func TestApplyDefaults(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -936,8 +790,7 @@ func TestMarshalExpertsJSON(t *testing.T) {
 			Category:   "testing",
 			Priority:   "high",
 			// Internal fields should NOT be in JSON output
-			Body:   "# Body content",
-			Source: "custom",
+			Body: "# Body content",
 		},
 	}
 
@@ -1054,7 +907,7 @@ func TestPrepare(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := tt.in
-			err := Prepare(&e)
+			_, err := Prepare(&e)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("Prepare() error = %v, want it to mention %q", err, tt.wantErr)
@@ -1085,5 +938,37 @@ func TestParseLoose(t *testing.T) {
 		if err != nil || e.Name != "Jane" {
 			t.Errorf("ParseLoose(%q) = %+v, %v", raw, e, err)
 		}
+	}
+}
+
+func TestPrepareNotesDroppedTensions(t *testing.T) {
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(t.TempDir())
+	defer func() { _ = os.Chdir(origDir) }()
+	if err := os.MkdirAll(filepath.Join(".council", "experts"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := (&Expert{ID: "ada", Name: "Virtual Ada", Focus: "tests", Kind: KindPerson}).Save(); err != nil {
+		t.Fatal(err)
+	}
+	tension := func(id string) Tension { return Tension{Expert: id, Topic: "t", Position: "p", Counterpoint: "c"} }
+
+	role := &Expert{Name: "SRE", Kind: KindRole, Focus: "uptime", Principles: []string{"p"}, Tensions: []Tension{tension("ada"), tension("zed")}}
+	notes, err := Prepare(role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(role.Tensions) != 1 || len(notes) != 1 || !strings.Contains(notes[0], `"zed"`) {
+		t.Errorf("tensions = %v, notes = %v; want the one with ada kept and zed noted", role.Tensions, notes)
+	}
+
+	customer := &Expert{Name: "Freelancer", Kind: KindCustomer, Focus: "billing", Sources: []string{"ticket 1"}, Principles: []string{"p"}, Tensions: []Tension{tension("ada")}}
+	if notes, err := Prepare(customer); err != nil || len(notes) != 1 || !strings.Contains(notes[0], "red_flags") {
+		t.Errorf("customer notes = %v, err = %v", notes, err)
+	}
+
+	clean := &Expert{Name: "CFO", Kind: KindRole, Focus: "money", Principles: []string{"p"}}
+	if notes, _ := Prepare(clean); notes != nil {
+		t.Errorf("no tensions dropped, but notes = %v", notes)
 	}
 }

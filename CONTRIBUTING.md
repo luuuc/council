@@ -8,170 +8,48 @@ cd council
 make ci    # Build + test + lint (run before every PR)
 ```
 
-## PR Checklist
-
-- [ ] `make ci` passes
-- [ ] Tests added for new functionality
-- [ ] Changes are focused and atomic
-
-## Development Setup
-
-### Prerequisites
-
-- Go 1.21 or later
-- Git
-
-### Clone and Build
+Requires Go 1.23 or later. `make build` puts the binary in `bin/council`; don't `go build` to the project root. `make install` copies it to `/usr/local/bin/council`.
 
 ```bash
-git clone https://github.com/luuuc/council.git
-cd council
-make build
+make test                          # All tests
+go test -v ./internal/review/...   # One package
+make lint                          # golangci-lint (installed on first run)
 ```
 
-The binary will be in `bin/council`.
+## One rule: Council ships no people
 
-**Note:** Always use `make build` - don't run `go build` directly to the project root. Build outputs belong in `bin/`.
-
-### Install Locally
-
-```bash
-make install
-```
-
-This copies the binary to `/usr/local/bin/council`.
-
-### Alternative: Go Install
-
-```bash
-go install github.com/luuuc/council/cmd/council@latest
-```
-
-## Running Tests
-
-```bash
-make test
-```
-
-Or run specific packages:
-
-```bash
-go test -v ./internal/config/...
-go test -v ./internal/sync/...
-```
-
-## Linting
-
-```bash
-make lint
-```
-
-This uses `golangci-lint`. If not installed, the command will install it first.
-
-## CI Checks
-
-Run all checks before pushing:
-
-```bash
-make ci
-```
-
-This runs build, tests, and lint.
+No real person's name or persona goes in the binary, repo, tests, or docs. Use placeholders: "Virtual Jane Doe" in docs, "Virtual Ada", "Ben", "Cleo" in tests. The one exception is the author's own persona in `internal/expert/defaults/`, shipped with his consent.
 
 ## Code Structure
 
 ```
 council/
-├── bin/                  # Build output (gitignored)
 ├── cmd/council/          # CLI entry point
 ├── internal/
-│   ├── adapter/          # Tool-specific UX adapters (Claude, OpenCode, generic)
-│   ├── cmd/              # Cobra command definitions
-│   ├── config/           # Configuration loading/saving, backend detection
-│   ├── creator/          # Expert creator functionality
-│   ├── detect/           # Stack detection
-│   ├── expert/           # Expert data structures (YAML frontmatter + markdown)
-│   ├── export/           # Markdown export
-│   ├── fs/               # File system utilities
-│   ├── install/          # External persona repository management
+│   ├── adapter/          # Per-tool files: Claude Code, OpenCode, generic AGENTS.md
+│   ├── brief/            # The assembly brief the user's AI follows
+│   ├── cmd/              # Cobra commands
+│   ├── config/           # .council/config.yaml, API provider detection
+│   ├── expert/           # Persona format, validation, the default member
+│   ├── fs/               # File helpers
 │   ├── mcp/              # MCP server (stdin/stdout JSON-RPC)
-│   ├── pack/             # Reusable expert groupings (built-in + custom)
-│   ├── prompt/           # Prompt generation
-│   ├── review/           # Sequential review engine
-│   └── sync/             # Sync targets (claude, opencode, etc.)
-├── .doc/                 # Documentation
-├── install.sh            # Installer script
-└── Makefile              # Build commands
+│   ├── pack/             # Named groups of members
+│   ├── review/           # Room prompt, answer checking, rendering, API backend
+│   └── sync/             # Writes members and commands to each tool
+├── action/               # GitHub Action
+└── install.sh            # Installer
 ```
 
-## Key Architecture
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit.
 
-### Review Engine (`internal/review/`)
+## Adding an AI tool
 
-The `Backend` interface defines how LLM calls are made:
-
-```go
-type Backend interface {
-    Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error)
-}
-```
-
-Two implementations:
-- `CLIBackend` — runs AI CLIs headless (`claude -p`, `opencode run`, `codex exec`)
-- `APIBackend` — direct HTTP calls to Anthropic, OpenAI, or Ollama
-
-The `Runner` runs experts one at a time with per-call timeouts. Each expert sees the earlier verdicts and can reply to them. The `Synthesizer` aggregates verdicts, detects agreements/tensions, and resolves hierarchy.
-
-### MCP Server (`internal/mcp/`)
-
-Exposes council tools via MCP's JSON-RPC protocol over stdin/stdout. Three tools: `council_review`, `council_list`, `council_explain`. Uses functional options for dependency injection (`WithBackend`). Tests use stdin/stdout pipes with a mock backend.
-
-## Adding a New Sync Target
-
-1. Add the target to `internal/sync/sync.go`:
-
-```go
-var Targets = map[string]Target{
-    // ... existing targets
-    "newtarget": {
-        Name:     "New Target",
-        Location: ".newtarget/",
-        Sync:     syncNewTarget,
-        Check:    func() bool { return fs.DirExists(".newtarget") },
-        Clean:    []string{".newtarget/agents/"},
-    },
-}
-```
-
-2. Implement the sync function:
-
-```go
-func syncNewTarget(experts []*expert.Expert, cfg *config.Config, opts Options) error {
-    // Generate and write files
-}
-```
-
-3. Add tests in `internal/sync/sync_test.go`
-
-## Adding Suggested Experts
-
-Suggestions are in `internal/cmd/suggestions.yaml`. Add entries under the appropriate category:
-
-```yaml
-ruby:
-  - name: "Expert Name"
-    focus: "Area of expertise"
-```
-
-Categories: `go`, `ruby`, `python`, `javascript`, `elixir`, `rust`, `testing`, `design`, `general`.
+Implement the `Adapter` interface in `internal/adapter/` and call `Register()` in `init()`. Add tests next to the others in `internal/adapter/` and `internal/sync/`.
 
 ## PR Guidelines
 
-1. Run `make ci` before submitting
-2. Keep changes focused and atomic
-3. Write tests for new functionality
-4. Update documentation if adding features
+- `make ci` passes
+- Tests for new behavior (table-driven where there are several cases)
+- Focused changes; docs updated when behavior changes
 
-## Questions?
-
-Open an issue at https://github.com/luuuc/council/issues
+Questions: https://github.com/luuuc/council/issues

@@ -134,3 +134,11 @@ func TestResolveNoPriorityAlways(t *testing.T) {
 		t.Errorf("resolved[0].ID = %q, want alice", resolved[0].Expert.ID)
 	}
 }
+
+func TestMissing(t *testing.T) {
+	p := &Pack{Name: "go", Members: []Member{{ID: "ada"}, {ID: "old-library-person"}, {ID: "ben"}}}
+	got := Missing(p, []*expert.Expert{{ID: "ada"}, {ID: "ben"}})
+	if len(got) != 1 || got[0] != "old-library-person" {
+		t.Errorf("Missing() = %v, want [old-library-person]", got)
+	}
+}

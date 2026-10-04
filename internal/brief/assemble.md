@@ -55,7 +55,7 @@ inferred:                      # person only: read from their work, never stated
   - A position you infer, kept apart from the documented ones
 red_flags:                     # what they push back on (customer: what makes them give up)
   - A pattern they object to
-tensions:                      # only with current members, only where they truly disagree
+tensions:                      # person or role only; only with current members, where they truly disagree
   - expert: member-id
     topic: what they disagree about
     position: this member's position

@@ -169,9 +169,10 @@ diff --git a/y.go b/y.go
 `
 
 	dp := NewDiffPosition(diff)
-	files := dp.Files()
-	if len(files) != 2 {
-		t.Errorf("expected 2 files, got %d", len(files))
+	for _, f := range []string{"x.go", "y.go"} {
+		if _, ok := dp.Position(f, 1); !ok {
+			t.Errorf("expected a position for %s:1", f)
+		}
 	}
 }
 

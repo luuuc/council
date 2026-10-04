@@ -12,7 +12,6 @@ import (
 	"github.com/luuuc/council/internal/adapter"
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
-	"github.com/luuuc/council/internal/install"
 	"github.com/luuuc/council/internal/pack"
 )
 
@@ -52,7 +51,7 @@ func AllCleanPaths() []string {
 // SyncAll syncs to the configured tool (or detects and saves if missing)
 func SyncAll(cfg *config.Config, opts Options) error {
 	// Load all experts
-	allExperts, err := loadAllExperts()
+	allExperts, err := expert.List()
 	if err != nil {
 		return err
 	}
@@ -262,31 +261,6 @@ func checkDeprecatedPaths(a adapter.Adapter, opts Options) {
 	}
 }
 
-// loadAllExperts loads experts from all sources: installed and project
-func loadAllExperts() ([]*expert.Expert, error) {
-	var allExperts []*expert.Expert
-
-	// Load installed experts (from cloned repositories)
-	// Errors here are non-fatal (user may not have installed councils)
-	installedExperts, err := install.ListInstalledExperts()
-	if err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Printf("Warning: could not load installed experts: %v\n", err)
-		}
-	} else {
-		allExperts = append(allExperts, installedExperts...)
-	}
-
-	// Load project council experts - this is required
-	projectExperts, err := expert.List()
-	if err != nil {
-		return nil, err
-	}
-	allExperts = append(allExperts, projectExperts...)
-
-	return allExperts, nil
-}
-
 // writeFile writes content to path, or prints what would be written in dry-run mode
 func writeFile(path, content string, dryRun bool) error {
 	if dryRun {
@@ -367,7 +341,7 @@ func SyncTarget(targetName string, cfg *config.Config, opts Options) error {
 		return fmt.Errorf("unknown target '%s' - valid targets: claude, opencode, generic", targetName)
 	}
 
-	allExperts, err := loadAllExperts()
+	allExperts, err := expert.List()
 	if err != nil {
 		return err
 	}
@@ -387,16 +361,3 @@ func SyncTarget(targetName string, cfg *config.Config, opts Options) error {
 	return nil
 }
 
-// DetectTargets returns target names that have existing config directories
-// This is for backward compatibility with existing code
-func DetectTargets() []string {
-	detected := adapter.Detect()
-	if len(detected) == 0 {
-		return []string{"generic"}
-	}
-	var names []string
-	for _, a := range detected {
-		names = append(names, a.Name())
-	}
-	return names
-}
