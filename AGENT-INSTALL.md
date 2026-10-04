@@ -18,6 +18,18 @@ curl -fsSL https://raw.githubusercontent.com/luuuc/council/main/install.sh | sh
 
 If that fails, try `go install github.com/luuuc/council/cmd/council@latest`.
 
+Then check the version is recent enough:
+
+```bash
+council assemble --help
+```
+
+If it says `unknown command "assemble"`, the installed release is older than this guide. Install from source instead (needs Go), then make sure `council` on `PATH` is the new one (`which council`):
+
+```bash
+go install github.com/luuuc/council/cmd/council@main
+```
+
 ## Step 2: Set up the project
 
 ```bash

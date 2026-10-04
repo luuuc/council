@@ -115,6 +115,6 @@ esac
 
 echo ""
 echo "Get started:"
-echo "  council init           Initialize council directory"
-echo "  council setup -i       Interactive expert selection"
-echo "  council sync           Sync to AI tool configs"
+echo "  council init           Create .council/ and install the council skills"
+echo "  /council-assemble      In your AI tool: pick and build your council"
+echo "  /council <topic>       In your AI tool: convene it"

@@ -146,6 +146,7 @@ Your AI tool drives these; you rarely type them.
 | `council review --record <file \| ->` | Check the debate, show it, save it |
 | `council review --api` | Unattended: send the prompt to a model API with your key |
 | `council sync` | Rewrite the skills, commands, and agent files |
+| `council doctor` | Check the council setup and report problems |
 | `council mcp` | The same, as MCP tools |
 
 Manual install:
