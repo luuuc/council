@@ -1,7 +1,9 @@
 name: Council Review
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review]
+  # Automatic runs paused for now; run by hand from the Actions tab.
+  # pull_request:
+  #   types: [opened, synchronize, ready_for_review]
+  workflow_dispatch:
 
 permissions:
   models: read
@@ -11,7 +13,7 @@ permissions:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    # if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
