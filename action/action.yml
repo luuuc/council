@@ -1,5 +1,5 @@
 name: 'Council Review'
-description: 'Multi-perspective code review by an expert council'
+description: 'Council review of a PR by the council committed in the repo (.council/)'
 author: 'luuuc'
 
 branding:
@@ -8,7 +8,7 @@ branding:
 
 inputs:
   pack:
-    description: 'Expert pack to use for review (e.g. rails, go, code)'
+    description: 'Pack from the committed .council/packs/ to review with (default: every member in .council/experts/)'
     required: false
     default: ''
   model:
@@ -21,10 +21,6 @@ inputs:
     default: ''
   openai-api-key:
     description: 'OpenAI API key (BYOK alternative)'
-    required: false
-    default: ''
-  mode:
-    description: 'Review mode: sequential (one LLM call per expert, experts react to each other) or collective (one call). Default: collective on the free GitHub Models tier, sequential with an API key'
     required: false
     default: ''
   version:
@@ -124,14 +120,23 @@ runs:
       shell: bash
       env:
         INPUT_PACK: ${{ inputs.pack }}
-        INPUT_MODE: ${{ inputs.mode }}
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
 
-        ARGS="review --backend api --provider $COUNCIL_PROVIDER --output github-pr"
+        # Council ships no people: the repo's own council reviews the PR.
+        if [ ! -d .council/experts ]; then
+          echo "::error::No .council/experts/ in this repo. Assemble a council with /council-assemble in your AI tool, then commit .council/ (and actions/checkout this repo before this step)."
+          exit 1
+        fi
+
+        # Older council releases have no --api.
+        case "$(council review --help 2>/dev/null || true)" in
+          *"--api"*) ARGS="review --api --provider $COUNCIL_PROVIDER --output github-pr" ;;
+          *) ARGS="review --backend api --provider $COUNCIL_PROVIDER --output github-pr" ;;
+        esac
 
         if [ -n "$COUNCIL_MODEL" ]; then
           ARGS="$ARGS --model $COUNCIL_MODEL"
@@ -140,18 +145,6 @@ runs:
         if [ -n "$INPUT_PACK" ]; then
           ARGS="$ARGS --pack $INPUT_PACK"
         fi
-
-        # Sequential review makes one request per expert; the free GitHub
-        # Models tier allows 150 requests/day, so default to one call there.
-        MODE="$INPUT_MODE"
-        if [ -z "$MODE" ]; then
-          if [ "$COUNCIL_PROVIDER" = "github" ]; then MODE=collective; else MODE=sequential; fi
-        fi
-        # Older council releases have no --mode (they always run collective).
-        REVIEW_HELP=$(council review --help 2>/dev/null || true)
-        case "$REVIEW_HELP" in
-          *"--mode string"*) ARGS="$ARGS --mode $MODE" ;;
-        esac
 
         council $ARGS --file /tmp/council-pr.diff > /tmp/council-output.json 2>/tmp/council-stderr.log || {
           echo "::warning::Council review failed, posting error comment"

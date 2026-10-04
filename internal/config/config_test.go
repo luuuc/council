@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -16,37 +17,9 @@ func TestDefault(t *testing.T) {
 	if cfg.Tool != "" {
 		t.Errorf("Default().Tool = %q, want empty (detected at runtime)", cfg.Tool)
 	}
-	// AI.Command should be empty (detected at runtime)
-	if cfg.AI.Command != "" {
-		t.Errorf("Default().AI.Command = %q, want empty (detected at runtime)", cfg.AI.Command)
-	}
-	if cfg.AI.Timeout != 120 {
-		t.Errorf("Default().AI.Timeout = %d, want 120", cfg.AI.Timeout)
-	}
 	// Targets should be empty (detected at sync time)
 	if len(cfg.Targets) != 0 {
 		t.Errorf("Default().Targets length = %d, want 0 (detected at sync time)", len(cfg.Targets))
-	}
-}
-
-func TestDetectAICommand(t *testing.T) {
-	// Test with explicit command - should return it directly
-	cfg := &Config{AI: AIConfig{Command: "myai"}}
-	cmd, err := cfg.DetectAICommand()
-	if err != nil {
-		t.Errorf("DetectAICommand() with explicit command should not error: %v", err)
-	}
-	if cmd != "myai" {
-		t.Errorf("DetectAICommand() = %q, want myai", cmd)
-	}
-
-	// Test with empty command - should detect or error
-	cfg = &Config{}
-	cmd, err = cfg.DetectAICommand()
-	// Result depends on test environment - we just verify it doesn't panic
-	// and returns a non-empty string if successful, or an error if not
-	if err == nil && cmd == "" {
-		t.Error("DetectAICommand() should return non-empty command or error")
 	}
 }
 
@@ -134,7 +107,7 @@ func TestLoadAndSave(t *testing.T) {
 	}
 
 	cfg := Default()
-	cfg.AI.Command = "aichat"
+	cfg.AI.Provider = "openai"
 	cfg.Targets = []string{"claude", "windsurf"}
 
 	if err := cfg.Save(); err != nil {
@@ -147,8 +120,8 @@ func TestLoadAndSave(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if loaded.AI.Command != "aichat" {
-		t.Errorf("Load().AI.Command = %s, want aichat", loaded.AI.Command)
+	if loaded.AI.Provider != "openai" {
+		t.Errorf("Load().AI.Provider = %s, want openai", loaded.AI.Provider)
 	}
 	if len(loaded.Targets) != 2 {
 		t.Errorf("Load().Targets length = %d, want 2", len(loaded.Targets))
@@ -223,105 +196,39 @@ func TestValidateTool(t *testing.T) {
 	}
 }
 
-func TestDetectBackend(t *testing.T) {
+func TestDetectProvider(t *testing.T) {
 	tests := []struct {
-		name        string
-		cfg         Config
-		envKey      string // env var to set (empty = none)
-		envVal      string
-		wantBackend string
+		name         string
+		cfg          Config
+		env          map[string]string
 		wantProvider string
-		wantModel   string
+		wantModel    string
+		wantErr      string
 	}{
-		{
-			name:        "explicit cli backend",
-			cfg:         Config{AI: AIConfig{Backend: "cli"}},
-			wantBackend: "cli",
-		},
-		{
-			name:         "explicit api backend with provider and model",
-			cfg:          Config{AI: AIConfig{Backend: "api", Provider: "anthropic", Model: "claude-opus-4-6"}},
-			wantBackend:  "api",
-			wantProvider: "anthropic",
-			wantModel:    "claude-opus-4-6",
-		},
-		{
-			name:         "explicit api backend with provider, default model",
-			cfg:          Config{AI: AIConfig{Backend: "api", Provider: "openai"}},
-			wantBackend:  "api",
-			wantProvider: "openai",
-			wantModel:    "gpt-4o",
-		},
-		{
-			name:         "explicit api backend with provider, no default model for ollama",
-			cfg:          Config{AI: AIConfig{Backend: "api", Provider: "ollama"}},
-			wantBackend:  "api",
-			wantProvider: "ollama",
-			wantModel:    "",
-		},
-		{
-			name:         "explicit api backend with github provider, default model",
-			cfg:          Config{AI: AIConfig{Backend: "api", Provider: "github"}},
-			wantBackend:  "api",
-			wantProvider: "github",
-			wantModel:    "openai/gpt-4.1-mini",
-		},
-		{
-			name:         "no config, ANTHROPIC_API_KEY set, no CLI",
-			cfg:          Config{},
-			envKey:       "ANTHROPIC_API_KEY",
-			envVal:       "sk-test",
-			wantBackend:  "", // depends on whether a CLI is installed
-		},
-		{
-			name:         "explicit api with custom model overrides default",
-			cfg:          Config{AI: AIConfig{Backend: "api", Provider: "anthropic", Model: "claude-haiku-4-5-20251001"}},
-			wantBackend:  "api",
-			wantProvider: "anthropic",
-			wantModel:    "claude-haiku-4-5-20251001",
-		},
+		{name: "configured provider and model", cfg: Config{AI: AIConfig{Provider: "anthropic", Model: "claude-opus-4-6"}}, wantProvider: "anthropic", wantModel: "claude-opus-4-6"},
+		{name: "configured provider, default model", cfg: Config{AI: AIConfig{Provider: "openai"}}, wantProvider: "openai", wantModel: "gpt-4o"},
+		{name: "ollama needs a model", cfg: Config{AI: AIConfig{Provider: "ollama"}}, wantErr: "needs a model"},
+		{name: "key in the environment", env: map[string]string{"OPENAI_API_KEY": "k"}, wantProvider: "openai", wantModel: "gpt-4o"},
+		{name: "anthropic before github", env: map[string]string{"GITHUB_TOKEN": "k", "ANTHROPIC_API_KEY": "k"}, wantProvider: "anthropic", wantModel: "claude-sonnet-4-6"},
+		{name: "configured provider beats the environment", cfg: Config{AI: AIConfig{Provider: "github"}}, env: map[string]string{"ANTHROPIC_API_KEY": "k"}, wantProvider: "github", wantModel: "openai/gpt-4.1-mini"},
+		{name: "nothing", wantErr: "no model API key"},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.envKey != "" {
-				t.Setenv(tt.envKey, tt.envVal)
+			for _, k := range []string{"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GITHUB_TOKEN"} {
+				t.Setenv(k, tt.env[k])
 			}
-
-			backend, provider, model := tt.cfg.DetectBackend()
-
-			// For tests that depend on environment (no explicit backend),
-			// skip exact assertions — the result depends on installed CLIs.
-			if tt.cfg.AI.Backend == "" {
-				// Just verify it doesn't panic and returns valid values
+			provider, model, err := tt.cfg.DetectProvider()
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("err = %v, want %q", err, tt.wantErr)
+				}
 				return
 			}
-
-			if backend != tt.wantBackend {
-				t.Errorf("backend = %q, want %q", backend, tt.wantBackend)
-			}
-			if provider != tt.wantProvider {
-				t.Errorf("provider = %q, want %q", provider, tt.wantProvider)
-			}
-			if model != tt.wantModel {
-				t.Errorf("model = %q, want %q", model, tt.wantModel)
+			if err != nil || provider != tt.wantProvider || model != tt.wantModel {
+				t.Errorf("got (%q, %q, %v), want (%q, %q)", provider, model, err, tt.wantProvider, tt.wantModel)
 			}
 		})
-	}
-}
-
-func TestDetectBackendExplicitOverridesEnv(t *testing.T) {
-	// Even if API key is set, explicit cli backend wins
-	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
-
-	cfg := Config{AI: AIConfig{Backend: "cli"}}
-	backend, provider, _ := cfg.DetectBackend()
-
-	if backend != "cli" {
-		t.Errorf("explicit cli should override env, got backend=%q", backend)
-	}
-	if provider != "" {
-		t.Errorf("cli backend should have no provider, got %q", provider)
 	}
 }
 

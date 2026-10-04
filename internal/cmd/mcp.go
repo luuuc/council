@@ -26,13 +26,14 @@ This command is designed to be spawned by MCP-capable AI tools
 (Claude Code, Cursor, Claude Desktop) as a subprocess. It speaks
 JSON-RPC 2.0 over stdin/stdout and exposes council tools:
 
-  council_review       Run a sequential council review (one AI call per member)
-  council_convene      Run the review with the client's own model taking
-  council_turn         each member's turn (no AI CLI or API key needed)
+  council_room         The room prompt: the client's model writes the whole
+                       debate in one pass
+  council_record       Check the debate, save it, and return the review
   council_assemble     The brief for proposing and building members
   council_add          Save a member the client built (person, role, customer)
   council_list         List experts in a pack
-  council_explain      Expand on a review note
+
+Council makes no model calls here: the client's own model does the work.
 
 It also offers a "council" prompt for the client's prompt menu.
 

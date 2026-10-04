@@ -4,7 +4,7 @@ This guide covers how to use your council with different AI tools and platforms.
 
 ## Claude Desktop (MCP)
 
-Claude Desktop connects to Council through MCP. It has no headless mode, so Council can't call it in the background. Instead, Claude in Desktop takes each member's turn itself: Council runs the meeting, hands Claude one member's prompt at a time with the earlier reviews, and returns the debate at the end. No API key or extra AI tool is needed.
+Claude Desktop connects to Council through MCP. Council hands Claude the room prompt (every member, the submission, the debate rules), Claude writes the whole debate in one pass, and Council checks it and returns the review. No API key or extra AI tool is needed.
 
 ### Setup
 
@@ -27,7 +27,7 @@ which council  # Should output the path to council
 }
 ```
 
-Claude Desktop starts MCP servers outside any project, so `--dir` points Council at the project whose `.council/` you want. Without it, the built-in packs (`go`, `rails`, `writing`) still work.
+Claude Desktop starts MCP servers outside any project, so `--dir` points Council at the project whose `.council/` you want.
 
 3. Restart Claude Desktop completely (quit and reopen)
 
@@ -35,7 +35,7 @@ Claude Desktop starts MCP servers outside any project, so `--dir` points Council
 
 Pick **council** from the prompt menu, choose a pack, and describe what to review. Or ask directly:
 
-> "Convene the go council on this code"
+> "Convene the code council on this code"
 > [paste code]
 
 > "Ask the writing council about this launch post"
@@ -51,13 +51,9 @@ Claude reads the project, proposes members with reasons (people with documented 
 | Feature | Description |
 |---------|-------------|
 | `council` prompt | Convenes a pack on a topic |
-| `council_review` tool | Sequential review with one AI call per member (needs an AI CLI or API key) |
-| `council_convene` / `council_turn` tools | The same review with Claude taking each member's turn (no key needed) |
+| `council_room` / `council_record` tools | The room prompt Claude answers in one pass, and recording that debate |
 | `council_assemble` / `council_add` tools | The brief for building members, and saving each one |
 | `council_list` tool | Lists a pack's members and their tensions |
-| `council_explain` tool | Expands on a review note (needs an AI CLI or API key) |
-
-`council_review` uses separate AI calls, so members are more independent. When it can't find an AI CLI or API key, Claude falls back to `council_convene`.
 
 ### Troubleshooting
 

@@ -8,12 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
-
-	"github.com/luuuc/council/internal/expert"
 )
 
-// APIBackend makes direct HTTP calls to LLM provider APIs.
+// APIBackend sends the room prompt to a model API with the user's key,
+// for unattended reviews (the GitHub Action).
 type APIBackend struct {
 	Provider string // "anthropic", "openai", "ollama", "github"
 	Model    string
@@ -65,74 +63,15 @@ func (b *APIBackend) SetBaseURL(url string) {
 	b.config.URL = url
 }
 
-// Review executes a single expert review via the provider's API.
-func (b *APIBackend) Review(ctx context.Context, e *expert.Expert, sub Submission) (ExpertVerdict, error) {
-	prompt := sub.RawPrompt
-	if prompt == "" {
-		prompt = BuildPrompt(e, sub)
-	}
-
-	text, err := b.doRequest(ctx, prompt, e.ID, nil)
-	if err != nil {
-		return ExpertVerdict{}, err
-	}
-
-	if sub.RawPrompt != "" {
-		return ExpertVerdict{
-			Expert:     e.ID,
-			Verdict:    VerdictComment,
-			Confidence: 1.0,
-			Notes:      []string{strings.TrimSpace(text)},
-		}, nil
-	}
-
-	return ParseVerdict(e.ID, []byte(text)), nil
-}
-
-// ReviewCollective executes a collective review with all experts via the provider's API.
-func (b *APIBackend) ReviewCollective(ctx context.Context, experts []*expert.Expert, sub Submission) (*SynthesizedResult, error) {
-	prompt := BuildCollectivePrompt(experts, sub)
-
-	var opts *requestOpts
-	if b.Provider == "anthropic" {
-		opts = &requestOpts{maxTokens: 4096}
-	}
-
-	text, err := b.doRequest(ctx, prompt, "collective", opts)
-	if err != nil {
-		return nil, err
-	}
-
-	expertIDs := make([]string, len(experts))
-	for i, e := range experts {
-		expertIDs[i] = e.ID
-	}
-
-	return ParseCollectiveResult([]byte(text), expertIDs), nil
-}
-
-// requestOpts allows callers to override provider defaults for a specific request.
-type requestOpts struct {
-	maxTokens int
+// Complete sends a prompt to the provider's API and returns the answer.
+func (b *APIBackend) Complete(ctx context.Context, prompt string) (string, error) {
+	return b.doRequest(ctx, prompt)
 }
 
 // doRequest sends a prompt to the provider API and returns the extracted text.
-func (b *APIBackend) doRequest(ctx context.Context, prompt, label string, opts *requestOpts) (string, error) {
-	buildBody := b.config.BuildBody
-	if opts != nil && opts.maxTokens > 0 && b.Provider == "anthropic" {
-		maxTok := opts.maxTokens
-		buildBody = func(model, persona string) any {
-			return map[string]any{
-				"model":      model,
-				"max_tokens": maxTok,
-				"messages": []map[string]string{
-					{"role": "user", "content": persona},
-				},
-			}
-		}
-	}
-
-	body, err := json.Marshal(buildBody(b.Model, prompt))
+func (b *APIBackend) doRequest(ctx context.Context, prompt string) (string, error) {
+	label := b.Provider
+	body, err := json.Marshal(b.config.BuildBody(b.Model, prompt))
 	if err != nil {
 		return "", fmt.Errorf("marshal request for %s: %w", label, err)
 	}
@@ -187,7 +126,7 @@ func anthropicProvider() providerConfig {
 		BuildBody: func(model, persona string) any {
 			return map[string]any{
 				"model":      model,
-				"max_tokens": 1024,
+				"max_tokens": 16000, // the whole debate comes back in one answer
 				"messages": []map[string]string{
 					{"role": "user", "content": persona},
 				},

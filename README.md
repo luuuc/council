@@ -89,41 +89,20 @@ council sync               # Syncs changes to your AI tool
 
 ## Review
 
-Experts review one at a time, in pack order. Each one reads the earlier reviews, then disagrees, backs them up, or adds what they missed:
+Type `/council` in Claude Code or OpenCode and point it at files, your current changes, or a question. Everyone sits in the same room: your AI tool writes the whole debate in one pass, following the room prompt Council gives it, and Council checks it and shows it.
+
+Members speak in pack order. Each one gives a verdict (pass / comment / block / escalate), notes, and replies to the members before them (agree, disagree, adds). Then the earlier members get a final word on what came after them, and may change their verdict. A neutral moderator closes with **where they disagree** and **what you need to decide**. Council doesn't recommend an outcome: you make the call. Reviews are saved in `.council/reviews/`.
+
+Under the hood, `/council` runs:
 
 ```bash
-git diff main | council review --pack go
-council review --pack rails --file app/models/user.rb --json
+git diff main | council review --pack code             # prints the room prompt
+council review --pack code --record answer.json        # checks the AI's answer, shows it, saves it
 ```
 
-Each expert returns a verdict (pass / comment / block / escalate), notes, and replies to the experts before them. Then the earlier experts get a final word on what came after them, and may change their verdict. A neutral moderator closes with **where they disagree** and **what you need to decide**. Council doesn't recommend an outcome: you make the call.
+**Councils of Councils.** `--councils product,security` puts several packs in the room. Each council debates, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
 
-A review makes about two LLM calls per expert (review, final word) plus one for the moderator. `--quick` skips the final word and the moderator. `--mode collective` makes a single call that plays every expert at once: cheapest, but the debate is simulated.
-
-Each expert's review prints as soon as it's done, so you watch the debate unfold.
-
-Works with any LLM backend: runs an AI CLI headless (`claude -p`, `opencode run`, `codex exec`) on your existing subscriptions, or calls APIs directly (Anthropic, OpenAI, Ollama). The first CLI found is used; set `ai.command` in `.council/config.yaml` to pick one, and `--model` (or `ai.model`) to pick its model, e.g. `opencode` with `kimi-code-plan-global/k3`.
-
-**Mix models.** Models from different labs disagree more honestly than one model playing everyone. `--mix` spreads members across CLIs, round-robin, and each member keeps their model for the whole review:
-
-```bash
-git diff main | council review --pack go --mix "claude,codex,opencode=kimi-code-plan-global/k3"
-```
-
-Or set it once in `.council/config.yaml`:
-
-```yaml
-ai:
-  mix:
-    - command: claude
-    - command: codex
-    - command: opencode
-      model: kimi-code-plan-global/k3
-```
-
-**Councils of Councils.** `council review --councils product,security,code --file plan.md` runs several packs on the same submission. The councils debate at the same time, each on its own, then each council's spokesperson challenges the others' conclusions, and a moderator lists where the councils disagree and what you need to decide.
-
-`/council` in Claude Code and OpenCode runs the same review: point it at files, your current changes, or a question, and it presents the debate and what you need to decide.
+**Unattended.** `council review --api` sends the room prompt to a model API with your own key (Anthropic, OpenAI, GitHub Models, Ollama) and shows the review. The GitHub Action uses it.
 
 ## Packs
 
@@ -154,11 +133,9 @@ Use Council as a tool in any MCP-capable AI tool:
 ```
 
 Exposes these tools over stdin/stdout JSON-RPC, plus a `council` prompt for prompt menus. See [docs/integrations.md](docs/integrations.md) for Claude Desktop setup.
-- `council_review` — sequential council review, returns structured verdict with replies
-- `council_convene` / `council_turn` — the same review with the client's model taking each member's turn (no AI CLI or API key needed, e.g. Claude Desktop)
+- `council_room` / `council_record` — the room prompt the client's model answers in one pass, and recording that debate (no API key needed, e.g. Claude Desktop)
 - `council_assemble` / `council_add` — the brief for building members, and saving each one
-- `council_list` — list pack members (no LLM calls)
-- `council_explain` — expand on a review note with expert reasoning
+- `council_list` — list pack members
 
 ## GitHub Action
 
@@ -197,7 +174,9 @@ jobs:
 | `OPENAI_API_KEY` | OpenAI | `gpt-4.1` | BYOK |
 | Neither | GitHub Models | `gpt-4.1-mini` | Free (150 req/day) |
 
-**Free tier limits:** 150 requests/day. On the free tier the Action uses `--mode collective` (one request per review) by default; set `mode: sequential` for a real debate at one request per expert (about 25 reviews/day with a 6-expert pack). With an API key, sequential is the default. The free tier also caps how much text one request can carry, so large PR diffs may fail there; use an API key for larger PRs.
+The Action reviews with the council committed in the repo: commit `.council/` after assembling it. Each review is one request (two if the first answer needs fixing).
+
+**Free tier limits:** 150 requests/day. The free tier also caps how much text one request can carry, so large PR diffs or big councils may fail there; use an API key for those.
 
 See [`action/examples/`](action/examples/) for more workflow examples.
 

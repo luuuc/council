@@ -7,8 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/luuuc/council/internal/expert"
 )
 
 // realWorldDiff is a representative multi-file PR diff for integration testing.
@@ -57,59 +55,29 @@ index 0000000..abc1234
 +}
 `
 
-func testExperts() []*expert.Expert {
-	return []*expert.Expert{
-		{
-			ID:    "ada",
-			Name:  "Virtual Ada",
-			Focus: "Testing and quality assurance",
-			Body:  "You care about edge cases, test coverage, and correctness.",
-		},
-		{
-			ID:    "kai-westbrook",
-			Name:  "Kai Westbrook",
-			Focus: "Pragmatic engineering",
-			Body:  "You focus on shipping incrementally and avoiding premature abstraction.",
-		},
-	}
-}
-
-// TestEndToEndPRReview verifies the full pipeline: mock LLM → parse → format → GitHub output.
+// TestEndToEndPRReview runs the unattended path: room prompt → model API →
+// checked answer → GitHub PR review with an inline comment.
 func TestEndToEndPRReview(t *testing.T) {
-	collectiveJSON := `{
-		"verdict": "comment",
-		"blocking": false,
-		"perspectives": [
-			{
-				"expert": "ada",
-				"verdict": "comment",
-				"confidence": 0.8,
-				"notes": ["internal/handler/export.go:24: No error handling on writer.Write — CSV write errors are silently dropped"],
-				"blocking": false
-			},
-			{
-				"expert": "kai-westbrook",
-				"verdict": "pass",
-				"confidence": 0.9,
-				"notes": ["Ship it, the test covers the happy path"],
-				"blocking": false
-			}
+	answer := `{
+		"reviews": [
+			{"expert":"ada","verdict":"comment","confidence":0.8,"notes":["internal/handler/export.go:24: No error handling on writer.Write — CSV write errors are silently dropped"]},
+			{"expert":"ben","verdict":"pass","confidence":0.9,"notes":["Ship it, the test covers the happy path"],"replies":[{"to":"ada","stance":"disagree","note":"a CSV write to an HTTP response won't fail in practice"}]}
 		],
-		"agreements": ["Export endpoint handles the happy path correctly"],
-		"tension": "Ada wants error handling on Write; Kai says CSV to HTTP response won't fail in practice.",
-		"summary": "Ship with the error handling comment."
+		"disagreements": [{"topic":"Handle writer.Write errors?","sides":[{"experts":["ada"],"position":"yes"},{"experts":["ben"],"position":"no need"}]}],
+		"decisions": ["Add error handling now, or ship and watch?"]
 	}`
-
+	var prompt string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"choices": []map[string]any{
-				{"message": map[string]string{"content": collectiveJSON}},
-			},
+		var body struct {
+			Messages []struct{ Content string } `json:"messages"`
 		}
-		_ = json.NewEncoder(w).Encode(resp)
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		prompt = body.Messages[0].Content
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"content": answer}}},
+		})
 	}))
 	defer server.Close()
-
 	t.Setenv("GITHUB_TOKEN", "test-token")
 
 	backend, err := newAPIBackendWithClient("github", "openai/gpt-4.1-mini", server.Client())
@@ -118,188 +86,55 @@ func TestEndToEndPRReview(t *testing.T) {
 	}
 	backend.SetBaseURL(server.URL)
 
-	experts := testExperts()
-	sub := Submission{Content: realWorldDiff}
-
-	result, err := backend.ReviewCollective(context.Background(), experts, sub)
+	councils := []Council{roomCouncil("code", "ada", "ben")}
+	text, err := backend.Complete(context.Background(), BuildRoomPrompt(councils, Submission{Content: realWorldDiff}))
 	if err != nil {
-		t.Fatalf("ReviewCollective failed: %v", err)
+		t.Fatalf("Complete: %v", err)
 	}
+	if !strings.Contains(prompt, "writer.Flush()") {
+		t.Error("the diff should be in the room prompt")
+	}
+	out, err := ParseRoom(text, councils)
+	if err != nil {
+		t.Fatalf("ParseRoom: %v", err)
+	}
+	result := out.Councils[0].Result
 
-	// Verify synthesized result
-	if result.Verdict != VerdictComment {
-		t.Errorf("verdict = %s, want comment", result.Verdict)
-	}
-	if len(result.Perspectives) != 2 {
-		t.Errorf("expected 2 perspectives, got %d", len(result.Perspectives))
-	}
-	if result.Tension == "" {
-		t.Error("expected tension to be set")
-	}
-
-	// Build diff positions from the real diff
-	dp := NewDiffPosition(realWorldDiff)
-
-	// Verify diff position mapping
-	pos, ok := dp.Position("internal/handler/export.go", 24)
-	if !ok {
-		t.Fatal("expected position for export.go:24 (added line in diff)")
-	}
-	if pos <= 0 {
-		t.Errorf("position should be positive, got %d", pos)
-	}
-
-	// Format as GitHub output
-	output := FormatGitHubReview(result, "code", 2, dp)
-
+	output := FormatGitHubReview(result, "code", 2, NewDiffPosition(realWorldDiff))
 	if output.Review.Event != GitHubComment {
 		t.Errorf("review event = %s, want COMMENT", output.Review.Event)
 	}
-
-	// Should have 1 inline comment (ada's note with file:line ref)
 	if len(output.Review.Comments) != 1 {
-		t.Errorf("expected 1 inline comment, got %d", len(output.Review.Comments))
-	} else {
-		c := output.Review.Comments[0]
-		if c.Path != "internal/handler/export.go" {
-			t.Errorf("comment path = %q, want internal/handler/export.go", c.Path)
-		}
-		if c.Position <= 0 {
-			t.Errorf("comment position should be positive, got %d", c.Position)
-		}
-		if !strings.Contains(c.Body, "**ada**") {
-			t.Error("comment should attribute to ada")
-		}
+		t.Fatalf("expected 1 inline comment, got %d", len(output.Review.Comments))
 	}
-
-	// Check run
+	c := output.Review.Comments[0]
+	if c.Path != "internal/handler/export.go" || c.Position <= 0 || !strings.Contains(c.Body, "Virtual Ada") {
+		t.Errorf("inline comment = %+v", c)
+	}
+	if !strings.Contains(output.Review.Body, "Add error handling now, or ship and watch?") {
+		t.Error("the review body should carry the decisions")
+	}
 	if output.CheckRun.Conclusion != "success" {
 		t.Errorf("check conclusion = %s, want success (comment is not a failure)", output.CheckRun.Conclusion)
 	}
-	if !strings.Contains(output.CheckRun.Output.Title, "2 experts reviewed") {
-		t.Errorf("check title = %q, should mention expert count", output.CheckRun.Output.Title)
-	}
-
-	// Verify JSON output is valid
-	data, err := FormatGitHubJSON(output)
-	if err != nil {
-		t.Fatalf("FormatGitHubJSON failed: %v", err)
-	}
-	var parsed GitHubOutput
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("output JSON is not valid: %v", err)
+	if _, err := FormatGitHubJSON(output); err != nil {
+		t.Fatalf("FormatGitHubJSON: %v", err)
 	}
 }
 
-// TestEndToEndBlockingReview verifies REQUEST_CHANGES flow.
+// TestEndToEndBlockingReview: a blocking member's block requests changes.
 func TestEndToEndBlockingReview(t *testing.T) {
-	collectiveJSON := `{
-		"verdict": "block",
-		"blocking": true,
-		"perspectives": [
-			{
-				"expert": "ada",
-				"verdict": "block",
-				"confidence": 0.95,
-				"notes": ["internal/handler/export.go:12: SQL injection risk in query builder"],
-				"blocking": true
-			}
-		],
-		"agreements": [],
-		"tension": "",
-		"summary": "Security issue must be fixed."
-	}`
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"choices": []map[string]any{
-				{"message": map[string]string{"content": collectiveJSON}},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
-	t.Setenv("GITHUB_TOKEN", "test-token")
-
-	backend, err := newAPIBackendWithClient("github", "openai/gpt-4.1-mini", server.Client())
+	councils := []Council{roomCouncil("code", "ada", "ben")}
+	councils[0].Inputs[0].Blocking = true
+	out, err := ParseRoom(`{"reviews":[
+		{"expert":"ada","verdict":"block","notes":["SQL injection in the export query"]},
+		{"expert":"ben","verdict":"pass","notes":["fine by me"]}]}`, councils)
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend.SetBaseURL(server.URL)
-
-	experts := testExperts()[:1]
-	result, err := backend.ReviewCollective(context.Background(), experts, Submission{Content: realWorldDiff})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	dp := NewDiffPosition(realWorldDiff)
-	output := FormatGitHubReview(result, "code", 1, dp)
-
-	if output.Review.Event != GitHubRequestChanges {
-		t.Errorf("event = %s, want REQUEST_CHANGES", output.Review.Event)
-	}
-	if output.CheckRun.Conclusion != "action_required" {
-		t.Errorf("conclusion = %s, want action_required", output.CheckRun.Conclusion)
-	}
-}
-
-// TestEndToEndChunkedReview verifies the diff splitting + merge pipeline.
-// TestEndToEndLLMTimeout verifies error handling when the LLM is unreachable.
-func TestEndToEndLLMTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = w.Write([]byte(`{"error":"service unavailable"}`))
-	}))
-	defer server.Close()
-
-	t.Setenv("GITHUB_TOKEN", "test-token")
-
-	backend, err := newAPIBackendWithClient("github", "openai/gpt-4.1-mini", server.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-	backend.SetBaseURL(server.URL)
-
-	_, err = backend.ReviewCollective(context.Background(), testExperts(), Submission{Content: realWorldDiff})
-	if err == nil {
-		t.Fatal("expected error for 503 response")
-	}
-	if !strings.Contains(err.Error(), "503") {
-		t.Errorf("error should mention 503, got: %s", err.Error())
-	}
-}
-
-// TestEndToEndMalformedLLMResponse verifies handling of invalid JSON from the LLM.
-func TestEndToEndMalformedLLMResponse(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"choices": []map[string]any{
-				{"message": map[string]string{"content": "This is not JSON at all, just plain text review."}},
-			},
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
-	t.Setenv("GITHUB_TOKEN", "test-token")
-
-	backend, err := newAPIBackendWithClient("github", "openai/gpt-4.1-mini", server.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-	backend.SetBaseURL(server.URL)
-
-	// ReviewCollective should still return a result (parser has fallback logic)
-	result, err := backend.ReviewCollective(context.Background(), testExperts(), Submission{Content: realWorldDiff})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// The parser's fallback should produce something usable, not panic
-	if result == nil {
-		t.Fatal("result should not be nil even for malformed response")
+	output := FormatGitHubReview(out.Councils[0].Result, "code", 2, nil)
+	if output.Review.Event != GitHubRequestChanges || output.CheckRun.Conclusion != "action_required" {
+		t.Errorf("event = %s, conclusion = %s; want REQUEST_CHANGES, action_required", output.Review.Event, output.CheckRun.Conclusion)
 	}
 }
 

@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
@@ -16,220 +18,251 @@ import (
 
 var (
 	reviewPack     string
-	reviewExpert   string
+	reviewCouncils string
 	reviewFile     string
-	reviewJSON     bool
-	reviewOutput   string
-	reviewBackend  string
+	reviewRecord   string
+	reviewAPI      bool
 	reviewProvider string
 	reviewModel    string
-	reviewMode     string
-	reviewQuick    bool
-	reviewCouncils string
-	reviewMix      string
+	reviewJSON     bool
+	reviewOutput   string
 )
+
+// apiTimeout bounds the one model API call of an unattended review.
+const apiTimeout = 10 * time.Minute
 
 func init() {
 	rootCmd.AddCommand(reviewCmd)
 
-	reviewCmd.Flags().StringVar(&reviewPack, "pack", "", "Review with a specific pack")
-	reviewCmd.Flags().StringVar(&reviewExpert, "expert", "", "Review with a single expert")
-	reviewCmd.Flags().StringVar(&reviewFile, "file", "", "File to review (reads diff from stdin if omitted)")
-	reviewCmd.Flags().BoolVar(&reviewJSON, "json", false, "Output as JSON")
-	reviewCmd.Flags().StringVar(&reviewOutput, "output", "", "Output format: github-pr (implies --json)")
-	reviewCmd.Flags().StringVar(&reviewBackend, "backend", "", "Backend: cli or api")
-	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "API provider: anthropic, openai, ollama, github")
-	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "Model override (API model, or the AI CLI's model, e.g. opus, gpt-5, kimi-code-plan-global/k3 for opencode)")
-	reviewCmd.Flags().StringVar(&reviewMix, "mix", "", "Spread members across AI CLIs, round-robin: e.g. \"claude,codex,opencode=kimi-code-plan-global/k3\" (overrides ai.mix)")
-	reviewCmd.Flags().StringVar(&reviewCouncils, "councils", "", "Several packs that each review, then challenge each other's conclusions (e.g. product,security,code)")
-	reviewCmd.Flags().BoolVar(&reviewQuick, "quick", false, "Sequential mode: skip the final word and the moderator (about half the AI calls)")
-	reviewCmd.Flags().StringVar(&reviewMode, "mode", string(review.ModeSequential), "Review mode: sequential (one call per expert, each reacts to the others) or collective (one call, cheaper)")
+	reviewCmd.Flags().StringVar(&reviewPack, "pack", "", "Review with one pack (default: every member)")
+	reviewCmd.Flags().StringVar(&reviewCouncils, "councils", "", "Several packs that each debate, then answer each other (e.g. product,security)")
+	reviewCmd.Flags().StringVar(&reviewFile, "file", "", "File to review (reads stdin if omitted)")
+	reviewCmd.Flags().StringVar(&reviewRecord, "record", "", "Check the AI's answer to the room prompt (a file, or - for stdin), show it, and save it")
+	reviewCmd.Flags().BoolVar(&reviewAPI, "api", false, "Unattended: send the room prompt to a model API with your key, then show the review")
+	reviewCmd.Flags().StringVar(&reviewProvider, "provider", "", "With --api: anthropic, openai, ollama, or github (default: ai.provider, else the first API key found)")
+	reviewCmd.Flags().StringVar(&reviewModel, "model", "", "With --api: the model (default: ai.model, else the provider's default)")
+	reviewCmd.Flags().BoolVar(&reviewJSON, "json", false, "With --record or --api: print the review as JSON")
+	reviewCmd.Flags().StringVar(&reviewOutput, "output", "", "With --api: github-pr prints a GitHub PR review payload (one pack)")
 }
 
 var reviewCmd = &cobra.Command{
 	Use:   "review",
-	Short: "Run a council review where experts react to each other",
-	Long: `Run a council review. Experts speak one at a time, in pack order.
-Each one sees the earlier reviews and can disagree, back them up, or add
-what they missed. Then the earlier members get a final word on what came
-after them, and may change their verdict. A neutral moderator closes with
-where the members disagree and what you need to decide. Council doesn't
-decide for you.
+	Short: "Get the room prompt for a council review, then record the debate",
+	Long: `A council review is one room: every member, one prompt, answered in one
+pass. Members speak in order and react to each other (agree, disagree,
+adds), earlier members get a final word, and a neutral moderator lists
+where they disagree and what you need to decide. Council doesn't decide.
 
---quick skips the final word and the moderator (about half the AI calls).
+In an AI tool (/council does this for you):
 
---councils runs several packs on the same submission. Each council debates
-on its own, then each council's spokesperson answers the other councils'
-conclusions, and a moderator lists where the councils disagree and what you
-need to decide.
+  1. council review [--pack p | --councils a,b] [--file f]
+     prints the room prompt. The AI answers it with the whole debate as JSON.
+  2. council review [--pack p | --councils a,b] --record <file|->
+     checks the answer, shows the review, and saves it in .council/reviews/.
+     If something is wrong, it says what to fix so the AI can answer again.
 
---mode collective runs one call that plays every expert at once. It is
-cheaper (one call instead of one per expert) but the debate is simulated.
+Unattended (CI, the GitHub Action):
 
-Input can be a diff from stdin or a file via --file. The whole submission
-goes to every call, so members see cross-file issues.
+  council review --api [--provider p] [--model m] [--pack p] [--file f]
+     sends the room prompt to a model API with your key and shows the review.
+     --output github-pr prints a GitHub PR review payload instead.
+
+Input is a diff on stdin or a file via --file.
 
 Examples:
-  git diff main | council review --pack rails
-  council review --pack code --file src/controller.rb
-  council review --expert jane-doe --file lib/utils.rb
-  git diff main | council review --pack rails --json
-  git diff main | council review --pack go --mode collective
-  council review --councils product,security,code --file plan.md
-  git diff main | council review --backend api --provider github --output github-pr`,
+  git diff main | council review --pack code
+  council review --councils product,security --file plan.md
+  council review --pack code --record answer.json
+  git diff main | council review --api --provider anthropic --pack code`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runReview(cmd)
+		return runReview(cmd.Context())
 	},
 }
 
-func runReview(cmd *cobra.Command) error {
-	mode := review.Mode(reviewMode)
-	if mode != review.ModeSequential && mode != review.ModeCollective {
-		return fmt.Errorf("invalid --mode %q: use sequential or collective", reviewMode)
+func runReview(ctx context.Context) error {
+	if reviewRecord != "" && reviewAPI {
+		return fmt.Errorf("use --record or --api, not both")
+	}
+	if reviewOutput != "" && reviewOutput != "github-pr" {
+		return fmt.Errorf("unknown --output %q: the only one is github-pr", reviewOutput)
+	}
+	if reviewOutput != "" && (!reviewAPI || reviewCouncils != "") {
+		return fmt.Errorf("--output github-pr works with --api and one pack")
 	}
 
-	// Load config
-	cfg, err := config.Load()
+	councils, err := resolveReviewCouncils()
 	if err != nil {
 		return err
 	}
 
-	// Resolve experts: one council (--pack, --expert, or the project's), or several (--councils)
-	var councils []review.Council
-	var inputs []review.ExpertInput
-	var packName string
-	if reviewCouncils != "" {
-		if reviewPack != "" || reviewExpert != "" || reviewOutput != "" {
-			return fmt.Errorf("--councils can't be combined with --pack, --expert, or --output")
-		}
-		if councils, err = resolveCouncils(reviewCouncils); err != nil {
+	if reviewRecord != "" {
+		answer, err := readInput(reviewRecord)
+		if err != nil {
 			return err
 		}
-	} else {
-		if inputs, packName, err = resolveReviewExperts(); err != nil {
-			return err
+		result, err := review.ParseRoom(answer, councils)
+		if err != nil {
+			return fmt.Errorf("%w\n\n(Record with the same --pack or --councils as the prompt.)", err)
 		}
-		if len(inputs) == 0 {
-			return fmt.Errorf("no experts to review with — add experts or specify a --pack")
-		}
+		return showReview(result, councils, review.Submission{})
 	}
 
-	// Read submission
 	sub, err := readSubmission()
 	if err != nil {
 		return err
 	}
+	prompt := review.BuildRoomPrompt(councils, sub)
 
-	// Build backend
-	backend, err := buildBackend(cfg)
+	if !reviewAPI {
+		fmt.Print(prompt)
+		return nil
+	}
+
+	result, err := askAPI(ctx, prompt, councils)
 	if err != nil {
-		return fmt.Errorf("cannot run review: %w", err)
+		return err
+	}
+	return showReview(result, councils, sub)
+}
+
+// askAPI sends the room prompt to the model API. If the answer doesn't
+// check out, it asks once more with what to fix.
+func askAPI(ctx context.Context, prompt string, councils []review.Council) (*review.CouncilsResult, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	if reviewProvider != "" {
+		cfg.AI.Provider = reviewProvider
+	}
+	if reviewModel != "" {
+		cfg.AI.Model = reviewModel
+	}
+	provider, model, err := cfg.DetectProvider()
+	if err != nil {
+		return nil, err
+	}
+	backend, err := review.NewAPIBackend(provider, model)
+	if err != nil {
+		return nil, err
 	}
 
-	runner := &review.Runner{
-		Backend: backend,
-		Options: review.ReviewOptions{
-			Mode:      mode,
-			Timeout:   cfg.AI.Timeout,
-			FinalWord: !reviewQuick,
-			Moderate:  !reviewQuick,
-		},
+	ctx, cancel := context.WithTimeout(ctx, apiTimeout)
+	defer cancel()
+
+	fmt.Fprintf(os.Stderr, "The council is debating (%s %s)...\n", provider, model)
+	answer, err := backend.Complete(ctx, prompt)
+	if err != nil {
+		return nil, err
+	}
+	result, err := review.ParseRoom(answer, councils)
+	if err == nil {
+		return result, nil
 	}
 
-	// Progress goes to stderr so JSON output on stdout stays clean.
-	runner.OnStart = func(t review.Turn) {
-		via := ""
-		if mix, ok := backend.(*review.MixBackend); ok {
-			via = " (" + mix.LabelFor(t.Expert.ID) + ")"
-		}
-		fmt.Fprintf(os.Stderr, "[%d/%d] %s%s...\n", t.Number, t.Total, t.Label(), via)
+	fmt.Fprintln(os.Stderr, "The answer needs fixing; asking again...")
+	retry := prompt + "\n\n## Your previous answer\n\n" + answer + "\n\n## Fix it\n\n" + err.Error()
+	if answer, err = backend.Complete(ctx, retry); err != nil {
+		return nil, err
 	}
+	return review.ParseRoom(answer, councils)
+}
 
-	if councils != nil {
-		return runCouncilsReview(cmd, runner, councils, sub)
-	}
+// showReview prints a checked review and saves it in .council/reviews/.
+func showReview(result *review.CouncilsResult, councils []review.Council, sub review.Submission) error {
+	text := review.FormatRoom(result)
+	path, saveErr := review.Save(text, councilsLabel(councils), time.Now())
 
-	// Human output streams each expert as soon as they finish.
-	human := reviewOutput != "github-pr" && !reviewJSON
-	streamed := 0
-	if human {
-		fmt.Print(review.FormatHeader(packName, len(inputs)))
-		runner.OnVerdict = func(t review.Turn, verdicts []review.ExpertVerdict) {
-			if t.Kind == review.TurnFinalWord {
-				fmt.Print(review.FormatFinalWord(t.Expert.ID, verdicts))
-			} else {
-				fmt.Print(review.FormatPerspective(verdicts))
-			}
-			streamed++
-		}
-	}
-
-	if mode == review.ModeCollective {
-		fmt.Fprintf(os.Stderr, "Reviewing with %d experts in one call...\n", len(inputs))
-	}
-
-	// Run review
-	result := runner.Run(cmd.Context(), inputs, sub)
-
-	// Output
-	if reviewOutput == "github-pr" {
+	switch {
+	case reviewOutput == "github-pr":
+		c := result.Councils[0]
 		var dp *review.DiffPosition
 		if sub.Content != "" {
 			dp = review.NewDiffPosition(sub.Content)
 		}
-		output := review.FormatGitHubReview(result, packName, len(inputs), dp)
-		data, err := review.FormatGitHubJSON(output)
+		data, err := review.FormatGitHubJSON(review.FormatGitHubReview(c.Result, c.Name, len(c.Result.Perspectives), dp))
 		if err != nil {
-			return fmt.Errorf("failed to marshal github review: %w", err)
+			return fmt.Errorf("marshal github review: %w", err)
 		}
 		fmt.Println(string(data))
-	} else if reviewJSON {
-		data, err := review.FormatJSON(result)
+	case reviewJSON:
+		var v any = result
+		if len(result.Councils) == 1 {
+			v = result.Councils[0].Result
+		}
+		data, err := json.MarshalIndent(v, "", "  ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal result: %w", err)
+			return fmt.Errorf("marshal review: %w", err)
 		}
 		fmt.Println(string(data))
-	} else {
-		// Collective mode returns everything at once: print what wasn't streamed.
-		if streamed == 0 {
-			for i := range result.Perspectives {
-				fmt.Print(review.FormatPerspective(result.Perspectives[:i+1]))
-			}
-		}
-		fmt.Print(review.FormatOutcome(result))
+	default:
+		fmt.Print(text)
 	}
 
+	if saveErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", saveErr)
+	} else {
+		fmt.Fprintf(os.Stderr, "Saved to %s\n", path)
+	}
 	return nil
 }
 
-// resolveReviewExperts determines which experts to use based on flags.
-func resolveReviewExperts() ([]review.ExpertInput, string, error) {
-	// --expert: single expert
-	if reviewExpert != "" {
-		e, err := expert.Load(reviewExpert)
-		if err != nil {
-			return nil, "", fmt.Errorf("expert '%s' not found: %w", reviewExpert, err)
+// resolveReviewCouncils returns the councils in the room: several
+// (--councils), one pack (--pack), or every member.
+func resolveReviewCouncils() ([]review.Council, error) {
+	if reviewCouncils != "" {
+		if reviewPack != "" {
+			return nil, fmt.Errorf("use --pack or --councils, not both")
 		}
-		return []review.ExpertInput{{Expert: e, Blocking: false}}, "", nil
+		return resolveCouncils(reviewCouncils)
 	}
-
-	// --pack: resolve pack members
 	if reviewPack != "" {
-		return resolvePackInputs(reviewPack)
+		inputs, name, err := resolvePackInputs(reviewPack)
+		if err != nil {
+			return nil, err
+		}
+		if len(inputs) == 0 {
+			return nil, fmt.Errorf("pack '%s' has no members", reviewPack)
+		}
+		return []review.Council{{Name: name, Inputs: inputs}}, nil
 	}
 
-	// Default: all council experts
 	experts, err := expert.List()
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to list experts: %w", err)
+		return nil, fmt.Errorf("failed to list experts: %w", err)
 	}
-
+	if len(experts) == 0 {
+		return nil, fmt.Errorf("the council has no members yet: run /council-assemble in your AI tool")
+	}
 	inputs := make([]review.ExpertInput, len(experts))
 	for i, e := range experts {
-		inputs[i] = review.ExpertInput{Expert: e, Blocking: false}
+		inputs[i] = review.ExpertInput{Expert: e}
 	}
-	return inputs, "", nil
+	return []review.Council{{Inputs: inputs}}, nil
+}
+
+func councilsLabel(councils []review.Council) string {
+	names := make([]string, len(councils))
+	for i, c := range councils {
+		names[i] = c.Name
+	}
+	return strings.Join(names, "-")
+}
+
+// readInput reads a file, or stdin for "-".
+func readInput(path string) (string, error) {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return "", fmt.Errorf("read the answer: %w", err)
+	}
+	return string(data), nil
 }
 
 // readSubmission reads the review content from --file or stdin.
@@ -245,62 +278,19 @@ func readSubmission() (review.Submission, error) {
 		}, nil
 	}
 
-	// Read from stdin
 	info, _ := os.Stdin.Stat()
 	if info.Mode()&os.ModeCharDevice != 0 {
-		return review.Submission{}, fmt.Errorf("no input: pipe a diff or use --file\n\nExamples:\n  git diff main | council review --pack rails\n  council review --pack rails --file src/main.go")
+		return review.Submission{}, fmt.Errorf("no input: pipe a diff or use --file\n\nExamples:\n  git diff main | council review --pack code\n  council review --pack code --file src/main.go")
 	}
 
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return review.Submission{}, fmt.Errorf("failed to read stdin: %w", err)
 	}
-
-	content := string(data)
-	if content == "" {
+	if len(data) == 0 {
 		return review.Submission{}, fmt.Errorf("empty input from stdin")
 	}
-
-	return review.Submission{Content: content}, nil
-}
-
-// buildBackend creates the appropriate review backend based on config and environment.
-// CLI flags (--backend, --provider, --model) override config values.
-func buildBackend(cfg *config.Config) (review.Backend, error) {
-	// Copy config to avoid mutating the caller's struct
-	overridden := *cfg
-	if reviewBackend != "" {
-		overridden.AI.Backend = reviewBackend
-	}
-	if reviewProvider != "" {
-		overridden.AI.Provider = reviewProvider
-	}
-	if reviewModel != "" {
-		overridden.AI.Model = reviewModel
-	}
-
-	// A mix of AI CLIs (--mix or ai.mix) spreads members across models.
-	if specs := mixSpecs(overridden.AI.Mix); len(specs) > 0 && overridden.AI.Backend != "api" {
-		return review.NewCLIMix(specs)
-	}
-
-	backend, provider, model := overridden.DetectBackend()
-
-	switch backend {
-	case "api":
-		if provider == "" {
-			return nil, fmt.Errorf("api backend requires a provider (anthropic, openai, ollama, github)")
-		}
-		return review.NewAPIBackend(provider, model)
-	case "cli":
-		aiCmd, err := cfg.DetectAICommand()
-		if err != nil {
-			return nil, err
-		}
-		return review.NewCLIBackend(aiCmd, cfg.AI.Args).WithModel(overridden.AI.Model), nil
-	default:
-		return nil, fmt.Errorf("no backend available\n\nInstall an AI CLI (claude, opencode, codex) or set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, GITHUB_TOKEN)")
-	}
+	return review.Submission{Content: string(data)}, nil
 }
 
 // resolvePackInputs resolves a pack's members into review inputs, in pack order.
@@ -350,65 +340,7 @@ func resolveCouncils(list string) ([]review.Council, error) {
 		councils = append(councils, review.Council{Name: packName, Inputs: inputs})
 	}
 	if len(councils) < 2 {
-		return nil, fmt.Errorf("--councils needs at least two packs, e.g. --councils product,security,code")
+		return nil, fmt.Errorf("--councils needs at least two packs, e.g. --councils product,security")
 	}
 	return councils, nil
-}
-
-// runCouncilsReview runs several councils on the same submission, then has
-// them answer each other. Human output streams as it goes.
-func runCouncilsReview(cmd *cobra.Command, runner *review.Runner, councils []review.Council, sub review.Submission) error {
-	human := !reviewJSON
-
-	debateStarted := false
-	hooks := review.CouncilHooks{
-		OnCouncilStart: func(name string, members int) {
-			fmt.Fprintf(os.Stderr, "The %s council (%d members) starts...\n", name, members)
-		},
-		// Councils run in parallel; each prints in order once it's done.
-		OnCouncilDone: func(name string, result *review.SynthesizedResult) {
-			if human {
-				fmt.Print(review.FormatCouncilHeader(name, len(result.Perspectives)))
-				fmt.Print(review.FormatBody(result))
-			}
-		},
-		OnCrossStart: func(label string) {
-			fmt.Fprintf(os.Stderr, "%s...\n", label)
-		},
-		OnStatement: func(st review.CouncilStatement) {
-			if !human {
-				return
-			}
-			if !debateStarted {
-				fmt.Print(review.FormatCouncilsDebateHeader())
-				debateStarted = true
-			}
-			fmt.Print(review.FormatStatement(st))
-		},
-	}
-
-	result := runner.RunCouncils(cmd.Context(), councils, sub, hooks)
-
-	if reviewJSON {
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal result: %w", err)
-		}
-		fmt.Println(string(data))
-		return nil
-	}
-	fmt.Print(review.FormatCouncilsOutcome(result))
-	return nil
-}
-
-// mixSpecs returns the AI CLI mix from --mix, or else from ai.mix.
-func mixSpecs(fromConfig []config.MixEntry) []review.CLISpec {
-	if reviewMix != "" {
-		return review.ParseMix(reviewMix)
-	}
-	specs := make([]review.CLISpec, len(fromConfig))
-	for i, m := range fromConfig {
-		specs[i] = review.CLISpec{Command: m.Command, Model: m.Model, Args: m.Args}
-	}
-	return specs
 }

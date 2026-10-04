@@ -7,11 +7,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
-
-	"github.com/luuuc/council/internal/config"
-	"github.com/luuuc/council/internal/review"
 )
 
 // JSON-RPC 2.0 types
@@ -103,34 +99,16 @@ type toolContent struct {
 }
 
 // Server is the MCP server that reads JSON-RPC from reader and writes to writer.
+// It makes no model calls: the client's own model answers the room prompt.
 type Server struct {
-	reader   io.Reader
-	writer   io.Writer
-	config   *config.Config
-	backend  review.Backend
-	version  string
-	sessions map[string]*session // council_convene runs in progress
-}
-
-// Option configures a Server.
-type Option func(*Server)
-
-// WithBackend sets the review backend (useful for testing).
-func WithBackend(b review.Backend) Option {
-	return func(s *Server) { s.backend = b }
+	reader  io.Reader
+	writer  io.Writer
+	version string
 }
 
 // NewServer creates an MCP server that communicates over the given reader/writer.
-func NewServer(r io.Reader, w io.Writer, version string, opts ...Option) *Server {
-	s := &Server{
-		reader:  r,
-		writer:  w,
-		version: version,
-	}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
+func NewServer(r io.Reader, w io.Writer, version string) *Server {
+	return &Server{reader: r, writer: w, version: version}
 }
 
 // Run starts the server loop, reading JSON-RPC requests until EOF.
@@ -213,16 +191,12 @@ func (s *Server) handleToolsCall(ctx context.Context, req *jsonrpcRequest) {
 
 	var result toolCallResult
 	switch params.Name {
-	case "council_review":
-		result = s.handleReview(ctx, params.Arguments)
+	case "council_room":
+		result = s.handleRoom(params.Arguments)
+	case "council_record":
+		result = s.handleRecord(params.Arguments)
 	case "council_list":
 		result = s.handleList(params.Arguments)
-	case "council_explain":
-		result = s.handleExplain(ctx, params.Arguments)
-	case "council_convene":
-		result = s.handleConvene(params.Arguments)
-	case "council_turn":
-		result = s.handleTurn(params.Arguments)
 	case "council_assemble":
 		result = s.handleAssemble()
 	case "council_add":
@@ -266,102 +240,25 @@ func (s *Server) writeResponse(resp jsonrpcResponse) {
 	_, _ = s.writer.Write(data)
 }
 
-func (s *Server) loadConfig() (*config.Config, error) {
-	if s.config != nil {
-		return s.config, nil
-	}
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, err
-	}
-	s.config = cfg
-	return cfg, nil
-}
-
-func (s *Server) getBackend() (review.Backend, error) {
-	if s.backend != nil {
-		return s.backend, nil
-	}
-
-	cfg, err := s.loadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-
-	if len(cfg.AI.Mix) > 0 && cfg.AI.Backend != "api" {
-		specs := make([]review.CLISpec, len(cfg.AI.Mix))
-		for i, m := range cfg.AI.Mix {
-			specs[i] = review.CLISpec{Command: m.Command, Model: m.Model, Args: m.Args}
-		}
-		b, err := review.NewCLIMix(specs)
-		if err != nil {
-			return nil, err
-		}
-		s.backend = b
-		return b, nil
-	}
-
-	backend, provider, model := cfg.DetectBackend()
-	switch backend {
-	case "api":
-		if provider == "" {
-			return nil, fmt.Errorf("api backend requires a provider (anthropic, openai, ollama)")
-		}
-		b, err := review.NewAPIBackend(provider, model)
-		if err != nil {
-			return nil, err
-		}
-		s.backend = b
-		return b, nil
-	case "cli":
-		aiCmd, err := cfg.DetectAICommand()
-		if err != nil {
-			return nil, err
-		}
-		b := review.NewCLIBackend(aiCmd, cfg.AI.Args).WithModel(cfg.AI.Model)
-		s.backend = b
-		return b, nil
-	default:
-		return nil, fmt.Errorf("no backend available — install an AI CLI or set an API key")
-	}
-}
-
 // toolDefinitions returns the MCP tool definitions for all council tools.
 func toolDefinitions() []toolDefinition {
 	return []toolDefinition{
 		{
-			Name:        "council_review",
-			Description: "Submit code for council review. Experts review one at a time and each sees the earlier reviews, so they can disagree, agree, or add to them. Earlier experts then get a final word, and a neutral moderator lists where they disagree and what the author must decide. Returns each expert's verdict, notes, and replies, plus disagreements, decisions, and agreements. No recommendation: the author decides.",
+			Name: "council_room",
+			Description: "Convene the council: returns the room prompt with every member, the submission, and the debate rules. " +
+				"Answer it yourself, in one pass, with the whole debate as the JSON object it asks for, then pass that to council_record. " +
+				"Members speak in order and react to each other, earlier members get a final word, and a neutral moderator lists " +
+				"disagreements and decisions. No recommendation: the user decides.",
 			InputSchema: toolSchema{
 				Type: "object",
 				Properties: map[string]schemaProperty{
 					"pack": {
 						Type:        "string",
-						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\"); not needed when councils is set",
-					},
-					"content": {
-						Type:        "string",
-						Description: "The code diff, file content, or text to review",
+						Description: "Pack to convene (e.g. \"product\", \"code\"); omit for every member",
 					},
 					"councils": {
 						Type:        "string",
-						Description: "Optional: several packs, comma-separated (e.g. \"product,security,code\"). Each council debates, then they challenge each other's conclusions; pack is ignored.",
-					},
-				},
-				Required: []string{"content"},
-			},
-		},
-		{
-			Name: "council_convene",
-			Description: "Start a council review where you take each member's turn yourself. Use this when council_review reports no AI backend " +
-				"(for example in Claude Desktop with no AI CLI or API key). Returns the first member's prompt; write that member's review " +
-				"and pass it to council_turn, which returns the next member's prompt with the earlier reviews, until the council finishes.",
-			InputSchema: toolSchema{
-				Type: "object",
-				Properties: map[string]schemaProperty{
-					"pack": {
-						Type:        "string",
-						Description: "Pack name to review with (e.g., \"rails\", \"go\", \"writing\"); not needed when councils is set",
+						Description: "Optional: several packs, comma-separated (e.g. \"product,security\"). Each council debates, then their spokespersons answer each other; pack is ignored.",
 					},
 					"content": {
 						Type:        "string",
@@ -371,30 +268,31 @@ func toolDefinitions() []toolDefinition {
 						Type:        "string",
 						Description: "Optional background for the council (e.g., the goal, constraints, or options being considered)",
 					},
-					"councils": {
-						Type:        "string",
-						Description: "Optional: several packs, comma-separated (e.g. \"product,security\"). Each council debates, then their spokespersons answer each other; pack is ignored. Many turns: about two per member plus one per council.",
-					},
 				},
 				Required: []string{"content"},
 			},
 		},
 		{
-			Name:        "council_turn",
-			Description: "Submit the current member's review in a council_convene session. Returns the next member's prompt, or the final debate when every member has spoken.",
+			Name: "council_record",
+			Description: "Record your answer to council_room's prompt. Council checks it and returns the review to show the user, " +
+				"or says what to fix so you can call it again. Pass the same pack or councils as council_room.",
 			InputSchema: toolSchema{
 				Type: "object",
 				Properties: map[string]schemaProperty{
-					"session": {
+					"pack": {
 						Type:        "string",
-						Description: "Session ID returned by council_convene",
+						Description: "Pack to convene (e.g. \"product\", \"code\"); omit for every member",
 					},
-					"review": {
+					"councils": {
 						Type:        "string",
-						Description: "The member's review as the JSON object their prompt asks for",
+						Description: "Optional: several packs, comma-separated (e.g. \"product,security\"). Each council debates, then their spokespersons answer each other; pack is ignored.",
+					},
+					"answer": {
+						Type:        "string",
+						Description: "The whole debate: the JSON object the room prompt asks for",
 					},
 				},
-				Required: []string{"session", "review"},
+				Required: []string{"answer"},
 			},
 		},
 		{
@@ -431,24 +329,6 @@ func toolDefinitions() []toolDefinition {
 					},
 				},
 				Required: []string{"pack"},
-			},
-		},
-		{
-			Name:        "council_explain",
-			Description: "Ask an expert to expand on a specific note from a review. Returns the expert's reasoning — which principles triggered the flag and what their worldview says about the pattern.",
-			InputSchema: toolSchema{
-				Type: "object",
-				Properties: map[string]schemaProperty{
-					"expert": {
-						Type:        "string",
-						Description: "Expert ID (e.g., \"jane-doe\")",
-					},
-					"note": {
-						Type:        "string",
-						Description: "The specific note or flag from the review to explain",
-					},
-				},
-				Required: []string{"expert", "note"},
 			},
 		},
 	}

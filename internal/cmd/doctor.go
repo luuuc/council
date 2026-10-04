@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 
 	"github.com/luuuc/council/internal/adapter"
 	"github.com/luuuc/council/internal/config"
@@ -27,7 +26,6 @@ type DoctorResult struct {
 	Healthy     bool              `json:"healthy"`
 	Checks      []CheckResult     `json:"checks"`
 	SyncTargets []SyncCheckResult `json:"sync_targets,omitempty"`
-	AICommand   *AICheckResult    `json:"ai_integration,omitempty"`
 }
 
 // CheckResult represents a single health check
@@ -44,13 +42,6 @@ type SyncCheckResult struct {
 	Location string `json:"location"`
 	Status   string `json:"status"` // "ok", "info", "error"
 	Message  string `json:"message,omitempty"`
-}
-
-// AICheckResult represents the AI integration check
-type AICheckResult struct {
-	Command string `json:"command"`
-	Status  string `json:"status"` // "ok", "info"
-	Message string `json:"message,omitempty"`
 }
 
 var doctorCmd = &cobra.Command{
@@ -212,22 +203,6 @@ func collectDoctorResults() *DoctorResult {
 		}
 	}
 
-	// Check 5: AI CLI (optional)
-	if cfg != nil && cfg.AI.Command != "" {
-		if _, err := exec.LookPath(cfg.AI.Command); err == nil {
-			result.AICommand = &AICheckResult{
-				Command: cfg.AI.Command,
-				Status:  "ok",
-			}
-		} else {
-			result.AICommand = &AICheckResult{
-				Command: cfg.AI.Command,
-				Status:  "info",
-				Message: "not found (optional, for 'council setup --apply')",
-			}
-		}
-	}
-
 	return result
 }
 
@@ -287,17 +262,6 @@ func outputDoctorText(result *DoctorResult) {
 			case "error":
 				printCheck(false, fmt.Sprintf("%s (%s)", st.Name, st.Message))
 			}
-		}
-	}
-
-	// Print AI integration
-	if result.AICommand != nil {
-		fmt.Println()
-		fmt.Println("AI integration:")
-		if result.AICommand.Status == "ok" {
-			printCheck(true, fmt.Sprintf("'%s' command available", result.AICommand.Command))
-		} else {
-			printOptional(fmt.Sprintf("'%s' %s", result.AICommand.Command, result.AICommand.Message))
 		}
 	}
 

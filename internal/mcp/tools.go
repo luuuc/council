@@ -1,65 +1,97 @@
 package mcp
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"text/template"
+	"strings"
+	"time"
 
 	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/pack"
 	"github.com/luuuc/council/internal/review"
 )
 
-// handleReview implements the council_review MCP tool.
-func (s *Server) handleReview(ctx context.Context, args map[string]any) toolCallResult {
-	packName, _ := args["pack"].(string)
-	if list, _ := args["councils"].(string); packName == "" && list == "" {
-		return errorResult("missing required field: pack (or councils)")
-	}
-	content, ok := args["content"].(string)
-	if !ok || content == "" {
+// handleRoom implements the council_room MCP tool: the room prompt the
+// client's own model answers in one pass.
+func (s *Server) handleRoom(args map[string]any) toolCallResult {
+	content, _ := args["content"].(string)
+	if strings.TrimSpace(content) == "" {
 		return errorResult("missing required field: content")
 	}
-	if list, _ := args["councils"].(string); list != "" {
-		return s.handleCouncilsReview(ctx, list, content)
-	}
-
-	inputs, err := resolvePackInputs(packName)
+	councils, err := roomCouncils(args)
 	if err != nil {
 		return errorResult(err.Error())
 	}
+	background, _ := args["context"].(string)
 
-	sub := review.Submission{Content: content}
+	prompt := review.BuildRoomPrompt(councils, review.Submission{Content: content, Context: background})
+	return textResult(prompt + "\n\n----- after you answer -----\n\n" +
+		"Call council_record with " + sameCouncils(args) + " and answer set to the JSON object. " +
+		"Council checks it and returns the review to show the user.")
+}
 
-	// Get backend (also caches config)
-	backend, err := s.getBackend()
+// handleRecord implements the council_record MCP tool: it checks the
+// answer to the room prompt, saves the review, and returns it rendered.
+func (s *Server) handleRecord(args map[string]any) toolCallResult {
+	answer, _ := args["answer"].(string)
+	if strings.TrimSpace(answer) == "" {
+		return errorResult("missing required field: answer")
+	}
+	councils, err := roomCouncils(args)
 	if err != nil {
-		return errorResult(fmt.Sprintf("backend error: %v\n\n"+
-			"No AI backend is available for separate calls. Use council_convene instead: "+
-			"it runs the same council with you taking each member's turn.", err))
+		return errorResult(err.Error())
 	}
-
-	runner := &review.Runner{
-		Backend: backend,
-		Options: review.ReviewOptions{
-			Timeout:   s.config.AI.Timeout,
-			FinalWord: true,
-			Moderate:  true,
-		},
-	}
-
-	result := runner.Run(ctx, inputs, sub)
-
-	data, err := review.FormatJSON(result)
+	result, err := review.ParseRoom(answer, councils)
 	if err != nil {
-		return errorResult(fmt.Sprintf("failed to marshal result: %v", err))
+		return errorResult(err.Error() + "\n\nCall council_record again with " + sameCouncils(args) + " and the fixed answer.")
 	}
 
-	return toolCallResult{
-		Content: []toolContent{{Type: "text", Text: string(data)}},
+	text := review.FormatRoom(result)
+	var names []string
+	for _, c := range councils {
+		names = append(names, c.Name)
 	}
+	if path, err := review.Save(text, strings.Join(names, "-"), time.Now()); err == nil {
+		text += "\nSaved to " + path + "\n"
+	}
+	return textResult(text)
+}
+
+// roomCouncils resolves the councils in the room: several ("councils"),
+// one pack ("pack"), or every member.
+func roomCouncils(args map[string]any) ([]review.Council, error) {
+	if list, _ := args["councils"].(string); list != "" {
+		return resolveCouncils(list)
+	}
+	if name, _ := args["pack"].(string); name != "" {
+		inputs, err := resolvePackInputs(name)
+		if err != nil {
+			return nil, err
+		}
+		return []review.Council{{Name: name, Inputs: inputs}}, nil
+	}
+	experts, err := expert.List()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list experts: %v", err)
+	}
+	if len(experts) == 0 {
+		return nil, fmt.Errorf("the council has no members yet: assemble one first (council_assemble)")
+	}
+	inputs := make([]review.ExpertInput, len(experts))
+	for i, e := range experts {
+		inputs[i] = review.ExpertInput{Expert: e}
+	}
+	return []review.Council{{Inputs: inputs}}, nil
+}
+
+func sameCouncils(args map[string]any) string {
+	if list, _ := args["councils"].(string); list != "" {
+		return fmt.Sprintf("councils %q", list)
+	}
+	if name, _ := args["pack"].(string); name != "" {
+		return fmt.Sprintf("pack %q", name)
+	}
+	return "no pack"
 }
 
 // resolvePackInputs resolves a pack's members into review inputs, in pack order.
@@ -87,6 +119,28 @@ func resolvePackInputs(packName string) ([]review.ExpertInput, error) {
 		}
 	}
 	return inputs, nil
+}
+
+// resolveCouncils resolves a comma-separated list of packs into councils.
+func resolveCouncils(list string) ([]review.Council, error) {
+	var councils []review.Council
+	seen := map[string]bool{}
+	for _, name := range strings.Split(list, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		inputs, err := resolvePackInputs(name)
+		if err != nil {
+			return nil, err
+		}
+		councils = append(councils, review.Council{Name: name, Inputs: inputs})
+	}
+	if len(councils) < 2 {
+		return nil, fmt.Errorf("councils needs at least two packs, e.g. \"product,security\"")
+	}
+	return councils, nil
 }
 
 // listExpertInfo is the JSON structure returned by council_list.
@@ -136,80 +190,7 @@ func (s *Server) handleList(args map[string]any) toolCallResult {
 		return errorResult(fmt.Sprintf("failed to marshal result: %v", err))
 	}
 
-	return toolCallResult{
-		Content: []toolContent{{Type: "text", Text: string(data)}},
-	}
-}
-
-// explainTemplate is the prompt for the council_explain tool.
-var explainTemplate = template.Must(template.New("explain").Parse(`You are {{.Expert.Name}}, an expert in {{.Expert.Focus}}.
-
-## Your Persona
-
-{{.Expert.Body}}
-
-## Task
-
-A council review flagged the following note:
-
-> {{.Note}}
-
-Explain your reasoning in depth. Specifically:
-1. Which of your principles or red flags triggered this observation?
-2. What does your worldview say about this pattern — why does it matter?
-3. What would you recommend as a concrete fix or improvement?
-
-Be direct, specific, and grounded in your expertise. Speak in first person as {{.Expert.Name}}.`))
-
-type explainData struct {
-	Expert *expert.Expert
-	Note   string
-}
-
-// handleExplain implements the council_explain MCP tool.
-func (s *Server) handleExplain(ctx context.Context, args map[string]any) toolCallResult {
-	expertID, ok := args["expert"].(string)
-	if !ok || expertID == "" {
-		return errorResult("missing required field: expert")
-	}
-	note, ok := args["note"].(string)
-	if !ok || note == "" {
-		return errorResult("missing required field: note")
-	}
-
-	e, err := expert.Load(expertID)
-	if err != nil {
-		return errorResult(fmt.Sprintf("expert %q not found: %v", expertID, err))
-	}
-
-	// Build the explain prompt — uses RawPrompt to bypass the review prompt
-	// template and ParseVerdict in the backend. The LLM returns natural
-	// language, which comes back in verdict.Notes[0].
-	var buf bytes.Buffer
-	if err := explainTemplate.Execute(&buf, explainData{Expert: e, Note: note}); err != nil {
-		return errorResult(fmt.Sprintf("failed to build prompt: %v", err))
-	}
-
-	backend, err := s.getBackend()
-	if err != nil {
-		return errorResult(fmt.Sprintf("backend error: %v", err))
-	}
-
-	sub := review.Submission{RawPrompt: buf.String()}
-	verdict, err := backend.Review(ctx, e, sub)
-	if err != nil {
-		return errorResult(fmt.Sprintf("explain failed: %v", err))
-	}
-
-	// The backend returns the raw LLM text in Notes[0] when RawPrompt is set.
-	explanation := ""
-	if len(verdict.Notes) > 0 {
-		explanation = verdict.Notes[0]
-	}
-
-	return toolCallResult{
-		Content: []toolContent{{Type: "text", Text: explanation}},
-	}
+	return textResult(string(data))
 }
 
 func errorResult(msg string) toolCallResult {
@@ -217,26 +198,4 @@ func errorResult(msg string) toolCallResult {
 		Content: []toolContent{{Type: "text", Text: msg}},
 		IsError: true,
 	}
-}
-
-// handleCouncilsReview runs several packs as councils that then challenge
-// each other's conclusions.
-func (s *Server) handleCouncilsReview(ctx context.Context, list, content string) toolCallResult {
-	councils, err := resolveCouncils(list)
-	if err != nil {
-		return errorResult(err.Error())
-	}
-
-	backend, err := s.getBackend()
-	if err != nil {
-		return errorResult(fmt.Sprintf("backend error: %v\n\nUse council_convene with the same councils instead: it runs the councils with you taking each turn.", err))
-	}
-	runner := &review.Runner{Backend: backend, Options: review.ReviewOptions{Timeout: s.config.AI.Timeout, FinalWord: true, Moderate: true}}
-
-	result := runner.RunCouncils(ctx, councils, review.Submission{Content: content}, review.CouncilHooks{})
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return errorResult(fmt.Sprintf("failed to marshal result: %v", err))
-	}
-	return toolCallResult{Content: []toolContent{{Type: "text", Text: string(data)}}}
 }

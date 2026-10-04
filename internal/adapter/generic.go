@@ -97,5 +97,21 @@ func (g *Generic) GenerateAgentsMd(experts []*expert.Expert) string {
 		parts = append(parts, g.FormatAgent(e))
 	}
 
+	parts = append(parts, agentsConvene)
 	return strings.Join(parts, "\n")
 }
+
+// agentsConvene tells AI tools that read AGENTS.md (Codex and others) how
+// to convene the council: the same steps as /council.
+const agentsConvene = `## Convening the council
+
+When asked to convene the council (or a pack of it) on code, changes, a document, a plan, or a decision:
+
+1. Get the room prompt. For a question, plan, or decision, first write a short brief to a file: the question, the relevant context, and the options.
+   - Changes: ` + "`git diff HEAD | council review [--pack <name>]`" + `
+   - A file or a brief: ` + "`council review --file <path> [--pack <name>]`" + `
+   - Several councils: ` + "`--councils product,security`" + ` instead of ` + "`--pack`" + `
+2. Answer it yourself, in one pass: play each member in turn and write the whole debate as the one JSON object the prompt asks for. Save it to a file.
+3. Record it with the same ` + "`--pack`" + ` or ` + "`--councils`" + `: ` + "`council review [--pack <name>] --record <file>`" + `. If Council says the answer needs fixing, fix it and record again.
+4. Show the user what ` + "`--record`" + ` printed. Keep the disagreements visible; the user makes the call, not the council and not you.
+`

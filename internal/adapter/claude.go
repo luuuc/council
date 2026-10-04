@@ -102,9 +102,8 @@ Use ` + "`--pack <name>`" + ` in your arguments to convene a specific pack inste
 
 ## Instructions
 
-The council debates for real: members speak one at a time, each reads what the
-earlier ones said, then disagrees, backs them up, or adds what they missed.
-Run it with the ` + "`council review`" + ` command instead of playing the members yourself.
+Everyone sits in the same room. Council gives you the room prompt; you write
+the whole debate yourself, in one pass; Council checks it and renders it.
 
 ### 1. Decide what the council reviews
 
@@ -114,31 +113,39 @@ Run it with the ` + "`council review`" + ` command instead of playing the member
   the question, the relevant context from this conversation, and the options
   being considered. The council reviews the brief.
 
-### 2. Run the council
+### 2. Get the room prompt
 
 Pass ` + "`--pack <name>`" + ` through if the arguments include one. If the user asks for
 several councils (e.g. "product and security"), use ` + "`--councils product,security`" + `
-instead: each council debates, then they challenge each other's conclusions.
+instead: each council debates, then they answer each other.
 
 ` + "```bash" + `
 git diff HEAD | council review [--pack <name>]   # changes
 council review --file <path> [--pack <name>]    # a file or a brief
 ` + "```" + `
 
-It makes one AI call per member, so it can take a few minutes. Use a long
-timeout (10 minutes). Progress lines go to stderr; the review goes to stdout.
+### 3. Write the debate
 
-### 3. Present the debate
+Follow the room prompt exactly: play each member in turn, true to their
+persona, and write the whole debate as the one JSON object it asks for. Save
+it to a temporary file (e.g. ` + "`/tmp/council-answer.json`" + `). Don't show it yet.
 
-- Show each member's verdict, notes, and replies in the order they spoke,
-  then the final words (who changed their mind, and why).
-- Keep the disagreements visible. Do not merge them into a consensus.
-- End with the review's "Where they disagree" and "What you need to decide".
-  The user makes the call, not the council and not you.
+### 4. Record it
 
-If ` + "`council review`" + ` fails (for example, no AI backend is available), say so,
-then review from each member's perspective yourself, one at a time, each
-reacting to the ones before.
+Use the same ` + "`--pack`" + ` or ` + "`--councils`" + ` as in step 2:
+
+` + "```bash" + `
+council review [--pack <name>] --record /tmp/council-answer.json
+` + "```" + `
+
+If Council says the answer needs fixing, fix the file and record again.
+
+### 5. Present the review
+
+Show the user what ` + "`--record`" + ` printed: each member's verdict, notes, and
+replies in the order they spoke, the final words, "Where they disagree", and
+"What you need to decide". Keep the disagreements visible; do not merge them
+into a consensus. The user makes the call, not the council and not you.
 `
 }
 

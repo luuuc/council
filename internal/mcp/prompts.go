@@ -36,7 +36,7 @@ var councilPrompt = promptDefinition{
 	Name:        "council",
 	Description: "Convene the council on code, a document, a plan, or a decision",
 	Arguments: []promptArgument{
-		{Name: "pack", Description: "Pack to convene (e.g. go, rails, writing)", Required: true},
+		{Name: "pack", Description: "Pack to convene (e.g. product, code); leave empty for every member"},
 		{Name: "topic", Description: "What the council should review"},
 	},
 }
@@ -90,16 +90,22 @@ func councilInstructions(pack, topic string) string {
 	if topic == "" {
 		topic = "what we are working on in this conversation"
 	}
-	return fmt.Sprintf(`Convene the %q council on: %s
+	who := "the council"
+	args := "no pack"
+	if pack != "" {
+		who = fmt.Sprintf("the %q council", pack)
+		args = fmt.Sprintf("pack %q", pack)
+	}
+	return fmt.Sprintf(`Convene %s on: %s
 
 1. Work out what the council reviews: code, a diff, a document, or for a
    question, plan, or decision, a short brief with the question, the relevant
    context from this conversation, and the options being considered.
-2. Call council_review with pack %q and that content. If it reports that no AI
-   backend is available, call council_convene instead and take each member's
-   turn, passing each review to council_turn until the council finishes.
-3. Present the debate: each member's verdict, notes, and replies in the order
-   they spoke. Keep the disagreements visible; do not merge them into a
-   consensus. End with the open trade-offs and what I have to decide. I make
-   the call, not the council and not you.`, pack, topic, pack)
+2. Call council_room with %s and that content. Answer the prompt it returns
+   yourself, in one pass, with the whole debate as the JSON object it asks for.
+3. Call council_record with %s and your answer. If it says something needs
+   fixing, fix it and call council_record again.
+4. Show me the review council_record returns. Keep the disagreements visible;
+   do not merge them into a consensus. I make the call, not the council and
+   not you.`, who, topic, args, args)
 }

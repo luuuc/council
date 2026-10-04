@@ -8,79 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 
-	"github.com/luuuc/council/internal/config"
 	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/pack"
-	"github.com/luuuc/council/internal/review"
 )
 
-// mockBackend returns canned verdicts for testing.
-type mockBackend struct {
-	results        map[string]review.ExpertVerdict
-	errors         map[string]error
-	delay          time.Duration
-	calls          atomic.Int32
-	mu             sync.Mutex
-	lastSubmission review.Submission // captures the most recent Submission for assertions
-}
-
-func (m *mockBackend) Review(ctx context.Context, e *expert.Expert, sub review.Submission) (review.ExpertVerdict, error) {
-	m.calls.Add(1)
-	m.mu.Lock()
-	m.lastSubmission = sub
-	m.mu.Unlock()
-
-	if m.delay > 0 {
-		select {
-		case <-time.After(m.delay):
-		case <-ctx.Done():
-			return review.ExpertVerdict{}, ctx.Err()
-		}
-	}
-
-	if err, ok := m.errors[e.ID]; ok {
-		return review.ExpertVerdict{}, err
-	}
-
-	if v, ok := m.results[e.ID]; ok {
-		return v, nil
-	}
-
-	return review.ExpertVerdict{
-		Expert:     e.ID,
-		Verdict:    review.VerdictPass,
-		Confidence: 0.9,
-		Notes:      []string{"Looks good."},
-	}, nil
-}
-
-func (m *mockBackend) ReviewCollective(ctx context.Context, experts []*expert.Expert, sub review.Submission) (*review.SynthesizedResult, error) {
-	m.calls.Add(1)
-	m.lastSubmission = sub
-
-	perspectives := make([]review.ExpertVerdict, len(experts))
-	for i, e := range experts {
-		if v, ok := m.results[e.ID]; ok {
-			perspectives[i] = v
-		} else {
-			perspectives[i] = review.ExpertVerdict{
-				Expert: e.ID, Verdict: review.VerdictPass, Confidence: 0.9,
-			}
-		}
-	}
-	return &review.SynthesizedResult{
-		Verdict:      review.VerdictPass,
-		Perspectives: perspectives,
-		Summary:      "All good.",
-	}, nil
-}
-
-// sendRequest marshals a JSON-RPC request and returns it as a line.
 func sendRequest(id int, method string, params any) string {
 	var p json.RawMessage
 	if params != nil {
@@ -132,22 +65,9 @@ func parseResponses(output string) ([]*jsonrpcResponse, error) {
 	return resps, nil
 }
 
-func runServer(input string, backend review.Backend) (string, error) {
-	reader := strings.NewReader(input)
+func runServer(input string) (string, error) {
 	var writer bytes.Buffer
-
-	var opts []Option
-	if backend != nil {
-		opts = append(opts, WithBackend(backend))
-	}
-	srv := NewServer(reader, &writer, "test", opts...)
-	srv.config = &config.Config{
-		AI: config.AIConfig{
-			Timeout: 10,
-		},
-	}
-
-	err := srv.Run(context.Background())
+	err := NewServer(strings.NewReader(input), &writer, "test").Run(context.Background())
 	return writer.String(), err
 }
 
@@ -158,7 +78,7 @@ func TestInitialize(t *testing.T) {
 		"capabilities":    map[string]any{},
 	}) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -190,7 +110,7 @@ func TestInitialize(t *testing.T) {
 func TestToolsList(t *testing.T) {
 	input := sendRequest(1, "tools/list", nil) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -210,8 +130,8 @@ func TestToolsList(t *testing.T) {
 		t.Fatalf("unmarshal result: %v", err)
 	}
 
-	if len(result.Tools) != 7 {
-		t.Fatalf("expected 7 tools, got %d", len(result.Tools))
+	if len(result.Tools) != 5 {
+		t.Fatalf("expected 5 tools, got %d", len(result.Tools))
 	}
 
 	names := make(map[string]bool)
@@ -219,125 +139,10 @@ func TestToolsList(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	for _, name := range []string{"council_review", "council_list", "council_explain", "council_convene", "council_turn", "council_assemble", "council_add"} {
+	for _, name := range []string{"council_room", "council_record", "council_list", "council_assemble", "council_add"} {
 		if !names[name] {
 			t.Errorf("missing tool %q", name)
 		}
-	}
-}
-
-func TestToolsCallReview(t *testing.T) {
-	backend := &mockBackend{
-		results: map[string]review.ExpertVerdict{
-			"ada": {
-				Expert: "ada", Verdict: review.VerdictComment,
-				Confidence: 0.8, Notes: []string{"Add test for edge case"},
-			},
-			"dev": {
-				Expert: "dev", Verdict: review.VerdictPass,
-				Confidence: 0.95, Notes: []string{"No security concerns"},
-			},
-		},
-	}
-
-	// council_review needs real experts and packs on disk.
-	// For a unit test, we test the server dispatch and error handling.
-	// Full integration with pack resolution requires .council/ on disk.
-	input := sendRequest(1, "tools/call", toolCallParams{
-		Name: "council_review",
-		Arguments: map[string]any{
-			"pack":    "nonexistent-pack",
-			"content": "test diff content",
-		},
-	}) + "\n"
-
-	output, err := runServer(input, backend)
-	if err != nil {
-		t.Fatalf("server error: %v", err)
-	}
-
-	resp, err := parseResponse(output)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Fatalf("unexpected JSON-RPC error: %v", resp.Error)
-	}
-
-	// Should return a tool result (with isError=true since pack doesn't exist)
-	data, _ := json.Marshal(resp.Result)
-	var result toolCallResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal result: %v", err)
-	}
-
-	if !result.IsError {
-		t.Error("expected isError=true for nonexistent pack")
-	}
-
-	if len(result.Content) == 0 {
-		t.Fatal("expected content in error result")
-	}
-
-	if !strings.Contains(result.Content[0].Text, "not found") {
-		t.Errorf("expected 'not found' in error, got: %s", result.Content[0].Text)
-	}
-}
-
-func TestToolsCallReviewMissingFields(t *testing.T) {
-	tests := []struct {
-		name string
-		args map[string]any
-		want string
-	}{
-		{
-			name: "missing pack",
-			args: map[string]any{"content": "test"},
-			want: "missing required field: pack",
-		},
-		{
-			name: "missing content",
-			args: map[string]any{"pack": "go"},
-			want: "missing required field: content",
-		},
-		{
-			name: "empty pack",
-			args: map[string]any{"pack": "", "content": "test"},
-			want: "missing required field: pack",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			input := sendRequest(1, "tools/call", toolCallParams{
-				Name:      "council_review",
-				Arguments: tt.args,
-			}) + "\n"
-
-			output, err := runServer(input, &mockBackend{})
-			if err != nil {
-				t.Fatalf("server error: %v", err)
-			}
-
-			resp, err := parseResponse(output)
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-
-			data, _ := json.Marshal(resp.Result)
-			var result toolCallResult
-			if err := json.Unmarshal(data, &result); err != nil {
-				t.Fatalf("unmarshal: %v", err)
-			}
-
-			if !result.IsError {
-				t.Error("expected isError=true")
-			}
-			if !strings.Contains(result.Content[0].Text, tt.want) {
-				t.Errorf("expected %q in error, got: %s", tt.want, result.Content[0].Text)
-			}
-		})
 	}
 }
 
@@ -348,7 +153,7 @@ func TestToolsCallList(t *testing.T) {
 		Arguments: map[string]any{"pack": "go"},
 	}) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -382,7 +187,7 @@ func TestToolsCallListMissingPack(t *testing.T) {
 		Arguments: map[string]any{},
 	}) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -403,98 +208,13 @@ func TestToolsCallListMissingPack(t *testing.T) {
 	}
 }
 
-func TestToolsCallExplain(t *testing.T) {
-	// Explain with nonexistent expert returns error
-	input := sendRequest(1, "tools/call", toolCallParams{
-		Name: "council_explain",
-		Arguments: map[string]any{
-			"expert": "nonexistent-expert",
-			"note":   "Test note",
-		},
-	}) + "\n"
-
-	output, err := runServer(input, &mockBackend{})
-	if err != nil {
-		t.Fatalf("server error: %v", err)
-	}
-
-	resp, err := parseResponse(output)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	data, _ := json.Marshal(resp.Result)
-	var result toolCallResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if !result.IsError {
-		t.Error("expected isError=true for nonexistent expert")
-	}
-	if !strings.Contains(result.Content[0].Text, "not found") {
-		t.Errorf("expected 'not found' in error, got: %s", result.Content[0].Text)
-	}
-}
-
-func TestToolsCallExplainMissingFields(t *testing.T) {
-	tests := []struct {
-		name string
-		args map[string]any
-		want string
-	}{
-		{
-			name: "missing expert",
-			args: map[string]any{"note": "test"},
-			want: "missing required field: expert",
-		},
-		{
-			name: "missing note",
-			args: map[string]any{"expert": "ada"},
-			want: "missing required field: note",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			input := sendRequest(1, "tools/call", toolCallParams{
-				Name:      "council_explain",
-				Arguments: tt.args,
-			}) + "\n"
-
-			output, err := runServer(input, &mockBackend{})
-			if err != nil {
-				t.Fatalf("server error: %v", err)
-			}
-
-			resp, err := parseResponse(output)
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-
-			data, _ := json.Marshal(resp.Result)
-			var result toolCallResult
-			if err := json.Unmarshal(data, &result); err != nil {
-				t.Fatalf("unmarshal: %v", err)
-			}
-
-			if !result.IsError {
-				t.Error("expected isError=true")
-			}
-			if !strings.Contains(result.Content[0].Text, tt.want) {
-				t.Errorf("expected %q in error, got: %s", tt.want, result.Content[0].Text)
-			}
-		})
-	}
-}
-
 func TestUnknownTool(t *testing.T) {
 	input := sendRequest(1, "tools/call", toolCallParams{
 		Name:      "nonexistent_tool",
 		Arguments: map[string]any{},
 	}) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -515,7 +235,7 @@ func TestUnknownTool(t *testing.T) {
 func TestUnknownMethod(t *testing.T) {
 	input := sendRequest(1, "unknown/method", nil) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -536,7 +256,7 @@ func TestUnknownMethod(t *testing.T) {
 func TestMalformedJSON(t *testing.T) {
 	input := "this is not json\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -558,7 +278,7 @@ func TestServerStaysAliveAfterError(t *testing.T) {
 	// Send malformed JSON followed by a valid request
 	input := "bad json\n" + sendRequest(1, "tools/list", nil) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -601,7 +321,7 @@ func TestNotificationNoResponse(t *testing.T) {
 	// Add tools/list to verify we get exactly 2 responses
 	input += sendRequest(2, "tools/list", nil) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -682,145 +402,6 @@ func testExperts() []*expert.Expert {
 	}
 }
 
-func TestToolsCallReviewHappyPath(t *testing.T) {
-	cleanup := setupTestCouncil(t)
-	defer cleanup()
-
-	backend := &mockBackend{
-		results: map[string]review.ExpertVerdict{
-			"ada": {
-				Expert: "ada", Verdict: review.VerdictComment,
-				Confidence: 0.8, Notes: []string{"Add test for edge case"},
-			},
-			"cleo": {
-				Expert: "cleo", Verdict: review.VerdictPass,
-				Confidence: 0.95, Notes: []string{"Clean and idiomatic"},
-			},
-		},
-	}
-
-	// Use the "go" builtin pack — it includes ada and cleo
-	input := sendRequest(1, "tools/call", toolCallParams{
-		Name: "council_review",
-		Arguments: map[string]any{
-			"pack":    "go",
-			"content": "func main() { fmt.Println(\"hello\") }",
-		},
-	}) + "\n"
-
-	output, err := runServer(input, backend)
-	if err != nil {
-		t.Fatalf("server error: %v", err)
-	}
-
-	resp, err := parseResponse(output)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Fatalf("unexpected JSON-RPC error: %v", resp.Error)
-	}
-
-	data, _ := json.Marshal(resp.Result)
-	var result toolCallResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if result.IsError {
-		t.Fatalf("unexpected tool error: %s", result.Content[0].Text)
-	}
-
-	// Parse the verdict JSON from the tool result
-	var verdict review.SynthesizedResult
-	if err := json.Unmarshal([]byte(result.Content[0].Text), &verdict); err != nil {
-		t.Fatalf("unmarshal verdict: %v", err)
-	}
-
-	if len(verdict.Perspectives) == 0 {
-		t.Error("expected at least one perspective")
-	}
-	if verdict.Verdict == "" {
-		t.Error("expected a verdict")
-	}
-
-	// Verify the mock was called
-	if backend.calls.Load() == 0 {
-		t.Error("expected backend to be called")
-	}
-}
-
-func TestToolsCallExplainHappyPath(t *testing.T) {
-	cleanup := setupTestCouncil(t)
-	defer cleanup()
-
-	backend := &mockBackend{
-		results: map[string]review.ExpertVerdict{
-			"ada": {
-				Expert: "ada", Verdict: review.VerdictComment,
-				Confidence: 0.9,
-				Notes:      []string{"This pattern violates the Single Responsibility Principle. The function handles both parsing and validation, which should be separated for testability."},
-			},
-		},
-	}
-
-	input := sendRequest(1, "tools/call", toolCallParams{
-		Name: "council_explain",
-		Arguments: map[string]any{
-			"expert": "ada",
-			"note":   "No test for the empty-state CSV.",
-		},
-	}) + "\n"
-
-	output, err := runServer(input, backend)
-	if err != nil {
-		t.Fatalf("server error: %v", err)
-	}
-
-	resp, err := parseResponse(output)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Fatalf("unexpected JSON-RPC error: %v", resp.Error)
-	}
-
-	data, _ := json.Marshal(resp.Result)
-	var result toolCallResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-
-	if result.IsError {
-		t.Fatalf("unexpected tool error: %s", result.Content[0].Text)
-	}
-
-	// Explain should return natural language text, not JSON verdict
-	explanation := result.Content[0].Text
-	if explanation == "" {
-		t.Error("expected non-empty explanation")
-	}
-
-	// Should NOT contain verdict JSON structure
-	if strings.Contains(explanation, `"verdict"`) {
-		t.Error("explain should return natural language, not verdict JSON")
-	}
-
-	if backend.calls.Load() != 1 {
-		t.Errorf("expected 1 backend call, got %d", backend.calls.Load())
-	}
-
-	// Verify the backend received RawPrompt (not the review prompt template)
-	if backend.lastSubmission.RawPrompt == "" {
-		t.Error("expected RawPrompt to be set for explain calls")
-	}
-	if backend.lastSubmission.Content != "" {
-		t.Error("expected Content to be empty when RawPrompt is used")
-	}
-}
-
 func TestToolsCallListHappyPath(t *testing.T) {
 	cleanup := setupTestCouncil(t)
 	defer cleanup()
@@ -830,7 +411,7 @@ func TestToolsCallListHappyPath(t *testing.T) {
 		Arguments: map[string]any{"pack": "go"},
 	}) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}
@@ -894,7 +475,7 @@ func TestInvalidJSONRPCVersion(t *testing.T) {
 	})
 	input := string(req) + "\n"
 
-	output, err := runServer(input, nil)
+	output, err := runServer(input)
 	if err != nil {
 		t.Fatalf("server error: %v", err)
 	}

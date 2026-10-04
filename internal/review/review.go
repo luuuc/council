@@ -1,6 +1,6 @@
-// Package review implements the council review engine: sequential expert
-// reviews where each expert reacts to the ones before, with structured
-// verdict parsing and tension-aware synthesis.
+// Package review implements council reviews: one room prompt with every
+// member, answered in one pass by the user's AI tool or a model API, then
+// checked and rendered by Council.
 package review
 
 // Verdict represents the possible review outcomes.
@@ -74,11 +74,8 @@ type Reply struct {
 
 // Submission is the material being reviewed.
 type Submission struct {
-	Content   string          // The diff, file content, or text to review
-	Context   string          // Optional context (e.g., PR title)
-	RawPrompt string          // When set, backends use this as the prompt directly (bypasses BuildPrompt and ParseVerdict)
-	Prior     []ExpertVerdict // Reviews from experts who spoke earlier in a sequential review
-	Own       *ExpertVerdict  // Set for a final word: the member's own earlier review; Prior then holds the reviews that came after it
+	Content string // The diff, file content, or text to review
+	Context string // Optional context (e.g., PR title)
 }
 
 // SynthesizedResult is the aggregated output from all expert reviews.
@@ -106,24 +103,4 @@ type Disagreement struct {
 type Side struct {
 	Experts  []string `json:"experts"`
 	Position string   `json:"position"`
-}
-
-// Mode selects how experts review.
-type Mode string
-
-const (
-	// ModeSequential runs one call per expert, in order. Each expert sees
-	// the earlier reviews and reacts to them. This is the default.
-	ModeSequential Mode = "sequential"
-	// ModeCollective runs one call that plays every expert at once.
-	// Cheaper, but the debate is simulated rather than real.
-	ModeCollective Mode = "collective"
-)
-
-// ReviewOptions controls review execution.
-type ReviewOptions struct {
-	Mode      Mode
-	Timeout   int  // per-call timeout in seconds
-	FinalWord bool // sequential: earlier members answer the points made after them
-	Moderate  bool // sequential: a neutral moderator lists disagreements and decisions
 }
