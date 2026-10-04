@@ -30,7 +30,7 @@ Members are picked to disagree. They see each other's arguments, push back,
 and expose trade-offs. You make the decision.
 
 You talk to your AI tool; it drives this CLI:
-  1. council init        Create .council/ and install the slash commands
+  1. council init        Create .council/ and install the council skills
   2. /council-assemble   Your AI proposes members, you pick, it builds them
   3. /council <topic>    Your AI writes the debate in one pass; Council checks it`,
 }

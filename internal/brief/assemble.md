@@ -27,8 +27,17 @@ Propose 4 to 7 members, each with one line on why they're useful here. Mix:
   product-minded CTO, support lead.
 - **Customers**: at least one for anything users touch.
 
-If reviews will need different rooms, suggest councils (packs), e.g. product,
-engineering, security, each with members who disagree.
+Then suggest councils (packs): named groups for different kinds of review,
+e.g. product, engineering, security, each with members who disagree. A member
+can sit in several.
+
+- Put a customer in each council that reviews anything users touch, so they
+  argue with the experts directly.
+- With two or more customer types, also propose a `customers` council with
+  all of them: they disagree among themselves, and reviewing with
+  `--councils product,customers` sets the users' view against the experts'.
+- With one customer, skip the customers council: a council of one has no
+  debate.
 
 ## 3. Let the user choose
 
@@ -96,5 +105,7 @@ council packs create product
 council packs add product <member-id>
 ```
 
-Finish with `council list` and tell the user who's on the council, and that
-`/council <what to review>` convenes it.
+Finish with `council list` and tell the user who's on the council, and how to
+convene it: `/council <what to review>` for everyone, `--pack <name>` for one
+council, or "with the product and customers councils" for several that then
+challenge each other.

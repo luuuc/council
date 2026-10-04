@@ -39,7 +39,6 @@ func (o *OpenCode) Detect() bool {
 func (o *OpenCode) Paths() Paths {
 	return Paths{
 		Agents:     ".opencode/agents",
-		Commands:   ".opencode/commands",
 		Deprecated: []string{".opencode/agent"}, // Old singular path
 	}
 }
@@ -115,4 +114,11 @@ func (o *OpenCode) FormatCommand(name, description, body string) string {
 	parts = append(parts, "")
 	parts = append(parts, body)
 	return strings.Join(parts, "\n")
+}
+
+// CommandPath returns the command's path: .opencode/commands/<name>.md.
+// OpenCode runs skills only through its skill tool, so /council stays a
+// command here.
+func (o *OpenCode) CommandPath(name string) string {
+	return ".opencode/commands/" + name + ".md"
 }

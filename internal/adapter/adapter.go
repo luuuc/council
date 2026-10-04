@@ -5,6 +5,7 @@ package adapter
 
 import (
 	"sort"
+	"strconv"
 
 	"github.com/luuuc/council/internal/expert"
 	"github.com/luuuc/council/internal/fs"
@@ -30,13 +31,35 @@ type Adapter interface {
 	// Generation
 	FormatAgent(e *expert.Expert) string
 	FormatCommand(name, description, body string) string
+
+	// CommandPath is where the named command or skill is written, e.g.
+	// ".claude/skills/council/SKILL.md" or ".opencode/commands/council.md".
+	CommandPath(name string) string
 }
 
 // Paths contains the directory structure for a tool
 type Paths struct {
 	Agents     string   // Directory for agent files (e.g., ".claude/agents")
-	Commands   string   // Directory for command files (e.g., ".claude/commands")
-	Deprecated []string // Old paths that should be migrated away from
+	Deprecated []string // Old paths: files are removed on sync, folders with --clean
+}
+
+// CommandNames are the commands (or skills) every tool gets: /council and
+// the ones from the adapter's templates.
+var CommandNames = []string{"council", "council-assemble", "council-add", "council-remove"}
+
+// skillPath is where a skill lives under the Agent Skills standard.
+func skillPath(root, name string) string {
+	return root + "/" + name + "/SKILL.md"
+}
+
+// skillFrontmatter starts a SKILL.md file. Skills with side effects are
+// only run when the user asks for them.
+func skillFrontmatter(name, description string) string {
+	fm := "---\nname: " + name + "\ndescription: " + strconv.Quote(description) + "\n"
+	if name == "council-remove" {
+		fm += "disable-model-invocation: true\n"
+	}
+	return fm + "---\n\n"
 }
 
 // Templates contains embedded template content for a tool

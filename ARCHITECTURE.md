@@ -13,7 +13,7 @@ Council is a small CLI the user's AI tool drives. It never names anyone and, ins
  council add ──▶ check, disclaimer,         council review --record ──▶ check,
                  .council/experts/                 render, .council/reviews/
         │
- council sync ──▶ .claude/, .opencode/, AGENTS.md
+ council sync ──▶ skills and agents: .claude/, .opencode/, .agents/
 ```
 
 Unattended (the GitHub Action), `council review --api` sends the same room prompt to a model API with the user's key, checks the answer (asking once more if it needs fixing), and renders a PR review.
@@ -26,8 +26,8 @@ Unattended (the GitHub Action), `council review --api` sends the same room promp
 | `expert` | Persona format: parse, check (`prepare.go`, `virtual.go`), save, list |
 | `pack` | Named groups of members in `.council/packs/` |
 | `review` | Room prompt (`room.md`, `BuildRoomPrompt`), answer checking (`ParseRoom`), synthesis, text and GitHub output, `APIBackend` |
-| `adapter` | Per-tool formats and paths: Claude Code, OpenCode, generic `AGENTS.md` |
-| `sync` | Writes members and slash commands to each tool |
+| `adapter` | Per-tool formats and paths: Claude Code skills, OpenCode commands, generic `.agents/skills` and `AGENTS.md` |
+| `sync` | Writes members and the council skills (or OpenCode commands) to each tool |
 | `mcp` | The same steps as MCP tools: `council_assemble`, `council_add`, `council_room`, `council_record`, `council_list` |
 | `config` | `.council/config.yaml`: the AI tool, and the API provider and model for `--api` |
 

@@ -38,8 +38,8 @@ func ExampleAdapter_Paths() {
 	paths := claude.Paths()
 
 	fmt.Printf("Agents: %s\n", paths.Agents)
-	fmt.Printf("Commands: %s\n", paths.Commands)
+	fmt.Printf("Council skill: %s\n", claude.CommandPath("council"))
 	// Output:
 	// Agents: .claude/agents
-	// Commands: .claude/commands
+	// Council skill: .claude/skills/council/SKILL.md
 }

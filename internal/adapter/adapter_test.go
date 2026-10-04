@@ -49,7 +49,7 @@ func TestGet_ReturnsAdapter(t *testing.T) {
 	}{
 		{"claude", "Claude Code"},
 		{"opencode", "OpenCode"},
-		{"generic", "Generic (AGENTS.md)"},
+		{"generic", "Generic (AGENTS.md and .agents/skills)"},
 	}
 
 	for _, tt := range tests {
@@ -164,11 +164,11 @@ func TestClaude_Paths(t *testing.T) {
 	if paths.Agents != ".claude/agents" {
 		t.Errorf("Agents = %q, want .claude/agents", paths.Agents)
 	}
-	if paths.Commands != ".claude/commands" {
-		t.Errorf("Commands = %q, want .claude/commands", paths.Commands)
+	if got := claude.CommandPath("council"); got != ".claude/skills/council/SKILL.md" {
+		t.Errorf("CommandPath = %q, want .claude/skills/council/SKILL.md", got)
 	}
-	if len(paths.Deprecated) != 0 {
-		t.Errorf("Deprecated = %v, want empty", paths.Deprecated)
+	if len(paths.Deprecated) != 4 || paths.Deprecated[0] != ".claude/commands/council.md" {
+		t.Errorf("Deprecated = %v, want the old .claude/commands files", paths.Deprecated)
 	}
 }
 
@@ -222,9 +222,15 @@ func TestClaude_FormatCommand_IncludesCorrectStructure(t *testing.T) {
 
 	result := claude.FormatCommand("test-cmd", "Test description", "# Test Command\n\nBody here.")
 
-	// Claude commands are plain markdown (no frontmatter)
-	if strings.Contains(result, "---") {
-		t.Error("FormatCommand() should not include frontmatter for Claude")
+	// Claude Code skills: SKILL.md with name and description
+	if !strings.HasPrefix(result, "---\nname: test-cmd\ndescription: \"Test description\"\n---\n") {
+		t.Errorf("FormatCommand() should start with skill frontmatter, got:\n%s", result)
+	}
+	if strings.Contains(result, "disable-model-invocation") {
+		t.Error("only council-remove should disable model invocation")
+	}
+	if !strings.Contains(claude.FormatCommand("council-remove", "d", "b"), "disable-model-invocation: true") {
+		t.Error("council-remove should only run when the user asks")
 	}
 	if !strings.Contains(result, "# Test Command") {
 		t.Error("FormatCommand() missing body content")
@@ -297,8 +303,8 @@ func TestOpenCode_Paths_ReturnsDeprecated(t *testing.T) {
 	if paths.Agents != ".opencode/agents" {
 		t.Errorf("Agents = %q, want .opencode/agents", paths.Agents)
 	}
-	if paths.Commands != ".opencode/commands" {
-		t.Errorf("Commands = %q, want .opencode/commands", paths.Commands)
+	if got := opencode.CommandPath("council"); got != ".opencode/commands/council.md" {
+		t.Errorf("CommandPath = %q, want .opencode/commands/council.md", got)
 	}
 	if len(paths.Deprecated) != 1 || paths.Deprecated[0] != ".opencode/agent" {
 		t.Errorf("Deprecated = %v, want [.opencode/agent]", paths.Deprecated)
@@ -405,8 +411,8 @@ func TestGeneric_Paths(t *testing.T) {
 	if paths.Agents != "." {
 		t.Errorf("Agents = %q, want .", paths.Agents)
 	}
-	if paths.Commands != "." {
-		t.Errorf("Commands = %q, want .", paths.Commands)
+	if got := generic.CommandPath("council"); got != ".agents/skills/council/SKILL.md" {
+		t.Errorf("CommandPath = %q, want .agents/skills/council/SKILL.md", got)
 	}
 	if len(paths.Deprecated) != 0 {
 		t.Errorf("Deprecated = %v, want empty", paths.Deprecated)
@@ -441,12 +447,15 @@ func TestGeneric_FormatAgent_SimpleMarkdown(t *testing.T) {
 	}
 }
 
-func TestGeneric_FormatCommand_ReturnsEmpty(t *testing.T) {
+func TestGeneric_FormatCommand_WritesPortableSkill(t *testing.T) {
 	generic, _ := Get("generic")
 
-	result := generic.FormatCommand("test", "desc", "body")
-	if result != "" {
-		t.Errorf("FormatCommand() = %q, want empty string", result)
+	result := generic.FormatCommand("council", "desc", "Convene the council on: $ARGUMENTS")
+	if !strings.HasPrefix(result, "---\nname: council\ndescription: \"desc\"\n---\n") {
+		t.Errorf("FormatCommand() should start with skill frontmatter, got:\n%s", result)
+	}
+	if strings.Contains(result, "$ARGUMENTS") || !strings.Contains(result, "the user's request") {
+		t.Errorf("skills take no arguments; $ARGUMENTS should become the user's request:\n%s", result)
 	}
 }
 
@@ -474,12 +483,18 @@ func TestGeneric_GenerateAgentsMd(t *testing.T) {
 	}
 }
 
-func TestGeneric_Templates_NoCommands(t *testing.T) {
+func TestGeneric_Templates_NoToolSpecificUI(t *testing.T) {
 	generic, _ := Get("generic")
 	templates := generic.Templates()
 
-	if len(templates.Commands) != 0 {
-		t.Errorf("Templates().Commands = %v, want empty map", templates.Commands)
+	for _, name := range []string{"council-assemble", "council-add", "council-remove"} {
+		body, ok := templates.Commands[name]
+		if !ok {
+			t.Errorf("Templates().Commands missing %q", name)
+		}
+		if strings.Contains(body, "AskUserQuestion") {
+			t.Errorf("%s should not name a Claude Code tool", name)
+		}
 	}
 }
 

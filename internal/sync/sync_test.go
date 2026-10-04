@@ -163,7 +163,7 @@ func TestSyncToAdapterClaude(t *testing.T) {
 	}
 
 	// Verify council command was created
-	commandPath := ".claude/commands/council.md"
+	commandPath := ".claude/skills/council/SKILL.md"
 	if _, err := os.Stat(commandPath); os.IsNotExist(err) {
 		t.Errorf("syncToAdapter() did not create council command at %s", commandPath)
 	}
@@ -235,7 +235,7 @@ func TestSyncAllNoExperts(t *testing.T) {
 	if err := SyncAll(cfg, Options{DryRun: false}); err != nil {
 		t.Fatalf("SyncAll() on an empty council: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(".claude", "commands", "council.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(".claude", "skills", "council", "SKILL.md")); err != nil {
 		t.Errorf("expected /council to be installed for an empty council: %v", err)
 	}
 }
@@ -546,4 +546,56 @@ func TestGenerateCouncilCommand_NoPacks(t *testing.T) {
 	if strings.Contains(result, "Available Packs") {
 		t.Error("generateCouncilCommand() with nil packs should not contain Available Packs section")
 	}
+}
+
+func TestSyncReplacesOldClaudeCommandsWithSkills(t *testing.T) {
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(t.TempDir())
+	defer func() { _ = os.Chdir(origDir) }()
+	_ = os.MkdirAll(config.Path(config.ExpertsDir), 0755)
+	_ = os.MkdirAll(filepath.Join(".claude", "commands"), 0755)
+	_ = os.WriteFile(filepath.Join(".claude", "commands", "council.md"), []byte("old"), 0644)
+	_ = os.WriteFile(filepath.Join(".claude", "commands", "deploy.md"), []byte("the user's own"), 0644)
+
+	cfg := config.Default()
+	cfg.Tool = "claude"
+	if err := SyncAll(cfg, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(".claude", "commands", "council.md")); !os.IsNotExist(err) {
+		t.Error("the old /council command should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(".claude", "commands", "deploy.md")); err != nil {
+		t.Error("the user's own commands must stay")
+	}
+	for _, name := range []string{"council", "council-assemble", "council-add", "council-remove"} {
+		data, err := os.ReadFile(filepath.Join(".claude", "skills", name, "SKILL.md"))
+		if err != nil || !strings.HasPrefix(string(data), "---\nname: "+name+"\n") {
+			t.Errorf("skill %s: err = %v, content starts %q", name, err, firstLine(string(data)))
+		}
+	}
+}
+
+func TestSyncGenericWritesAgentSkills(t *testing.T) {
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(t.TempDir())
+	defer func() { _ = os.Chdir(origDir) }()
+	_ = os.MkdirAll(config.Path(config.ExpertsDir), 0755)
+
+	if err := SyncTarget("generic", config.Default(), Options{}); err != nil {
+		t.Fatal(err)
+	}
+	agents, _ := os.ReadFile("AGENTS.md")
+	if !strings.Contains(string(agents), ".agents/skills/council/SKILL.md") {
+		t.Error("AGENTS.md should point to the council skill")
+	}
+	skill, err := os.ReadFile(filepath.Join(".agents", "skills", "council", "SKILL.md"))
+	if err != nil || strings.Contains(string(skill), "$ARGUMENTS") || !strings.Contains(string(skill), "council review") {
+		t.Errorf("council skill: err = %v\n%s", err, skill)
+	}
+}
+
+func firstLine(s string) string {
+	line, _, _ := strings.Cut(s, "\n")
+	return line
 }

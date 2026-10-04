@@ -125,9 +125,9 @@ Pick **council** or **assemble** from the prompt menu. The client's own model wr
 
 | Tool | How |
 |---|---|
-| Claude Code | `/council`, `/council-assemble`, agents |
-| OpenCode | `/council`, `/council-assemble`, agents |
-| Codex and other `AGENTS.md` readers | Instructions in `AGENTS.md` |
+| Claude Code | Skills: `/council`, `/council-assemble`, plus agents |
+| OpenCode | Commands: `/council`, `/council-assemble`, plus agents |
+| Codex and other Agent Skills tools | Skills in `.agents/skills/`: `$council` in Codex |
 | Claude Desktop, Cursor | MCP |
 | GitHub | The Action |
 
@@ -137,7 +137,7 @@ Your AI tool drives these; you rarely type them.
 
 | Command | Does |
 |---|---|
-| `council init` | Create `.council/` and install the slash commands for your AI tool |
+| `council init` | Create `.council/` and install the council skills for your AI tool |
 | `council assemble` | Print the brief your AI follows to propose and build members |
 | `council add <file \| ->` | Check a persona, stamp the disclaimer, save it |
 | `council list` / `show <id>` / `remove <id>` | Manage members |
@@ -145,7 +145,7 @@ Your AI tool drives these; you rarely type them.
 | `council review` | Print the room prompt (`--pack`, `--councils`, `--file`) |
 | `council review --record <file \| ->` | Check the debate, show it, save it |
 | `council review --api` | Unattended: send the prompt to a model API with your key |
-| `council sync` | Rewrite slash commands and agent files |
+| `council sync` | Rewrite the skills, commands, and agent files |
 | `council mcp` | The same, as MCP tools |
 
 Manual install:

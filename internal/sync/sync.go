@@ -30,7 +30,9 @@ type Options struct {
 	Clean  bool // Remove stale files not in current config
 }
 
-// AllCleanPaths returns all paths that should be cleaned across all adapters
+// AllCleanPaths returns what 'council init --clean' removes: agent
+// folders, Council's own commands and skills (not the user's), old paths,
+// and AGENTS.md.
 func AllCleanPaths() []string {
 	var paths []string
 	for _, a := range adapter.All() {
@@ -38,14 +40,16 @@ func AllCleanPaths() []string {
 		if p.Agents != "." {
 			paths = append(paths, p.Agents)
 		}
-		if p.Commands != "." && p.Commands != p.Agents {
-			paths = append(paths, p.Commands)
+		for _, name := range adapter.CommandNames {
+			path := a.CommandPath(name)
+			if filepath.Base(path) == "SKILL.md" {
+				path = filepath.Dir(path)
+			}
+			paths = append(paths, path)
 		}
 		paths = append(paths, p.Deprecated...)
 	}
-	// Add AGENTS.md for generic
-	paths = append(paths, "AGENTS.md")
-	return paths
+	return append(paths, "AGENTS.md")
 }
 
 // SyncAll syncs to the configured tool (or detects and saves if missing)
@@ -153,59 +157,48 @@ func syncToAdapter(a adapter.Adapter, experts []*expert.Expert, packs []*pack.Pa
 	paths := a.Paths()
 	templates := a.Templates()
 
-	// Special case for generic - writes single AGENTS.md file
-	if a.Name() == "generic" {
-		generic := a.(*adapter.Generic)
-		return writeFile("AGENTS.md", generic.GenerateAgentsMd(experts), opts.DryRun)
-	}
-
-	// Create agents directory
-	if paths.Agents != "." && !opts.DryRun {
-		if err := os.MkdirAll(paths.Agents, 0755); err != nil {
+	if generic, ok := a.(*adapter.Generic); ok {
+		// One AGENTS.md lists every member.
+		if err := writeFile("AGENTS.md", generic.GenerateAgentsMd(experts), opts.DryRun); err != nil {
 			return err
+		}
+	} else {
+		if !opts.DryRun {
+			if err := os.MkdirAll(paths.Agents, 0755); err != nil {
+				return err
+			}
+		}
+		for _, e := range experts {
+			path := filepath.Join(paths.Agents, adapter.AgentFilename(e))
+			if err := writeFile(path, a.FormatAgent(e), opts.DryRun); err != nil {
+				return err
+			}
 		}
 	}
 
-	// Sync each expert as an agent file
-	for _, e := range experts {
-		filename := adapter.AgentFilename(e)
-		path := filepath.Join(paths.Agents, filename)
-		if err := writeFile(path, a.FormatAgent(e), opts.DryRun); err != nil {
-			return err
-		}
-	}
-
-	// Create commands directory (if different from agents)
-	if paths.Commands != "." && paths.Commands != paths.Agents && !opts.DryRun {
-		if err := os.MkdirAll(paths.Commands, 0755); err != nil {
-			return err
-		}
-	}
-
-	// Create /council command (dynamic content based on experts and packs)
-	councilContent := generateCouncilCommand(a, experts, packs)
-	if councilContent != "" {
-		path := filepath.Join(paths.Commands, "council.md")
-		if err := writeFile(path, councilContent, opts.DryRun); err != nil {
-			return err
-		}
-	}
-
-	// Create other commands from adapter templates
+	// /council lists the members and packs; the others come from templates.
+	commands := map[string]string{"council": generateCouncilCommand(a, experts, packs)}
 	for name, tmpl := range templates.Commands {
-		content := a.FormatCommand(name, commandDescription(name), tmpl)
-		if content == "" {
+		commands[name] = a.FormatCommand(name, commandDescription(name), tmpl)
+	}
+	for _, name := range adapter.CommandNames {
+		content, ok := commands[name]
+		if !ok || content == "" {
 			continue
 		}
-		path := filepath.Join(paths.Commands, name+".md")
+		path := a.CommandPath(name)
+		if !opts.DryRun {
+			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				return err
+			}
+		}
 		if err := writeFile(path, content, opts.DryRun); err != nil {
 			return err
 		}
 	}
 
-	// Clean up stale files if requested
-	if opts.Clean {
-		if err := cleanStaleAgents(paths.Agents, experts, templates.Commands, opts.DryRun); err != nil {
+	if opts.Clean && paths.Agents != "." {
+		if err := cleanStaleAgents(paths.Agents, experts, opts.DryRun); err != nil {
 			return err
 		}
 	}
@@ -223,14 +216,15 @@ func generateCouncilCommand(a adapter.Adapter, experts []*expert.Expert, packs [
 	body := buf.String()
 
 	// Format according to adapter's command format
-	return a.FormatCommand("council", "Convene the council to review code, a plan, or a decision", body)
+	return a.FormatCommand("council", commandDescription("council"), body)
 }
 
 func commandDescription(name string) string {
 	descriptions := map[string]string{
-		"council-assemble": "Assemble the council: your AI proposes members, you choose",
-		"council-add":      "Add a member: a person, a role, or a customer",
-		"council-remove":   "Remove expert from council",
+		"council":          "Convene the project's council (AI reviewers modeled on people, roles, and customers) to debate code, changes, a document, a plan, or a decision. Use when the user asks the council, or asks for a council review.",
+		"council-assemble": "Assemble or extend the project's council: propose members (people, roles, customers) with reasons, let the user choose, build and save each persona.",
+		"council-add":      "Add one member to the council: a person, a role, or a customer.",
+		"council-remove":   "Remove a member from the council.",
 	}
 	if desc, ok := descriptions[name]; ok {
 		return desc
@@ -238,24 +232,32 @@ func commandDescription(name string) string {
 	return name
 }
 
+// checkDeprecatedPaths removes old files Council wrote (such as Claude Code
+// commands now replaced by skills). Old folders may hold the user's own
+// files, so they go only with --clean.
 func checkDeprecatedPaths(a adapter.Adapter, opts Options) {
-	paths := a.Paths()
-	for _, deprecated := range paths.Deprecated {
-		if _, err := os.Stat(deprecated); err == nil {
-			if opts.Clean {
-				// Remove deprecated path
-				if !opts.DryRun {
-					if err := os.RemoveAll(deprecated); err != nil {
-						fmt.Printf("  Warning: could not remove deprecated %s: %v\n", deprecated, err)
-					} else {
-						fmt.Printf("  Removed deprecated: %s\n", deprecated)
-					}
-				} else {
-					fmt.Printf("  Would remove deprecated: %s\n", deprecated)
-				}
+	for _, deprecated := range a.Paths().Deprecated {
+		info, err := os.Stat(deprecated)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			if err := removeFile(deprecated, opts.DryRun); err != nil {
+				fmt.Printf("  Warning: could not remove %s: %v\n", deprecated, err)
+			}
+			continue
+		}
+		switch {
+		case !opts.Clean:
+			fmt.Printf("  Warning: deprecated path exists: %s\n", deprecated)
+			fmt.Printf("    Run 'council sync --clean' to remove\n")
+		case opts.DryRun:
+			fmt.Printf("  Would remove deprecated: %s\n", deprecated)
+		default:
+			if err := os.RemoveAll(deprecated); err != nil {
+				fmt.Printf("  Warning: could not remove deprecated %s: %v\n", deprecated, err)
 			} else {
-				fmt.Printf("  Warning: deprecated path exists: %s\n", deprecated)
-				fmt.Printf("    Run 'council sync --clean' to remove\n")
+				fmt.Printf("  Removed deprecated: %s\n", deprecated)
 			}
 		}
 	}
@@ -290,7 +292,7 @@ func removeFile(path string, dryRun bool) error {
 	return nil
 }
 
-func cleanStaleAgents(agentsDir string, experts []*expert.Expert, commandFiles map[string]string, dryRun bool) error {
+func cleanStaleAgents(agentsDir string, experts []*expert.Expert, dryRun bool) error {
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -305,20 +307,9 @@ func cleanStaleAgents(agentsDir string, experts []*expert.Expert, commandFiles m
 		currentFiles[adapter.AgentFilename(e)] = true
 	}
 
-	// Build set of command file names to exclude
-	commandSet := make(map[string]bool)
-	for name := range commandFiles {
-		commandSet[name+".md"] = true
-	}
-	commandSet["council.md"] = true // Always exclude council command
-
 	// Remove files for experts that no longer exist
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		// Skip command files
-		if commandSet[entry.Name()] {
 			continue
 		}
 		// Skip current expert files

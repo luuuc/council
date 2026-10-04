@@ -30,9 +30,9 @@ Without arguments, syncs to all configured targets.
 With a target name, syncs only to that target.
 
 Supported targets:
-  claude     .claude/agents/ and .claude/commands/
-  opencode   .opencode/agent/
-  generic    AGENTS.md`,
+  claude     .claude/agents/ and .claude/skills/
+  opencode   .opencode/agents/ and .opencode/commands/
+  generic    AGENTS.md and .agents/skills/ (Codex and other tools)`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.Exists() {

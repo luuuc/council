@@ -20,7 +20,7 @@ func (g *Generic) Name() string {
 }
 
 func (g *Generic) DisplayName() string {
-	return "Generic (AGENTS.md)"
+	return "Generic (AGENTS.md and .agents/skills)"
 }
 
 // Detect always returns true - generic is the fallback.
@@ -32,15 +32,18 @@ func (g *Generic) Detect() bool {
 
 func (g *Generic) Paths() Paths {
 	return Paths{
-		Agents:     ".", // AGENTS.md in project root
-		Commands:   ".", // No separate commands
-		Deprecated: []string{},
+		Agents: ".", // AGENTS.md in project root
 	}
 }
 
 func (g *Generic) Templates() Templates {
+	// The OpenCode wording: plain numbered lists, no tool-specific UI.
 	return Templates{
-		Commands: map[string]string{}, // No commands for generic
+		Commands: map[string]string{
+			"council-assemble": opencodeCouncilAssembleTemplate,
+			"council-add":      opencodeCouncilAddTemplate,
+			"council-remove":   opencodeCouncilRemoveTemplate,
+		},
 	}
 }
 
@@ -70,9 +73,16 @@ func (g *Generic) FormatAgent(e *expert.Expert) string {
 	return strings.Join(parts, "\n")
 }
 
-// FormatCommand returns empty for generic - no commands supported.
+// FormatCommand creates an Agent Skills SKILL.md, read by Codex and many
+// other tools. Skills there take no arguments, so $ARGUMENTS becomes the
+// user's request.
 func (g *Generic) FormatCommand(name, description, body string) string {
-	return ""
+	return skillFrontmatter(name, description) + strings.ReplaceAll(body, "$ARGUMENTS", "the user's request")
+}
+
+// CommandPath returns the skill's path: .agents/skills/<name>/SKILL.md.
+func (g *Generic) CommandPath(name string) string {
+	return skillPath(".agents/skills", name)
 }
 
 // GenerateAgentsMd creates the complete AGENTS.md file content.
@@ -96,17 +106,8 @@ func (g *Generic) GenerateAgentsMd(experts []*expert.Expert) string {
 	return strings.Join(parts, "\n")
 }
 
-// agentsConvene tells AI tools that read AGENTS.md (Codex and others) how
-// to convene the council: the same steps as /council.
+// agentsConvene points AI tools that read AGENTS.md to the council skills.
 const agentsConvene = `## Convening the council
 
-When asked to convene the council (or a pack of it) on code, changes, a document, a plan, or a decision:
-
-1. Get the room prompt. For a question, plan, or decision, first write a short brief to a file: the question, the relevant context, and the options.
-   - Changes: ` + "`git diff HEAD | council review [--pack <name>]`" + `
-   - A file or a brief: ` + "`council review --file <path> [--pack <name>]`" + `
-   - Several councils: ` + "`--councils product,security`" + ` instead of ` + "`--pack`" + `
-2. Answer it yourself, in one pass: play each member in turn and write the whole debate as the one JSON object the prompt asks for. Save it to a file.
-3. Record it with the same ` + "`--pack`" + ` or ` + "`--councils`" + `: ` + "`council review [--pack <name>] --record <file>`" + `. If Council says the answer needs fixing, fix it and record again.
-4. Show the user what ` + "`--record`" + ` printed. Keep the disagreements visible; the user makes the call, not the council and not you.
+To convene the council on code, changes, a document, a plan, or a decision, follow the ` + "`council`" + ` skill in ` + "`.agents/skills/council/SKILL.md`" + ` (in Codex: ` + "`$council <topic>`" + `). To assemble or extend the council, follow ` + "`.agents/skills/council-assemble/SKILL.md`" + `.
 `

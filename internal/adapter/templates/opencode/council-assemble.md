@@ -1,6 +1,6 @@
 # Assemble the Council
 
-Assemble or extend this project's council. $ARGUMENTS
+Assemble or extend this project's council: $ARGUMENTS
 
 Run:
 

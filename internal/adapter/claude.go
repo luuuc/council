@@ -38,9 +38,14 @@ func (c *Claude) Detect() bool {
 
 func (c *Claude) Paths() Paths {
 	return Paths{
-		Agents:     ".claude/agents",
-		Commands:   ".claude/commands",
-		Deprecated: []string{},
+		Agents: ".claude/agents",
+		// Commands from before Claude Code merged them into skills.
+		Deprecated: []string{
+			".claude/commands/council.md",
+			".claude/commands/council-assemble.md",
+			".claude/commands/council-add.md",
+			".claude/commands/council-remove.md",
+		},
 	}
 }
 
@@ -66,10 +71,14 @@ func (c *Claude) FormatAgent(e *expert.Expert) string {
 	return string(data)
 }
 
-// FormatCommand creates Claude Code command file content.
-// Claude Code commands are plain markdown (no frontmatter needed).
+// FormatCommand creates a Claude Code skill (SKILL.md).
 func (c *Claude) FormatCommand(name, description, body string) string {
-	return body
+	return skillFrontmatter(name, description) + body
+}
+
+// CommandPath returns the skill's path: .claude/skills/<name>/SKILL.md.
+func (c *Claude) CommandPath(name string) string {
+	return skillPath(".claude/skills", name)
 }
 
 // CouncilCommandTemplate is exported for use by sync when generating the dynamic /council command.

@@ -66,7 +66,7 @@ Claude reads the project, proposes members with reasons (people with documented 
 
 ## Codex and other AI tools
 
-`council init` writes `AGENTS.md` when it finds no Claude Code or OpenCode setup (or with `--tool generic`). Besides the members, it holds a "Convening the council" section: any AI tool that reads `AGENTS.md` and can run a shell follows the same steps as `/council`.
+`council init` uses the generic target when it finds no Claude Code or OpenCode setup (or with `--tool generic`; add it to another project with `council sync generic`). It writes the council skills to `.agents/skills/` (the Agent Skills standard, read by Codex and many other tools) and lists the members in `AGENTS.md`. In Codex, type `$council <topic>` or `$council-assemble`; tools without skills can follow `.agents/skills/council/SKILL.md` from the pointer in `AGENTS.md`.
 
 ## Model APIs and local models
 

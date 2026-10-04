@@ -24,7 +24,7 @@ If that fails, try `go install github.com/luuuc/council/cmd/council@latest`.
 council list
 ```
 
-- **No council yet** ("council not initialized"): run `council init`. It creates `.council/`, detects the AI tool (Claude Code, OpenCode, or `AGENTS.md` for others such as Codex), and installs the `/council` commands. The council starts with one member, the author's persona (Virtual Luc Perussault-Diallo), as an example; the user can remove it with `council remove luc-perussault-diallo`.
+- **No council yet** ("council not initialized"): run `council init`. It creates `.council/`, detects the AI tool, and installs the council skills: `.claude/skills/` for Claude Code, `.opencode/commands/` for OpenCode, or `.agents/skills/` plus `AGENTS.md` for others such as Codex (`council init --tool generic`). The council starts with one member, the author's persona (Virtual Luc Perussault-Diallo), as an example; the user can remove it with `council remove luc-perussault-diallo`.
 - **Members already exist**: show them and ask: **Add more** (go to step 3), **Start fresh** (`council init --clean`, then step 3), or **All set** (go to step 4).
 - **`council list` fails although `.council/` exists**: ask: **Start fresh** (`council init --clean`) or **Cancel**.
 - **`council list` names pack members who aren't on the council** (packs from an older version): mention them; step 3 can add them back, or `council packs remove <pack> <id>` drops them.
@@ -41,7 +41,7 @@ Follow the brief it prints, step by step. In short: read the project, propose me
 
 Tell the user the council is ready and list its members. Then offer: **Try it now** or **I'm all set**.
 
-If **Try it now**: ask what the council should review (a file, the current changes, a plan, or a decision), then convene it: in Claude Code or OpenCode run `/council <that>`; elsewhere follow "Convening the council" in `AGENTS.md`.
+If **Try it now**: ask what the council should review (a file, the current changes, a plan, or a decision), then convene it: in Claude Code or OpenCode run `/council <that>`; in Codex `$council <that>`; elsewhere follow `.agents/skills/council/SKILL.md`.
 
 Remind them:
 - `/council <topic>`: convene the council on code, a document, a plan, or a decision. It ends with where members disagree and what you need to decide.
