@@ -95,6 +95,10 @@ func runReview(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	councils, notes := review.SeatCouncils(councils)
+	for _, n := range notes {
+		fmt.Fprintf(os.Stderr, "Note: %s\n", n)
+	}
 
 	if reviewRecord != "" {
 		answer, err := readInput(reviewRecord)

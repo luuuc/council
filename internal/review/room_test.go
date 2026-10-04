@@ -2,6 +2,7 @@ package review
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -188,6 +189,75 @@ func TestParseRoomProblems(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), "answer again") {
 				t.Errorf("err should tell the AI to answer again: %v", err)
+			}
+		})
+	}
+}
+
+func TestSeatCouncils(t *testing.T) {
+	product := roomCouncil("product", "ada", "ben", "cust1", "cust2")
+	customers := roomCouncil("customers", "cust1", "cust2")
+	risk := roomCouncil("risk", "cleo")
+
+	tests := []struct {
+		name      string
+		councils  []Council
+		want      map[string][]string // council name -> member ids
+		wantNotes []string
+	}{
+		{
+			name:     "shared members speak in the smaller council",
+			councils: []Council{product, customers},
+			want:     map[string][]string{"product": {"ada", "ben"}, "customers": {"cust1", "cust2"}},
+			wantNotes: []string{
+				"Virtual Cust1 sits in several of these councils and speaks only in the customers council",
+				"Virtual Cust2 sits in several",
+			},
+		},
+		{
+			name:      "order doesn't matter",
+			councils:  []Council{customers, product},
+			want:      map[string][]string{"product": {"ada", "ben"}, "customers": {"cust1", "cust2"}},
+			wantNotes: []string{"speaks only in the customers council"},
+		},
+		{
+			name:      "ties go to the first listed; an emptied council is dropped",
+			councils:  []Council{roomCouncil("a", "ada", "ben"), roomCouncil("b", "ada", "ben")},
+			want:      map[string][]string{"a": {"ada", "ben"}},
+			wantNotes: []string{"the b council has no one left to speak"},
+		},
+		{
+			name:      "a council of one gets a warning",
+			councils:  []Council{risk},
+			want:      map[string][]string{"risk": {"cleo"}},
+			wantNotes: []string{"the risk council has one member (Virtual Cleo)"},
+		},
+		{
+			name:     "no overlap, no notes",
+			councils: []Council{roomCouncil("a", "ada", "ben"), roomCouncil("b", "cleo", "dan")},
+			want:     map[string][]string{"a": {"ada", "ben"}, "b": {"cleo", "dan"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, notes := SeatCouncils(tt.councils)
+			got := map[string][]string{}
+			for _, c := range out {
+				for _, in := range c.Inputs {
+					got[c.Name] = append(got[c.Name], in.Expert.ID)
+				}
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tt.want) {
+				t.Errorf("seated = %v, want %v", got, tt.want)
+			}
+			joined := strings.Join(notes, "\n")
+			for _, n := range tt.wantNotes {
+				if !strings.Contains(joined, n) {
+					t.Errorf("notes = %q, want one containing %q", notes, n)
+				}
+			}
+			if len(tt.wantNotes) == 0 && len(notes) > 0 {
+				t.Errorf("unexpected notes: %q", notes)
 			}
 		})
 	}

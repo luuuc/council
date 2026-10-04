@@ -115,4 +115,3 @@ func TestAssembleBrief(t *testing.T) {
 		}
 	}
 }
-

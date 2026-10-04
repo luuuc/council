@@ -36,6 +36,9 @@ can sit in several.
 - With two or more customer types, also propose a `customers` council with
   all of them: they disagree among themselves, and reviewing with
   `--councils product,customers` sets the users' view against the experts'.
+  In a review with several councils, a member who sits in more than one
+  speaks only in the smallest, so the customers then speak as their own
+  council.
 - With one customer, skip the customers council: a council of one has no
   debate.
 

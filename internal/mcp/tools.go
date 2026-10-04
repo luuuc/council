@@ -24,8 +24,16 @@ func (s *Server) handleRoom(args map[string]any) toolCallResult {
 	}
 	background, _ := args["context"].(string)
 
+	councils, seatNotes := review.SeatCouncils(councils)
+	var notes string
+	for _, n := range seatNotes {
+		notes += "Note for the user: " + n + "\n"
+	}
+	if notes != "" {
+		notes += "\n"
+	}
 	prompt := review.BuildRoomPrompt(councils, review.Submission{Content: content, Context: background})
-	return textResult(prompt + "\n\n----- after you answer -----\n\n" +
+	return textResult(notes + prompt + "\n\n----- after you answer -----\n\n" +
 		"Call council_record with " + sameCouncils(args) + " and answer set to the JSON object. " +
 		"Council checks it and returns the review to show the user.")
 }
@@ -41,6 +49,7 @@ func (s *Server) handleRecord(args map[string]any) toolCallResult {
 	if err != nil {
 		return errorResult(err.Error())
 	}
+	councils, _ = review.SeatCouncils(councils)
 	result, err := review.ParseRoom(answer, councils)
 	if err != nil {
 		return errorResult(err.Error() + "\n\nCall council_record again with " + sameCouncils(args) + " and the fixed answer.")

@@ -351,4 +351,3 @@ func SyncTarget(targetName string, cfg *config.Config, opts Options) error {
 	checkDeprecatedPaths(a, opts)
 	return nil
 }
-
